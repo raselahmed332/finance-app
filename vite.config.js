@@ -7,5 +7,5 @@ import react from "@vitejs/plugin-react";
 // (a repo literally named "username.github.io"), set base back to "/".
 export default defineConfig({
   plugins: [react()],
-  base: "/amar-hisab/",
+  base: "/finance-app/",
 });
