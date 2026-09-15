@@ -2,20 +2,23 @@ import { useState } from "react";
 import { api } from "../api.js";
 
 export default function LoginScreen({ onLogin }) {
-  const [username, setUsername] = useState('admin');
-  const [pin, setPin] = useState('1234');
+  const [username, setUsername] = useState('');
+  const [pin, setPin] = useState('');
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const handleLoginSubmit = (e) => {
     e.preventDefault();
+    if (submitting) return;
     setError('');
+    setSubmitting(true);
     api.login(username, pin).then((res) => {
       if (res.status === 'SUCCESS') {
-        onLogin(res.user);
+        onLogin(res.user, res.token);
       } else {
         setError(res.message);
       }
-    }).catch((err) => setError(String(err)));
+    }).catch((err) => setError(String(err))).finally(() => setSubmitting(false));
   };
 
   return (
@@ -55,14 +58,12 @@ export default function LoginScreen({ onLogin }) {
           </div>
           <button
             type="submit"
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-xl shadow-md text-sm transition-all"
+            disabled={submitting}
+            className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl shadow-md text-sm transition-all"
           >
-            লগইন করুন (Login)
+            {submitting ? 'লগইন হচ্ছে...' : 'লগইন করুন (Login)'}
           </button>
         </form>
-        <div className="mt-4 text-center text-xs text-gray-400">
-          ডিফল্ট লগইন: admin / 1234
-        </div>
       </div>
     </div>
   );

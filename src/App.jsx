@@ -1,247 +1,272 @@
-import { useState, useEffect } from "react";
-import { api } from "./api.js";
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from "react";
+import { api, session } from "./api.js";
 
-import LoginScreen from "./pages/LoginScreen.jsx";
-import DashboardView from "./pages/DashboardView.jsx";
-import TransactionsView from "./pages/TransactionsView.jsx";
-import ReportsView from "./pages/ReportsView.jsx";
-import UserManagementView from "./pages/UserManagementView.jsx";
-import SettingsView from "./pages/SettingsView.jsx";
-import UserProfileView from "./pages/UserProfileView.jsx";
+const LoginScreen = lazy(() => import("./pages/LoginScreen.jsx"));
+const DashboardView = lazy(() => import("./pages/DashboardView.jsx"));
+const TransactionsView = lazy(() => import("./pages/TransactionsView.jsx"));
+const ReportsView = lazy(() => import("./pages/ReportsView.jsx"));
+const UserManagementView = lazy(() => import("./pages/UserManagementView.jsx"));
+const WalletManagementView = lazy(() => import("./pages/WalletManagementView.jsx"));
+const AuditLogView = lazy(() => import("./pages/AuditLogView.jsx"));
+const SettingsView = lazy(() => import("./pages/SettingsView.jsx"));
+const UserProfileView = lazy(() => import("./pages/UserProfileView.jsx"));
 
-import BankOperationForm from "./components/BankOperationForm.jsx";
-import IncomeForm from "./components/IncomeForm.jsx";
-import ExpenseForm from "./components/ExpenseForm.jsx";
-import TransferForm from "./components/TransferForm.jsx";
-import EditTransactionForm from "./components/EditTransactionForm.jsx";
+const BankOperationForm = lazy(() => import("./components/BankOperationForm.jsx"));
+const IncomeForm = lazy(() => import("./components/IncomeForm.jsx"));
+const ExpenseForm = lazy(() => import("./components/ExpenseForm.jsx"));
+const TransferForm = lazy(() => import("./components/TransferForm.jsx"));
+const EditTransactionForm = lazy(() => import("./components/EditTransactionForm.jsx"));
+const EditTransferForm = lazy(() => import("./components/EditTransferForm.jsx"));
+
+function PageFallback() {
+  return (
+    <div className="flex items-center justify-center py-20">
+      <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  );
+}
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState(
-    JSON.parse(localStorage.getItem("hisab_user")) || null,
-  );
-  const [activeTab, setActiveTab] = useState("home");
+  const [currentUser, setCurrentUser] = useState(() => {
+    const saved = localStorage.getItem("hisab_user");
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem("hisab_dark");
+    if (saved !== null) return saved === "true";
+    return window.matchMedia("(prefers-color-scheme: dark)").matches;
+  });
+  const [activeTab, setActiveTab] = useState('home');
   const [transactions, setTransactions] = useState([]);
   const [usersList, setUsersList] = useState([]);
+  const [wallets, setWallets] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [alertMsg, setAlertMsg] = useState(null);
-
-  // Search & Filter state
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterType, setFilterType] = useState("All");
-  const [filterCurrency, setFilterCurrency] = useState("All");
-  const [filterDate, setFilterDate] = useState("");
-  const [filterDescription, setFilterDescription] = useState("");
-  const [filterUser, setFilterUser] = useState("All");
-  const isAdmin = currentUser && currentUser.role === "Admin";
+  const [pullRefreshing, setPullRefreshing] = useState(false);
 
   useEffect(() => {
-    if (currentUser) {
-      loadData();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser]);
+    document.documentElement.classList.toggle("dark", darkMode);
+    localStorage.setItem("hisab_dark", darkMode);
+  }, [darkMode]);
 
-  const showAlert = (msg, type = "success") => {
+  // Search & Filter state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState('All');
+  const [filterWallet, setFilterWallet] = useState('All');
+  const [filterDate, setFilterDate] = useState('');
+  const [filterDescription, setFilterDescription] = useState('');
+  const [filterUser, setFilterUser] = useState('All');
+  const [filterAccount, setFilterAccount] = useState('All');
+
+  const can = useCallback((perm) => !!currentUser?.permissions?.includes(perm), [currentUser?.permissions]);
+
+  const showAlert = useCallback((msg, type = 'success') => {
     setAlertMsg({ msg, type });
     setTimeout(() => setAlertMsg(null), 3000);
-  };
+  }, []);
 
-  const loadData = () => {
+  const loadData = useCallback(() => {
     setLoading(true);
-    api
-      .getInitialData(currentUser.username)
-      .then((res) => {
-        setTransactions(res.transactions || []);
-        setUsersList(res.users || []);
+    api.getInitialData(currentUser.username).then((res) => {
+      if (res.status === 'ERROR') {
+        showAlert(res.message, 'error');
+        if (/session|login/i.test(res.message || '')) {
+          setCurrentUser(null);
+          session.clear();
+          localStorage.removeItem("hisab_user");
+        }
         setLoading(false);
-      })
-      .catch((err) => {
-        showAlert("ডেটা লোড করতে ব্যর্থ হয়েছে: " + err, "error");
-        setLoading(false);
-      });
-  };
+        return;
+      }
+      const data = {
+        transactions: res.transactions || [],
+        users: res.users || [],
+        wallets: res.wallets || [],
+        categories: res.categories || [],
+      };
+      setTransactions(data.transactions);
+      setUsersList(data.users);
+      setWallets(data.wallets);
+      setCategories(data.categories);
+      // Keep permissions in sync in case Admin changed them elsewhere.
+      if (res.permissions) {
+        const updated = { ...currentUser, permissions: res.permissions };
+        setCurrentUser(updated);
+        localStorage.setItem("hisab_user", JSON.stringify(updated));
+      }
+      setLoading(false);
+    }).catch((err) => {
+      showAlert('ডেটা লোড করতে ব্যর্থ হয়েছে: ' + err, 'error');
+      setLoading(false);
+    });
+  }, [currentUser?.username, showAlert]);
 
-  // Fully Dynamic Summary Calculation
-  const calcSummary = (curr, ledger, username) => {
-    const currTxns = transactions.filter(
-      (t) =>
-        t.Currency === curr &&
-        (!ledger || t.Ledger === ledger) &&
-        (!username || t.User === username),
-    );
-    let income = 0,
-      expense = 0;
-    let cash = 0,
-      bank = 0;
+  // Load data on mount or when user changes
+  useEffect(() => {
+    if (!currentUser) return;
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.username]);
 
-    currTxns.forEach((t) => {
+  // Per-wallet summary, computed from already-authorized transactions.
+  // Single pass over all transactions rather than re-filtering the whole
+  // array once per wallet — matters once there are more than a couple wallets.
+  const walletSummaries = useMemo(() => {
+    const summaries = Object.fromEntries(wallets.map((w) => [w.WalletID, {
+      totalBalance: (parseFloat(w.OpeningCash) || 0) + (parseFloat(w.OpeningBank) || 0),
+      cash: parseFloat(w.OpeningCash) || 0,
+      bank: parseFloat(w.OpeningBank) || 0,
+      income: 0, expense: 0,
+    }]));
+    transactions.forEach((t) => {
+      const summary = summaries[t.WalletID];
+      if (!summary) return;
       const amt = parseFloat(t.Amount) || 0;
-      if (t.Type === "Income" || t.Type === "Transfer In") {
-        if (t.Type === "Income") income += amt;
-        if (t.Account === "Cash") cash += amt;
-        if (t.Account === "Bank") bank += amt;
-      } else if (t.Type === "Expense" || t.Type === "Transfer Out") {
-        if (t.Type === "Expense") expense += amt;
-        if (t.Account === "Cash") cash -= amt;
-        if (t.Account === "Bank") bank -= amt;
+      if (t.Type === 'Income' || t.Type === 'Transfer In') {
+        if (t.Type === 'Income') summary.income += amt;
+        if (t.Account === 'Cash') summary.cash += amt;
+        if (t.Account === 'Bank') summary.bank += amt;
+      } else if (t.Type === 'Expense' || t.Type === 'Transfer Out') {
+        if (t.Type === 'Expense') summary.expense += amt;
+        if (t.Account === 'Cash') summary.cash -= amt;
+        if (t.Account === 'Bank') summary.bank -= amt;
       }
     });
+    Object.values(summaries).forEach((summary) => { summary.totalBalance = summary.cash + summary.bank; });
+    return summaries;
+  }, [wallets, transactions]);
 
-    const totalBalance = cash + bank;
-    return { totalBalance, cash, bank, income, expense };
+  // Merge one or two returned transaction rows into local state directly —
+  // replacing a matching ID if it already exists, appending if it's new —
+  // instead of re-fetching the entire dataset after every mutation.
+  const upsertTxns = (prev, newTxns) => {
+    const byId = new Map(prev.map(t => [t.ID, t]));
+    newTxns.forEach(t => byId.set(t.ID, t));
+    return Array.from(byId.values());
   };
 
-  const sarSummary = calcSummary("SAR", "SAR_Transactions");
-  const bdtSummary = calcSummary("BDT", "BDT_Family_Transactions");
-  const personalBdtSummary = calcSummary(
-    "BDT",
-    "BDT_Personal_Transactions",
-    currentUser && currentUser.username,
-  );
-
-  // Add New Transaction
-  const handleSaveTransaction = (formData, resetForm) => {
+  const handleSaveTransaction = (formData) => {
     setLoading(true);
-    api
-      .addTransaction({ ...formData, user: currentUser.username })
-      .then((res) => {
-        showAlert(res.message);
-        loadData();
-        if (resetForm) resetForm();
-        setActiveTab("home");
-      })
-      .catch((err) => {
-        showAlert("ত্রুটি: " + err, "error");
-        setLoading(false);
-      });
+    return api.addTransaction({ ...formData, user: currentUser.username }).then((res) => {
+      showAlert(res.message, res.status === 'ERROR' ? 'error' : 'success');
+      if (res.status === 'SUCCESS') {
+        const newTxns = res.transactions || (res.transaction ? [res.transaction] : []);
+        if (newTxns.length) setTransactions(prev => upsertTxns(prev, newTxns));
+        setActiveTab('home');
+      }
+      setLoading(false);
+      return res;
+    }).catch((err) => { showAlert('ত্রুটি: ' + err, 'error'); setLoading(false); throw err; });
   };
 
-  // Delete Handler
-  const handleDeleteTxn = (id) => {
-    if (!confirm("আপনি কি এই লেনদেনটি মুছে ফেলতে চান?")) return;
+  const handleDeleteTxn = (id, walletId) => {
+    if (!confirm('আপনি কি এই লেনদেনটি মুছে ফেলতে চান?')) return;
     setLoading(true);
-    api
-      .deleteTransaction(id, currentUser.username)
-      .then((res) => {
-        showAlert(res.message);
-        loadData();
-      })
-      .catch((err) => {
-        showAlert("ত্রুটি: " + err, "error");
-        setLoading(false);
-      });
+    api.deleteTransaction(id, walletId, currentUser.username).then((res) => {
+      showAlert(res.message, res.status === 'ERROR' ? 'error' : 'success');
+      if (res.status === 'SUCCESS') {
+        const removedIds = res.deletedIds || [id];
+        setTransactions(prev => prev.filter(t => !removedIds.includes(t.ID)));
+      }
+      setLoading(false);
+    }).catch((err) => { showAlert('ত্রুটি: ' + err, 'error'); setLoading(false); });
   };
 
   const handleUpdateTransaction = (data) => {
     setLoading(true);
-    const done = (res) => {
-      showAlert(res.message, res.status === "ERROR" ? "error" : "success");
-      if (res.status === "SUCCESS") {
-        loadData();
-        setActiveTab("transactions");
-      } else setLoading(false);
-    };
-    api
-      .updateTransaction(data, currentUser.username)
-      .then(done)
-      .catch((err) => {
-        showAlert("ত্রুটি: " + err, "error");
-        setLoading(false);
-      });
+    return api.updateTransaction(data, currentUser.username).then((res) => {
+      showAlert(res.message, res.status === 'ERROR' ? 'error' : 'success');
+      if (res.status === 'SUCCESS') {
+        const updated = res.transactions || (res.transaction ? [res.transaction] : []);
+        if (updated.length) setTransactions(prev => upsertTxns(prev, updated));
+        setActiveTab('transactions');
+      }
+      setLoading(false);
+      return res;
+    }).catch((err) => { showAlert('ত্রুটি: ' + err, 'error'); setLoading(false); throw err; });
   };
 
   const handleUserAction = (action, username, value) => {
     setLoading(true);
-    const done = (res) => {
-      showAlert(res.message, res.status === "ERROR" ? "error" : "success");
-      if (res.status === "SUCCESS") loadData();
-      else setLoading(false);
-    };
-    const onErr = (err) => {
-      showAlert("ত্রুটি: " + err, "error");
-      setLoading(false);
-    };
-    if (action === "delete")
-      api.deleteUser(username, currentUser.username).then(done).catch(onErr);
-    else
-      api
-        .setUserStatus(username, value, currentUser.username)
-        .then(done)
-        .catch(onErr);
+    const done = (res) => { showAlert(res.message, res.status === 'ERROR' ? 'error' : 'success'); if (res.status === 'SUCCESS') loadData(); else setLoading(false); };
+    const onErr = (err) => { showAlert('ত্রুটি: ' + err, 'error'); setLoading(false); };
+    if (action === 'delete') api.deleteUser(username, currentUser.username).then(done).catch(onErr);
+    else api.setUserStatus(username, value, currentUser.username).then(done).catch(onErr);
   };
 
   const handleImportBackup = (backup) => {
     setLoading(true);
-    api
-      .importBackup(backup, currentUser.username)
-      .then((res) => {
-        showAlert(res.message, res.status === "ERROR" ? "error" : "success");
-        if (res.status === "SUCCESS") loadData();
-        else setLoading(false);
-      })
-      .catch((err) => {
-        showAlert("ত্রুটি: " + err, "error");
-        setLoading(false);
-      });
+    api.importBackup(backup, currentUser.username).then((res) => {
+      showAlert(res.message, res.status === 'ERROR' ? 'error' : 'success');
+      // Backup restore rewrites transaction data across multiple wallets at
+      // once, so a full reload here is the reliable option, unlike the
+      // single-transaction mutations above.
+      if (res.status === 'SUCCESS') loadData(); else setLoading(false);
+    }).catch((err) => { showAlert('ত্রুটি: ' + err, 'error'); setLoading(false); });
   };
 
   const handleProfileUpdate = (data) => {
     setLoading(true);
-    const done = (res) => {
-      showAlert(res.message, res.status === "ERROR" ? "error" : "success");
-      if (res.status === "SUCCESS") {
-        const updatedUser = { ...currentUser, username: res.username };
+    api.updateUserProfile({ ...data, username: currentUser.username }).then((res) => {
+      showAlert(res.message, res.status === 'ERROR' ? 'error' : 'success');
+      if (res.status === 'SUCCESS') {
+        const { currentPin, pin, ...safeData } = data;
+        const updatedUser = { ...currentUser, ...safeData, username: res.username || currentUser.username };
         setCurrentUser(updatedUser);
         localStorage.setItem("hisab_user", JSON.stringify(updatedUser));
-        loadData();
-      } else setLoading(false);
-    };
-    api
-      .updateUserProfile(currentUser.username, data.username, data.pin)
-      .then(done)
-      .catch((err) => {
-        showAlert("ত্রুটি: " + err, "error");
-        setLoading(false);
-      });
+      }
+      setLoading(false);
+    }).catch((err) => { showAlert('ত্রুটি: ' + err, 'error'); setLoading(false); });
   };
 
+  // Pull-to-refresh
+  const pullTouchStart = useCallback((e) => {
+    if (window.scrollY === 0) e.currentTarget.dataset.startY = e.touches[0].clientY;
+  }, []);
+
+  const pullTouchMove = useCallback((e) => {
+    const startY = parseFloat(e.currentTarget.dataset.startY);
+    if (!startY) return;
+    const diff = e.touches[0].clientY - startY;
+    if (diff > 80 && !loading && !pullRefreshing) {
+      setPullRefreshing(true);
+      loadData();
+      e.currentTarget.dataset.startY = '';
+    }
+  }, [loading, pullRefreshing, loadData]);
+
+  const pullTouchEnd = useCallback(() => {
+    setTimeout(() => setPullRefreshing(false), 1000);
+  }, []);
+
+
   if (!currentUser) {
-    return (
-      <LoginScreen
-        onLogin={(user) => {
-          setCurrentUser(user);
-          localStorage.setItem("hisab_user", JSON.stringify(user));
-        }}
-      />
-    );
+    return <LoginScreen onLogin={(user, token) => { session.save(token); localStorage.setItem("hisab_user", JSON.stringify(user)); setCurrentUser(user); }} />;
   }
+
   return (
-    <div className="mobile-container flex flex-col min-h-screen bg-slate-50 border-x border-gray-200">
+    <div className="mobile-container flex flex-col min-h-screen bg-gray-50 dark:bg-gray-950 border-x border-gray-200 dark:border-gray-800 transition-colors">
+
       {/* Header */}
-      <header className="bg-slate-900 text-white px-4 py-3 flex items-center justify-between sticky top-0 z-30 shadow-md">
+      <header className="bg-gray-900 dark:bg-gray-950 text-white px-4 py-3 flex items-center justify-between sticky top-0 z-30 shadow-md">
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setActiveTab("home")}
-            className="text-xl text-emerald-400 font-bold flex items-center"
-          >
+          <button onClick={() => setActiveTab('home')} className="text-xl text-emerald-400 font-bold flex items-center">
             <i className="fa-solid me-1.5 fa-wallet"></i> মাই হিসাব
           </button>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setActiveTab("profile")}
-            className="hover:text-emerald-400
-            text-xs bg-slate-800 px-2.5 py-1 rounded-full text-emerald-300 border border-slate-700"
-            title="প্রোফাইল"
-          >
-            <i className="fa-solid fa-user me-1"></i> {currentUser.username}
+        <div className="flex items-center gap-2">
+          <button onClick={() => setDarkMode(!darkMode)} className="text-gray-400 hover:text-amber-300 text-sm" title={darkMode ? "Light Mode" : "Dark Mode"}>
+            <i className={`fa-solid ${darkMode ? "fa-sun" : "fa-moon"}`}></i>
           </button>
-
+          <span className="text-xs bg-gray-800 dark:bg-gray-800 px-2.5 py-1 rounded-full text-emerald-300 border border-gray-700 dark:border-gray-700">
+            <i className="fa-solid fa-user me-1"></i> {currentUser.fullName || currentUser.username}
+          </span>
+          <button onClick={() => setActiveTab('profile')} className="text-gray-400 hover:text-emerald-300 text-sm" title="প্রোফাইল">
+            <i className="fa-solid fa-user-gear"></i>
+          </button>
           <button
-            onClick={() => {
-              setCurrentUser(null);
-              localStorage.removeItem("hisab_user");
-            }}
+            onClick={() => { api.logout().catch(() => {}); setCurrentUser(null); session.clear(); localStorage.removeItem("hisab_user"); }}
             className="text-gray-400 hover:text-red-400 text-sm"
             title="লগআউট"
           >
@@ -250,179 +275,156 @@ export default function App() {
         </div>
       </header>
 
-      <div className="bg-slate-800 text-center py-2 px-3 text-white text-xs font-medium border-b border-slate-700 flex justify-between items-center">
+      <div className="bg-gray-800 dark:bg-gray-900 text-center py-2 px-3 text-white text-xs font-medium border-b border-gray-700 dark:border-gray-800 flex justify-between items-center">
         <span>মাই পার্সোনাল হিসাব - ওয়েব অ্যাপ</span>
-        <span className="text-amber-300 font-semibold">
-          SAR & BDT আলাদা হিসাব
-        </span>
+        <span className="text-amber-300 font-semibold">{currentUser.role}</span>
       </div>
 
       {alertMsg && (
-        <div
-          className={`p-3 text-center text-sm font-semibold text-white transition-all ${alertMsg.type === "error" ? "bg-red-500" : "bg-emerald-600"}`}
-        >
+        <div className={`p-3 text-center text-sm font-semibold text-white transition-all ${alertMsg.type === 'error' ? 'bg-red-500' : 'bg-emerald-600'}`}>
           {alertMsg.msg}
         </div>
       )}
 
       {loading && (
-        <div className="w-full bg-emerald-100 h-1 overflow-hidden">
+        <div className="w-full bg-emerald-100 dark:bg-emerald-900 h-1 overflow-hidden">
           <div className="bg-emerald-600 h-full animate-pulse w-full"></div>
         </div>
       )}
 
-      <main className="flex-1 p-3 md:p-6 overflow-y-auto custom-scrollbar">
-        {activeTab === "home" && (
-          <DashboardView
-            sar={sarSummary}
-            personalBdt={personalBdtSummary}
-            bdt={bdtSummary}
-            setActiveTab={setActiveTab}
-            isAdmin={isAdmin}
-          />
+      <main
+        className="flex-1 p-3 md:p-6 overflow-y-auto custom-scrollbar"
+        onTouchStart={pullTouchStart}
+        onTouchMove={pullTouchMove}
+        onTouchEnd={pullTouchEnd}
+      >
+        {pullRefreshing && (
+          <div className="text-center py-2 text-xs text-emerald-600 dark:text-emerald-400">
+            <i className="fa-solid fa-arrows-rotate me-1 animate-spin"></i> রিফ্রেশ হচ্ছে...
+          </div>
+        )}
+        <Suspense fallback={<PageFallback />}>
+        {activeTab === 'home' && can('view_dashboard') && (
+          <DashboardView wallets={wallets} walletSummaries={walletSummaries} setActiveTab={setActiveTab} can={can} />
         )}
 
-        {isAdmin && activeTab === "income" && (
-          <IncomeForm
-            onSave={handleSaveTransaction}
-            onCancel={() => setActiveTab("home")}
-          />
+        {can('add_income') && activeTab === 'income' && (
+          <IncomeForm wallets={wallets} categories={categories} onSave={handleSaveTransaction} onCancel={() => setActiveTab('home')} />
         )}
 
-        {activeTab === "expense" && (
-          <ExpenseForm
-            onSave={handleSaveTransaction}
-            onCancel={() => setActiveTab("home")}
-            restricted={!isAdmin}
-          />
+        {can('add_expense') && activeTab === 'expense' && (
+          <ExpenseForm wallets={wallets} categories={categories} onSave={handleSaveTransaction} onCancel={() => setActiveTab('home')} />
         )}
 
-        {isAdmin && activeTab === "transfer" && (
-          <TransferForm
-            onSave={handleSaveTransaction}
-            onCancel={() => setActiveTab("home")}
-          />
+        {can('add_transfer') && activeTab === 'transfer' && (
+          <TransferForm wallets={wallets} onSave={handleSaveTransaction} onCancel={() => setActiveTab('home')} />
         )}
 
-        {isAdmin && activeTab === "bank" && (
-          <BankOperationForm
-            onSave={handleSaveTransaction}
-            onCancel={() => setActiveTab("home")}
-          />
+        {can('manage_bank') && activeTab === 'bank' && (
+          <BankOperationForm wallets={wallets} onSave={handleSaveTransaction} onCancel={() => setActiveTab('home')} />
         )}
 
-        {activeTab === "transactions" && (
+        {can('view_transactions') && activeTab === 'transactions' && (
           <TransactionsView
             transactions={transactions}
+            wallets={wallets}
             onDelete={handleDeleteTxn}
-            onEdit={(txn) => setActiveTab("edit-" + txn.ID)}
-            canEdit={isAdmin}
-            canDelete={isAdmin}
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
-            filterType={filterType}
-            setFilterType={setFilterType}
-            filterCurrency={filterCurrency}
-            setFilterCurrency={setFilterCurrency}
-            filterDate={filterDate}
-            setFilterDate={setFilterDate}
-            filterDescription={filterDescription}
-            setFilterDescription={setFilterDescription}
-            filterUser={filterUser}
-            setFilterUser={setFilterUser}
-            isAdmin={isAdmin}
-          />
-        )}
-
-        {activeTab.indexOf("edit-") === 0 && (
-          <EditTransactionForm
-            transaction={transactions.find(
-              (t) => String(t.ID) === activeTab.slice(5),
-            )}
-            onSave={handleUpdateTransaction}
-            onCancel={() => setActiveTab("transactions")}
-          />
-        )}
-
-        {isAdmin && activeTab === "reports" && (
-          <ReportsView transactions={transactions} />
-        )}
-
-        {isAdmin && activeTab === "users" && (
-          <UserManagementView
+            onEdit={(txn) => setActiveTab('edit-' + txn.ID)}
+            canEdit={can('edit_transaction')}
+            canDelete={can('delete_transaction')}
+            searchTerm={searchTerm} setSearchTerm={setSearchTerm}
+            filterType={filterType} setFilterType={setFilterType}
+            filterWallet={filterWallet} setFilterWallet={setFilterWallet}
+            filterDate={filterDate} setFilterDate={setFilterDate}
+            filterDescription={filterDescription} setFilterDescription={setFilterDescription}
+            filterUser={filterUser} setFilterUser={setFilterUser}
+            filterAccount={filterAccount} setFilterAccount={setFilterAccount}
+            canViewUsers={can('view_users')}
             users={usersList}
-            onRefresh={loadData}
-            showAlert={showAlert}
-            currentUser={currentUser}
-            onUserAction={handleUserAction}
           />
         )}
 
-        {isAdmin && activeTab === "settings" && (
-          <SettingsView
-            showAlert={showAlert}
-            currentUser={currentUser}
-            onImport={handleImportBackup}
-          />
+        {activeTab.indexOf('edit-') === 0 && can('edit_transaction') && (() => {
+          const editTxn = transactions.find(t => String(t.ID) === activeTab.slice(5));
+          if (!editTxn) return <EditTransactionForm transaction={null} onSave={handleUpdateTransaction} onCancel={() => setActiveTab('transactions')} />;
+          if (editTxn.Type === 'Transfer Out' || editTxn.Type === 'Transfer In') {
+            return <EditTransferForm key={editTxn.ID} transaction={editTxn} currentUser={currentUser} onSave={handleUpdateTransaction} onCancel={() => setActiveTab('transactions')} />;
+          }
+          return <EditTransactionForm key={editTxn.ID} transaction={editTxn} onSave={handleUpdateTransaction} onCancel={() => setActiveTab('transactions')} />;
+        })()}
+
+        {activeTab.indexOf('edit-') === 0 && !can('edit_transaction') && (
+          <div className="text-center py-16 px-4">
+            <i className="fa-solid fa-lock text-3xl text-gray-300 dark:text-gray-600 mb-3"></i>
+            <div className="text-sm font-semibold text-slate-600 dark:text-gray-300">লেনদেন এডিট করার অনুমতি নেই</div>
+            <button onClick={() => setActiveTab('transactions')} className="mt-3 bg-slate-800 dark:bg-gray-800 text-white text-xs font-semibold px-4 py-2 rounded-xl">লেনদেনে ফিরে যান</button>
+          </div>
         )}
 
-        {activeTab === "profile" && (
-          <UserProfileView
-            currentUser={currentUser}
-            transactions={transactions}
-            onSave={handleProfileUpdate}
-            onCancel={() => setActiveTab("home")}
-          />
+        {can('view_reports') && activeTab === 'reports' && (
+          <ReportsView wallets={wallets} currentUser={currentUser} />
         )}
+
+        {can('view_users') && activeTab === 'users' && (
+          <UserManagementView users={usersList} wallets={wallets} onRefresh={loadData} showAlert={showAlert} currentUser={currentUser} onUserAction={handleUserAction} can={can} />
+        )}
+
+        {can('view_wallets') && activeTab === 'wallets' && (
+          <WalletManagementView currentUser={currentUser} can={can} showAlert={showAlert} />
+        )}
+
+        {can('view_audit_log') && activeTab === 'auditlog' && (
+          <AuditLogView currentUser={currentUser} onCancel={() => setActiveTab('home')} />
+        )}
+
+        {can('manage_settings') && activeTab === 'settings' && (
+          <SettingsView showAlert={showAlert} currentUser={currentUser} onImport={handleImportBackup} can={can} />
+        )}
+
+        {activeTab === 'profile' && (
+          <UserProfileView currentUser={currentUser} transactions={transactions} wallets={wallets} onSave={handleProfileUpdate} onCancel={() => setActiveTab('home')} onEditTxn={(txn) => setActiveTab('edit-' + txn.ID)} onDeleteTxn={handleDeleteTxn} />
+        )}
+
+        {activeTab === 'home' && !can('view_dashboard') && (
+          <div className="text-center py-16 px-4">
+            <i className="fa-solid fa-lock text-3xl text-gray-300 dark:text-gray-600 mb-3"></i>
+            <div className="text-sm font-semibold text-slate-600 dark:text-gray-300">ড্যাশবোর্ড দেখার অনুমতি নেই</div>
+            <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">নিচের মেনু থেকে আপনার অনুমোদিত পেজ ব্যবহার করুন।</div>
+          </div>
+        )}
+
+        {!currentUser.permissions?.length && activeTab === 'home' && (
+          <div className="text-center py-16 px-4">
+            <i className="fa-solid fa-lock text-3xl text-gray-300 dark:text-gray-600 mb-3"></i>
+            <div className="text-sm font-semibold text-slate-600 dark:text-gray-300">এখনো কোনো অনুমতি দেওয়া হয়নি</div>
+            <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">আপনার অ্যাকাউন্টে কোনো Permission সেট করা নেই। Admin এর সাথে যোগাযোগ করুন।</div>
+          </div>
+        )}
+        </Suspense>
       </main>
 
       {/* Bottom Nav */}
-      <nav className="fixed bottom-0 left-0 right-0 max-w-[480px] md:max-w-[1000px] mx-auto bg-white border-t border-gray-200 flex justify-around items-center py-2 z-40 shadow-lg">
-        <button
-          onClick={() => setActiveTab("home")}
-          className={`flex flex-col items-center text-xs font-medium ${activeTab === "home" ? "text-emerald-600" : "text-gray-500 hover:text-gray-800"}`}
-        >
+      <nav className="fixed bottom-0 left-0 right-0 max-w-[480px] md:max-w-[1000px] mx-auto bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 flex justify-around items-center py-2 z-40 shadow-lg">
+        <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center text-xs font-medium ${activeTab === 'home' ? 'text-emerald-600' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}>
           <i className="fa-solid fa-house text-lg mb-0.5"></i> Home
         </button>
-        {isAdmin && (
-          <button
-            onClick={() => setActiveTab("income")}
-            className={`flex flex-col items-center text-xs font-medium ${activeTab === "income" ? "text-emerald-600" : "text-gray-500 hover:text-gray-800"}`}
-          >
-            <i className="fa-solid fa-circle-plus text-lg mb-0.5"></i> Income
-          </button>
-        )}
-        <button
-          onClick={() => setActiveTab("expense")}
-          className={`flex flex-col items-center text-xs font-medium ${activeTab === "expense" ? "text-emerald-600" : "text-gray-500 hover:text-gray-800"}`}
-        >
+        {can('add_income') && <button onClick={() => setActiveTab('income')} className={`flex flex-col items-center text-xs font-medium ${activeTab === 'income' ? 'text-emerald-600' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}>
+          <i className="fa-solid fa-circle-plus text-lg mb-0.5"></i> Income
+        </button>}
+        {can('add_expense') && <button onClick={() => setActiveTab('expense')} className={`flex flex-col items-center text-xs font-medium ${activeTab === 'expense' ? 'text-emerald-600' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}>
           <i className="fa-solid fa-circle-minus text-lg mb-0.5"></i> Expense
-        </button>
-        {isAdmin && (
-          <button
-            onClick={() => setActiveTab("transfer")}
-            className={`flex flex-col items-center text-xs font-medium ${activeTab === "transfer" ? "text-emerald-600" : "text-gray-500 hover:text-gray-800"}`}
-          >
-            <i className="fa-solid fa-right-left text-lg mb-0.5"></i> Transfer
-          </button>
-        )}
-        {isAdmin && (
-          <button
-            onClick={() => setActiveTab("bank")}
-            className={`flex flex-col items-center text-xs font-medium ${activeTab === "bank" ? "text-emerald-600" : "text-gray-500 hover:text-gray-800"}`}
-          >
-            <i className="fa-solid fa-building-columns text-lg mb-0.5"></i> Bank
-          </button>
-        )}
-        {isAdmin && (
-          <button
-            onClick={() => setActiveTab("reports")}
-            className={`flex flex-col items-center text-xs font-medium ${activeTab === "reports" ? "text-emerald-600" : "text-gray-500 hover:text-gray-800"}`}
-          >
-            <i className="fa-solid fa-chart-pie text-lg mb-0.5"></i> Reports
-          </button>
-        )}
+        </button>}
+        {can('add_transfer') && <button onClick={() => setActiveTab('transfer')} className={`flex flex-col items-center text-xs font-medium ${activeTab === 'transfer' ? 'text-emerald-600' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}>
+          <i className="fa-solid fa-right-left text-lg mb-0.5"></i> Transfer
+        </button>}
+        {can('manage_bank') && <button onClick={() => setActiveTab('bank')} className={`flex flex-col items-center text-xs font-medium ${activeTab === 'bank' ? 'text-emerald-600' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}>
+          <i className="fa-solid fa-building-columns text-lg mb-0.5"></i> Bank
+        </button>}
+        {can('view_reports') && <button onClick={() => setActiveTab('reports')} className={`flex flex-col items-center text-xs font-medium ${activeTab === 'reports' ? 'text-emerald-600' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}>
+          <i className="fa-solid fa-chart-pie text-lg mb-0.5"></i> Reports
+        </button>}
       </nav>
+
     </div>
   );
 }
