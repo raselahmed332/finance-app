@@ -2,7 +2,7 @@
 // PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL HERE
 // https://script.google.com/macros/s/AKfycb..................../exec
 // ============================================================
-const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbyGDQ8IKWPCOrgALBEy1HqQEsAKdotz2E0c7RLwaOj5fpggKB8wVjvqT1eKXMP6yUwqsg/exec";
+const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbzRueKFcJCUDVrjXSvulYh5wjzJEi0JsbRIADhC_cqZdO4MTxUCmfrtrrfiRAEzDCuh/exec";
 
 const API_URL = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_URL)
   || localStorage.getItem("hisab_api_url")
@@ -58,6 +58,7 @@ export const api = {
   changeUserRole: (username, newRole, adminUsername) => callApi("changeUserRole", [username, newRole, adminUsername]),
   updateUserPermissions: (username, permissions, adminUsername) => callApi("updateUserPermissions", [username, permissions, adminUsername]),
   updateUserWalletAccess: (username, walletAccess, adminUsername) => callApi("updateUserWalletAccess", [username, walletAccess, adminUsername]),
+  resetPin: (username, newPin, adminUsername) => callApi("resetPin", [username, newPin, adminUsername]),
   updateUserProfile: (data) => callApi("updateUserProfile", [data]),
 
   // Backup

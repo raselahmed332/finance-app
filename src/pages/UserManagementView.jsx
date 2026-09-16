@@ -53,6 +53,15 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
   const isAdmin = user.Role === 'Admin';
   const canExpand = can('edit_user') || can('change_user_role') || can('manage_user_permissions') || can('manage_user_wallet_access');
   const canDel = can('delete_user') && !isAdmin;
+  const canResetPin = can('edit_user') && String(user.Username).toLowerCase() !== String(currentUser.username || '').toLowerCase();
+
+  const handleResetPin = () => {
+    const newPin = window.prompt('নতুন PIN লিখুন (min 4 character):');
+    if (!newPin || !newPin.trim()) return;
+    api.resetPin(user.Username, newPin.trim(), currentUser.username).then((res) => {
+      showAlert(res.message, res.status === 'ERROR' ? 'error' : 'success');
+    }).catch(() => showAlert('নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।', 'error'));
+  };
 
   const togglePerm = (p) => setPermissions(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]);
   const toggleWallet = (id) => setWalletAccess(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -85,6 +94,11 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
             className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${(user.Status || 'Active') === 'Active' ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400' : 'bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}>
             {user.Status || 'Active'}
           </button>
+          {canResetPin && (
+            <button onClick={handleResetPin} title="Reset PIN" className="text-gray-400 dark:text-gray-500 hover:text-emerald-600">
+              <i className="fa-solid fa-key"></i>
+            </button>
+          )}
           {!isAdmin && canExpand && <button onClick={() => setExpanded(!expanded)} className="text-gray-400 dark:text-gray-500 hover:text-slate-700"><i className={`fa-solid fa-chevron-${expanded ? 'up' : 'down'}`}></i></button>}
         </div>
       </div>
