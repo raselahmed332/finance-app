@@ -61,38 +61,38 @@ export default function EditTransferForm({ transaction, currentUser, onSave, onC
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
+        <div className="bg-slate-50 dark:bg-gray-950 border border-slate-200 dark:border-gray-700 rounded-xl p-3 space-y-2">
           <div className="text-xs font-bold text-slate-700 dark:text-gray-200 uppercase tracking-wider">From (কোথা থেকে)</div>
           <div className="text-xs text-slate-600 dark:text-gray-300">{pair.out.walletName} — {pair.out.account}</div>
           <div>
             <label className="block text-[11px] text-gray-500 dark:text-gray-400 font-medium mb-1">Amount</label>
             <div className="relative flex items-center">
-              <input type="number" step="any" value={fromAmount} onChange={(e) => { setFromAmount(e.target.value); if (sameCurrency) setToAmount(e.target.value); }} className="w-full border border-gray-300 dark:border-gray-700 rounded-lg pl-2 pr-12 py-1.5 text-xs font-semibold" required />
+              <input type="number" step="any" value={fromAmount} onChange={(e) => { setFromAmount(e.target.value); if (sameCurrency) setToAmount(e.target.value); }} className="w-full border border-gray-300 dark:border-gray-700 rounded-lg pl-2 pr-12 py-1.5 text-xs font-semibold bg-white dark:bg-gray-900 dark:text-gray-100" required />
               <span className="absolute right-2 text-[10px] font-bold text-gray-400 dark:text-gray-500">{pair.out.currency}</span>
             </div>
           </div>
         </div>
 
         <div className="flex justify-center -my-2 relative z-10">
-          <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs shadow-md border-2 border-white">
+          <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs shadow-md border-2 border-white dark:border-gray-900">
             <i className="fa-solid fa-arrows-up-down"></i>
           </div>
         </div>
 
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
+        <div className="bg-slate-50 dark:bg-gray-950 border border-slate-200 dark:border-gray-700 rounded-xl p-3 space-y-2">
           <div className="text-xs font-bold text-slate-700 dark:text-gray-200 uppercase tracking-wider">To (কোথায়)</div>
           <div className="text-xs text-slate-600 dark:text-gray-300">{pair.in.walletName} — {pair.in.account}</div>
           <div>
             <label className="block text-[11px] text-gray-500 dark:text-gray-400 font-medium mb-1">Amount Received</label>
             <div className="relative flex items-center">
-              <input type="number" step="any" value={toAmount} onChange={(e) => setToAmount(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-lg pl-2 pr-12 py-1.5 text-xs font-semibold" required />
+              <input type="number" step="any" value={toAmount} onChange={(e) => setToAmount(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-lg pl-2 pr-12 py-1.5 text-xs font-semibold bg-white dark:bg-gray-900 dark:text-gray-100" required />
               <span className="absolute right-2 text-[10px] font-bold text-gray-400 dark:text-gray-500">{pair.in.currency}</span>
             </div>
           </div>
         </div>
 
         {!sameCurrency && (
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-[11px] text-amber-800">
+          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-2.5 text-[11px] text-amber-800 dark:text-amber-300">
             <i className="fa-solid fa-triangle-exclamation me-1"></i>
             ভিন্ন কারেন্সি — উভয় পরিমাণ আলাদাভাবে সঠিকভাবে দিন।
           </div>
@@ -104,17 +104,17 @@ export default function EditTransferForm({ transaction, currentUser, onSave, onC
 
         <div>
           <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Date</label>
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900" required />
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" required />
         </div>
 
         <div>
           <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Description (বিবরণ)</label>
-          <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm" />
+          <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" />
         </div>
 
         <div>
           <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Note (নোট)</label>
-          <textarea value={note} onChange={(e) => setNote(e.target.value)} rows="2" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl p-3 text-sm resize-none"></textarea>
+          <textarea value={note} onChange={(e) => setNote(e.target.value)} rows="2" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl p-3 text-sm resize-none bg-white dark:bg-gray-900 dark:text-gray-100"></textarea>
         </div>
 
         <button type="submit" disabled={submitting} className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl shadow-md text-sm flex items-center justify-center gap-2">

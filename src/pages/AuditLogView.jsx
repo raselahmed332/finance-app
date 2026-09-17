@@ -49,7 +49,7 @@ export default function AuditLogView({ currentUser, onCancel }) {
           <i className="fa-solid fa-arrow-left text-lg"></i>
         </button>
         <h3 className="font-bold text-slate-800 dark:text-gray-100 text-base">Audit Log</h3>
-        <span className="text-xs bg-gray-200 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-full font-semibold">{total} টি</span>
+        <span className="text-xs bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-full font-semibold">{total} টি</span>
       </div>
 
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3.5 shadow-2xs space-y-2">
@@ -58,16 +58,16 @@ export default function AuditLogView({ currentUser, onCancel }) {
         </button>
         {checkResult && (
           checkResult.error ? (
-            <div className="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-2.5 py-2">
+            <div className="text-xs text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-lg px-2.5 py-2">
               <i className="fa-solid fa-triangle-exclamation me-1"></i> {checkResult.error}
             </div>
           ) : checkResult.count === 0 ? (
-            <div className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-2">
+            <div className="text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg px-2.5 py-2">
               <i className="fa-solid fa-circle-check me-1"></i> কোনো Broken Transfer Pair পাওয়া যায়নি — সব ঠিক আছে।
             </div>
           ) : (
             <div className="space-y-1.5">
-              <div className="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-2.5 py-2">
+              <div className="text-xs text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-lg px-2.5 py-2">
                 <i className="fa-solid fa-triangle-exclamation me-1"></i> {checkResult.count} টি Broken Pair পাওয়া গেছে।
               </div>
               {checkResult.brokenPairs.map((b, i) => (
@@ -84,7 +84,7 @@ export default function AuditLogView({ currentUser, onCancel }) {
         {entries === null && <div className="text-center text-xs text-gray-400 dark:text-gray-500 py-8">লোড হচ্ছে...</div>}
         {entries && entries.length === 0 && <div className="text-center text-xs text-gray-400 dark:text-gray-500 py-8">কোনো এন্ট্রি নেই।</div>}
         {entries && entries.map((e, i) => (
-          <div key={i} className={`py-2.5 ${i !== entries.length - 1 ? 'border-b border-gray-100' : ''}`}>
+          <div key={i} className={`py-2.5 ${i !== entries.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''}`}>
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-slate-800 dark:text-gray-100">{e.Action}</span>
               <span className="text-[10px] text-gray-400 dark:text-gray-500">{e.Date}</span>

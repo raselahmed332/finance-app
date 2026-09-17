@@ -70,7 +70,7 @@ function CategoriesManager({ currentUser, can, showAlert }) {
         <i className="fa-solid fa-hand-pointer"></i> Swipe left to delete
       </div>
       <form onSubmit={handleAdd} className="flex gap-2">
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="নতুন ক্যাটাগরি" className="flex-1 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs" />
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="নতুন ক্যাটাগরি" className="flex-1 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" />
         <Select value={type} onChange={setType}>
           <option value="Expense">Expense</option>
           <option value="Income">Income</option>
@@ -78,7 +78,7 @@ function CategoriesManager({ currentUser, can, showAlert }) {
         <button type="submit" className="bg-slate-800 text-white rounded-xl px-3 text-xs font-bold">+</button>
       </form>
 
-      {categories === null && <div className="text-center text-xs text-gray-400 py-2">লোড হচ্ছে...</div>}
+      {categories === null && <div className="text-center text-xs text-gray-400 dark:text-gray-500 py-2">লোড হচ্ছে...</div>}
       {categories && (
         <div className="space-y-1">
           {['Expense', 'Income'].map(t => (
@@ -86,7 +86,7 @@ function CategoriesManager({ currentUser, can, showAlert }) {
               <div className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mt-2 mb-1">{t}</div>
               {categories.filter(c => c.Type === t).map(c => (
                 <SwipeCard key={c.CategoryID} onSwipeLeft={() => handleDelete(c.CategoryID)} swipeLeftLabel="Delete">
-                  <div className="flex items-center justify-between py-1.5 border-b border-gray-50 text-xs bg-white dark:bg-gray-900">
+                  <div className="flex items-center justify-between py-1.5 border-b border-gray-50 dark:border-gray-800 text-xs bg-white dark:bg-gray-900">
                     <span className="text-slate-700 dark:text-gray-200">{c.Name}</span>
                   </div>
                 </SwipeCard>
@@ -147,8 +147,8 @@ export default function SettingsView({ showAlert, currentUser, onImport, can }) 
         {can('restore_backup') ? <label className="w-full bg-slate-800 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer"><i className="fa-solid fa-upload"></i> Import / Restore JSON<input type="file" accept="application/json,.json" onChange={handleImport} className="hidden" /></label> : <div className="text-[10px] text-gray-400 dark:text-gray-500">Backup restore করার অনুমতি আপনার নেই।</div>}
       </div>
 
-      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-800 space-y-1.5">
-        <div className="font-bold flex items-center gap-1.5 text-amber-900">
+      <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-4 text-xs text-amber-800 dark:text-amber-300 space-y-1.5">
+        <div className="font-bold flex items-center gap-1.5 text-amber-900 dark:text-amber-200">
           <i className="fa-solid fa-shield-halved"></i> নিরাপত্তা সংক্রান্ত তথ্য
         </div>
         <p>আপনার ডাটা শুধুমাত্র আপনার নিজস্ব Google Drive এবং Google Sheets-এ সংরক্ষিত। অন্য কেউ আপনার অনুমোদিত PIN ছাড়া এক্সেস করতে পারবে না।</p>

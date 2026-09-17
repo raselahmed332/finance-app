@@ -1,14 +1,8 @@
 import WalletCard from "../components/WalletCard.jsx";
 
 export default function DashboardView({ wallets, walletSummaries, setActiveTab, can }) {
-  const todayDateStr = new Date().toLocaleDateString('bn-BD', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
-
   return (
     <div className="space-y-4">
-      <div className="text-center text-xs text-slate-500 font-medium my-1">
-        {todayDateStr}
-      </div>
-
       {wallets.length === 0 && (
         <div className="text-center py-10 text-gray-400 dark:text-gray-500 text-xs">
           আপনার কোনো Wallet এ এক্সেস নেই। Admin এর সাথে যোগাযোগ করুন।
@@ -50,19 +44,19 @@ export default function DashboardView({ wallets, walletSummaries, setActiveTab, 
 
       {(can('view_users') || can('view_wallets') || can('manage_settings') || can('view_audit_log')) && (
         <div className="grid grid-cols-2 gap-2 pt-1">
-          {can('view_users') && <button onClick={() => setActiveTab('users')} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-2.5 flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-gray-200 shadow-2xs hover:bg-gray-50">
+          {can('view_users') && <button onClick={() => setActiveTab('users')} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-2.5 flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-gray-200 shadow-2xs hover:bg-gray-50 dark:hover:bg-gray-800">
             <span><i className="fa-solid fa-users text-purple-600 me-2"></i>ইউজার ম্যানেজমেন্ট</span>
             <i className="fa-solid fa-chevron-right text-gray-400 dark:text-gray-500 text-xs"></i>
           </button>}
-          {can('view_wallets') && <button onClick={() => setActiveTab('wallets')} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-2.5 flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-gray-200 shadow-2xs hover:bg-gray-50">
+          {can('view_wallets') && <button onClick={() => setActiveTab('wallets')} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-2.5 flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-gray-200 shadow-2xs hover:bg-gray-50 dark:hover:bg-gray-800">
             <span><i className="fa-solid fa-vault text-emerald-600 me-2"></i>Wallet ম্যানেজমেন্ট</span>
             <i className="fa-solid fa-chevron-right text-gray-400 dark:text-gray-500 text-xs"></i>
           </button>}
-          {can('manage_settings') && <button onClick={() => setActiveTab('settings')} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-2.5 flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-gray-200 shadow-2xs hover:bg-gray-50">
+          {can('manage_settings') && <button onClick={() => setActiveTab('settings')} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-2.5 flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-gray-200 shadow-2xs hover:bg-gray-50 dark:hover:bg-gray-800">
             <span><i className="fa-solid fa-gear text-slate-600 dark:text-gray-300 me-2"></i>সেটিংস ও ব্যাকআপ</span>
             <i className="fa-solid fa-chevron-right text-gray-400 dark:text-gray-500 text-xs"></i>
           </button>}
-          {can('view_audit_log') && <button onClick={() => setActiveTab('auditlog')} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-2.5 flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-gray-200 shadow-2xs hover:bg-gray-50">
+          {can('view_audit_log') && <button onClick={() => setActiveTab('auditlog')} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-2.5 flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-gray-200 shadow-2xs hover:bg-gray-50 dark:hover:bg-gray-800">
             <span><i className="fa-solid fa-clock-rotate-left text-amber-600 me-2"></i>Audit Log</span>
             <i className="fa-solid fa-chevron-right text-gray-400 dark:text-gray-500 text-xs"></i>
           </button>}

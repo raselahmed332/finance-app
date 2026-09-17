@@ -7,6 +7,10 @@ const TYPE_BADGES = {
   Expense: { bg: "bg-rose-100 dark:bg-rose-900/40", text: "text-rose-700 dark:text-rose-400", icon: "fa-arrow-up", label: "Expense" },
   "Transfer In": { bg: "bg-blue-100 dark:bg-blue-900/40", text: "text-blue-700 dark:text-blue-400", icon: "fa-arrow-down", label: "Transfer In" },
   "Transfer Out": { bg: "bg-amber-100 dark:bg-amber-900/40", text: "text-amber-700 dark:text-amber-400", icon: "fa-arrow-up", label: "Transfer Out" },
+  "Loan In": { bg: "bg-emerald-100 dark:bg-emerald-900/40", text: "text-emerald-700 dark:text-emerald-400", icon: "fa-arrow-down", label: "Loan In" },
+  "Loan Repaid": { bg: "bg-emerald-100 dark:bg-emerald-900/40", text: "text-emerald-700 dark:text-emerald-400", icon: "fa-arrow-down", label: "Loan Repaid" },
+  "Loan Out": { bg: "bg-rose-100 dark:bg-rose-900/40", text: "text-rose-700 dark:text-rose-400", icon: "fa-arrow-up", label: "Loan Out" },
+  "Loan Payment": { bg: "bg-rose-100 dark:bg-rose-900/40", text: "text-rose-700 dark:text-rose-400", icon: "fa-arrow-up", label: "Loan Payment" },
   Transfer: { bg: "bg-purple-100 dark:bg-purple-900/40", text: "text-purple-700 dark:text-purple-400", icon: "fa-right-left", label: "Transfer" },
   Deposit: { bg: "bg-emerald-100 dark:bg-emerald-900/40", text: "text-emerald-700 dark:text-emerald-400", icon: "fa-arrow-down", label: "Deposit" },
   Withdraw: { bg: "bg-rose-100 dark:bg-rose-900/40", text: "text-rose-700 dark:text-rose-400", icon: "fa-arrow-up", label: "Withdraw" },
@@ -21,8 +25,8 @@ function getBadge(t) {
 
 function SwipeCard({ t, userMap, canEdit, canDelete, onEdit, onDelete }) {
   const badge = getBadge(t);
-  const isIncome = t.Type === "Income" || t.Type === "Transfer In";
-  const isExpense = t.Type === "Expense" || t.Type === "Transfer Out";
+  const isIncome = t.Type === "Income" || t.Type === "Transfer In" || t.Type === "Loan In" || t.Type === "Loan Repaid";
+  const isExpense = t.Type === "Expense" || t.Type === "Transfer Out" || t.Type === "Loan Out" || t.Type === "Loan Payment";
   const ref = useRef(null);
   const startX = useRef(0);
   const currentX = useRef(0);
@@ -163,7 +167,7 @@ export default function TransactionsView({ transactions, wallets, onDelete, onEd
         <h3 className="font-bold text-slate-800 dark:text-gray-100 text-base">Transactions (হিসাবের তালিকা)</h3>
         <div className="flex items-center gap-1.5">
           <span className="text-xs bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-full font-semibold">{filteredTxns.length} টি</span>
-          <button onClick={handleExportCsv} title="Export CSV" className="text-xs bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1 hover:bg-emerald-200">
+          <button onClick={handleExportCsv} title="Export CSV" className="text-xs bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1 hover:bg-emerald-200 dark:hover:bg-emerald-900/60">
             <i className="fa-solid fa-file-csv"></i> CSV
           </button>
         </div>

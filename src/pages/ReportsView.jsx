@@ -81,7 +81,7 @@ export default function ReportsView({ wallets, currentUser }) {
 
       <div>
         <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Period</label>
-        <div className="grid grid-cols-4 gap-1.5 bg-gray-100 p-1 rounded-xl text-xs font-bold">
+        <div className="grid grid-cols-4 gap-1.5 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl text-xs font-bold">
           {[['daily', 'Daily'], ['weekly', 'Weekly'], ['monthly', 'Monthly'], ['yearly', 'Yearly']].map(([val, label]) => (
             <button key={val} onClick={() => setPeriod(val)} className={`py-1.5 rounded-lg transition-all ${period === val ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-600 dark:text-gray-400'}`}>
               {label}
@@ -93,11 +93,11 @@ export default function ReportsView({ wallets, currentUser }) {
       <div>
         <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Select {period === 'daily' ? 'Date' : period === 'weekly' ? 'Any date in the week' : period === 'yearly' ? 'Year' : 'Month'}</label>
         {period === 'yearly' ? (
-          <input type="number" value={periodValue} onChange={(e) => setPeriodValue(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs font-semibold bg-white dark:bg-gray-900" />
+          <input type="number" value={periodValue} onChange={(e) => setPeriodValue(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs font-semibold bg-white dark:bg-gray-900 dark:text-gray-100" />
         ) : period === 'monthly' ? (
-          <input type="month" value={periodValue} onChange={(e) => setPeriodValue(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs font-semibold bg-white dark:bg-gray-900" />
+          <input type="month" value={periodValue} onChange={(e) => setPeriodValue(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs font-semibold bg-white dark:bg-gray-900 dark:text-gray-100" />
         ) : (
-          <input type="date" value={periodValue} onChange={(e) => setPeriodValue(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs font-semibold bg-white dark:bg-gray-900" />
+          <input type="date" value={periodValue} onChange={(e) => setPeriodValue(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs font-semibold bg-white dark:bg-gray-900 dark:text-gray-100" />
         )}
       </div>
 
@@ -112,37 +112,37 @@ export default function ReportsView({ wallets, currentUser }) {
                 ['Date', 'Type', 'Currency', 'Account', 'Category', 'Vendor', 'Description', 'Amount', 'Note', 'User'],
                 (report.transactions || []).map(t => [t.Date, t.Type, t.Currency, t.Account, t.SourceCategory, t.WhereVendor, t.Description, t.Amount, t.Note, t.User]),
               )}
-              className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl py-2 text-xs font-semibold text-slate-700 dark:text-gray-200 flex items-center justify-center gap-1.5 hover:bg-gray-50"
+              className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl py-2 text-xs font-semibold text-slate-700 dark:text-gray-200 flex items-center justify-center gap-1.5 hover:bg-gray-50 dark:hover:bg-gray-800"
             >
               <i className="fa-solid fa-file-csv text-emerald-600"></i> Export CSV
             </button>
-            <button onClick={() => window.print()} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl py-2 text-xs font-semibold text-slate-700 dark:text-gray-200 flex items-center justify-center gap-1.5 hover:bg-gray-50">
+            <button onClick={() => window.print()} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl py-2 text-xs font-semibold text-slate-700 dark:text-gray-200 flex items-center justify-center gap-1.5 hover:bg-gray-50 dark:hover:bg-gray-800">
               <i className="fa-solid fa-file-pdf text-rose-600"></i> Print / PDF
             </button>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
-              <div className="text-[10px] font-bold text-emerald-800">Total Income</div>
-              <div className="text-sm font-bold text-emerald-600 mt-1">{selectedWallet?.Currency} {report.totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+            <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 rounded-xl p-3">
+              <div className="text-[10px] font-bold text-emerald-800 dark:text-emerald-300">Total Income</div>
+              <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-1">{selectedWallet?.Currency} {report.totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
             </div>
-            <div className="bg-rose-50 border border-rose-100 rounded-xl p-3">
-              <div className="text-[10px] font-bold text-rose-800">Total Expense</div>
-              <div className="text-sm font-bold text-rose-600 mt-1">{selectedWallet?.Currency} {report.totalExpense.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+            <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-100 dark:border-rose-800 rounded-xl p-3">
+              <div className="text-[10px] font-bold text-rose-800 dark:text-rose-300">Total Expense</div>
+              <div className="text-sm font-bold text-rose-600 dark:text-rose-400 mt-1">{selectedWallet?.Currency} {report.totalExpense.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
             </div>
           </div>
 
-          <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-center">
-            <div className="text-[11px] font-bold text-blue-800">Net Balance (অবশিষ্ট)</div>
-            <div className="text-lg font-extrabold text-blue-700 mt-0.5">{selectedWallet?.Currency} {report.netChange.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
-            <div className="text-[10px] text-blue-600 mt-1">{report.transactionCount} টি লেনদেন</div>
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl p-3 text-center">
+            <div className="text-[11px] font-bold text-blue-800 dark:text-blue-300">Net Balance (অবশিষ্ট)</div>
+            <div className="text-lg font-extrabold text-blue-700 dark:text-blue-400 mt-0.5">{selectedWallet?.Currency} {report.netChange.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+            <div className="text-[10px] text-blue-600 dark:text-blue-400 mt-1">{report.transactionCount} টি লেনদেন</div>
           </div>
 
           <div className="bg-white dark:bg-gray-900 rounded-xl p-3 border border-gray-200 dark:border-gray-800">
             <div className="text-xs font-bold text-slate-800 dark:text-gray-100 mb-2">Balance by Account</div>
             <div className="grid grid-cols-2 gap-2">
               {Object.entries(report.accountBreakdown || {}).map(([acc, bal]) => (
-                <div key={acc} className="bg-slate-50 rounded-lg p-2 text-center">
+                <div key={acc} className="bg-slate-50 dark:bg-gray-950 rounded-lg p-2 text-center">
                   <div className="text-[10px] text-gray-500 dark:text-gray-400">{acc}</div>
                   <div className={`text-xs font-bold mt-1 ${bal >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{selectedWallet?.Currency} {bal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
                 </div>

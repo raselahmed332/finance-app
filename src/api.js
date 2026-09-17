@@ -49,6 +49,13 @@ export const api = {
   // Reports
   getReport: (username, walletId, period, periodValue) => callApi("getReport", [username, walletId, period, periodValue]),
 
+  // Loans / Hawlat
+  getLoans: (username, type, opts) => callApi("getLoans", [username, type, opts]),
+  getLoanDetails: (username, loanId) => callApi("getLoanDetails", [username, loanId]),
+  addLoan: (data) => callApi("addLoan", [data]),
+  updateLoan: (data, adminUsername) => callApi("updateLoan", [data, adminUsername]),
+  addLoanRepayment: (data) => callApi("addLoanRepayment", [data]),
+
   // Users
   addUser: (fullName, username, pin, role, permissions, walletAccess, adminUsername) =>
     callApi("addUser", [fullName, username, pin, role, permissions, walletAccess, adminUsername]),
@@ -90,7 +97,7 @@ export const ALL_PERMISSIONS = [
   "view_users", "add_user", "edit_user", "delete_user", "change_user_role",
   "manage_user_permissions", "manage_user_wallet_access",
   "create_backup", "restore_backup",
-  "manage_settings", "manage_categories", "view_audit_log",
+  "manage_settings", "manage_categories", "view_audit_log", "manage_loan",
 ];
 
 export const PERMISSION_LABELS = {
@@ -105,4 +112,5 @@ export const PERMISSION_LABELS = {
   manage_user_permissions: "Permission ম্যানেজ করা", manage_user_wallet_access: "Wallet Access ম্যানেজ করা",
   create_backup: "ব্যাকআপ নেওয়া", restore_backup: "ব্যাকআপ রিস্টোর করা",
   manage_settings: "সেটিংস ম্যানেজ করা", manage_categories: "ক্যাটাগরি ম্যানেজ করা", view_audit_log: "Audit Log দেখা",
+  manage_loan: "হাওলাত (লোন) ম্যানেজ করা",
 };
