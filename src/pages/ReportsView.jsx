@@ -3,11 +3,12 @@ import { api } from "../api.js";
 import Chart from "chart.js/auto";
 import { downloadCsv } from "../utils/csvExport.js";
 import Select from "../components/Select.jsx";
+import { todayStr } from "../utils/loan.js";
 
 export default function ReportsView({ wallets, currentUser }) {
   const [walletId, setWalletId] = useState(wallets[0]?.WalletID || '');
   const [period, setPeriod] = useState('monthly');
-  const [periodValue, setPeriodValue] = useState(new Date().toISOString().slice(0, 7));
+  const [periodValue, setPeriodValue] = useState(todayStr().slice(0, 7));
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(false);
   const chartRef = useRef(null);
@@ -17,11 +18,10 @@ export default function ReportsView({ wallets, currentUser }) {
 
   useEffect(() => {
     // Reset the period-value field to a sensible default whenever the period type changes.
-    const today = new Date();
-    if (period === 'daily') setPeriodValue(today.toISOString().slice(0, 10));
-    else if (period === 'weekly') setPeriodValue(today.toISOString().slice(0, 10));
-    else if (period === 'monthly') setPeriodValue(today.toISOString().slice(0, 7));
-    else if (period === 'yearly') setPeriodValue(String(today.getFullYear()));
+    if (period === 'daily') setPeriodValue(todayStr());
+    else if (period === 'weekly') setPeriodValue(todayStr());
+    else if (period === 'monthly') setPeriodValue(todayStr().slice(0, 7));
+    else if (period === 'yearly') setPeriodValue(String(new Date().getFullYear()));
   }, [period]);
 
   useEffect(() => {
@@ -108,7 +108,7 @@ export default function ReportsView({ wallets, currentUser }) {
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => downloadCsv(
-                `report_${selectedWallet?.WalletName}_${period}_${new Date().toISOString().slice(0, 10)}.csv`,
+                `report_${selectedWallet?.WalletName}_${period}_${todayStr()}.csv`,
                 ['Date', 'Type', 'Currency', 'Account', 'Category', 'Vendor', 'Description', 'Amount', 'Note', 'User'],
                 (report.transactions || []).map(t => [t.Date, t.Type, t.Currency, t.Account, t.SourceCategory, t.WhereVendor, t.Description, t.Amount, t.Note, t.User]),
               )}

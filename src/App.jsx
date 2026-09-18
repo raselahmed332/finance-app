@@ -90,7 +90,7 @@ export default function App() {
 
   const loadData = useCallback(() => {
     setLoading(true);
-      api.getInitialData(currentUser.username).then((res) => {
+    api.getInitialData(currentUser.username).then((res) => {
       if (logOutRef.current) return;
       if (res.status === 'ERROR') {
         showAlert(res.message, 'error');

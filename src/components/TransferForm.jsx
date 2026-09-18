@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Select from "./Select.jsx";
+import { todayStr } from "../utils/loan.js";
 
 export default function TransferForm({ wallets, onSave, onCancel }) {
   const [fromWalletId, setFromWalletId] = useState(wallets[0]?.WalletID || '');
@@ -10,7 +11,7 @@ export default function TransferForm({ wallets, onSave, onCancel }) {
   const [toAccount, setToAccount] = useState('Cash');
   const [toAmount, setToAmount] = useState('');
 
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(todayStr());
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [clientId] = useState(() => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'c' + Date.now() + Math.random().toString(36).slice(2)));

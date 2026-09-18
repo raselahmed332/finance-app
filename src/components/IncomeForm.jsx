@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Select from "./Select.jsx";
+import { todayStr } from "../utils/loan.js";
 
 export default function IncomeForm({ wallets, categories, onSave, onCancel }) {
   const incomeCategories = (categories || []).filter(c => c.Type === 'Income');
@@ -9,7 +10,7 @@ export default function IncomeForm({ wallets, categories, onSave, onCancel }) {
   const [sourceCategory, setSourceCategory] = useState(incomeCategories[0]?.Name || 'Salary');
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(todayStr());
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
   // Stable per-form-instance ID: if the same click is retried (double-click,

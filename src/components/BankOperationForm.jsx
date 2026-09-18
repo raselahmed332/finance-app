@@ -1,11 +1,12 @@
 import { useState } from "react";
 import Select from "./Select.jsx";
+import { todayStr } from "../utils/loan.js";
 
 export default function BankOperationForm({ wallets, onSave, onCancel }) {
   const [type, setType] = useState('Bank Withdraw');
   const [walletId, setWalletId] = useState(wallets[0]?.WalletID || '');
   const [amount, setAmount] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(todayStr());
   const [description, setDescription] = useState('');
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);

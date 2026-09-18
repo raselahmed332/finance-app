@@ -1,32 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { api } from "../api.js";
 import Select from "../components/Select.jsx";
-
-function SwipeCard({ children, onSwipeLeft, swipeLeftLabel }) {
-  const ref = useRef(null);
-  const startX = useRef(0);
-  const currentX = useRef(0);
-  const [offset, setOffset] = useState(0);
-  const [swiping, setSwiping] = useState(false);
-
-  const handleTouchStart = (e) => { startX.current = e.touches[0].clientX; currentX.current = 0; setSwiping(true); };
-  const handleTouchMove = (e) => { if (!swiping) return; currentX.current = e.touches[0].clientX - startX.current; setOffset(currentX.current); };
-  const handleTouchEnd = () => { setSwiping(false); if (currentX.current < -80 && onSwipeLeft) onSwipeLeft(); setOffset(0); };
-
-  return (
-    <div className="relative overflow-hidden rounded-xl">
-      <div className="absolute inset-0 flex">
-        <div className="w-full bg-red-500 flex items-center justify-start pl-4 text-white text-xs font-semibold">
-          {swipeLeftLabel || "Delete"} <i className="fa-solid fa-trash-can ms-1"></i>
-        </div>
-      </div>
-      <div ref={ref} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
-        style={{ transform: `translateX(${offset}px)`, transition: swiping ? "none" : "transform 0.2s ease" }} className="relative">
-        {children}
-      </div>
-    </div>
-  );
-}
+import { todayStr } from "../utils/loan.js";
+import SwipeCard from "../components/SwipeCard.jsx";
 
 function CategoriesManager({ currentUser, can, showAlert }) {
   const [categories, setCategories] = useState(null);
@@ -85,7 +61,7 @@ function CategoriesManager({ currentUser, can, showAlert }) {
             <div key={t}>
               <div className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mt-2 mb-1">{t}</div>
               {categories.filter(c => c.Type === t).map(c => (
-                <SwipeCard key={c.CategoryID} onSwipeLeft={() => handleDelete(c.CategoryID)} swipeLeftLabel="Delete">
+                <SwipeCard key={c.CategoryID} singleAction onSwipeLeft={() => handleDelete(c.CategoryID)} swipeLeftLabel="Delete">
                   <div className="flex items-center justify-between py-1.5 border-b border-gray-50 dark:border-gray-800 text-xs bg-white dark:bg-gray-900">
                     <span className="text-slate-700 dark:text-gray-200">{c.Name}</span>
                   </div>
@@ -111,7 +87,7 @@ export default function SettingsView({ showAlert, currentUser, onImport, can }) 
       const url = URL.createObjectURL(blob);
       const downloadAnchor = document.createElement('a');
       downloadAnchor.href = url;
-      downloadAnchor.download = `hisab_backup_${new Date().toISOString().slice(0, 10)}.json`;
+      downloadAnchor.download = `hisab_backup_${todayStr()}.json`;
       document.body.appendChild(downloadAnchor);
       downloadAnchor.click();
       downloadAnchor.remove();
