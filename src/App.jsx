@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
 import { api, session } from "./api.js";
 
 const LoginScreen = lazy(() => import("./pages/LoginScreen.jsx"));
@@ -46,6 +46,14 @@ export default function App() {
   const [categories, setCategories] = useState([]);
   const [loans, setLoans] = useState([]);
   const [loading, setLoading] = useState(false);
+  // Lost-session guard.
+  // Set true the instant the user clicks logout (BEFORE state is cleared). Any
+  // in-flight getInitialData/loadData promise that resolves AFTER must NOT
+  // write user/session state — otherwise that stale response re-sets
+  // currentUser({...currentUser, permissions}) and "un-logouts" the user the
+  // same frame (login page flashes, dashboard returns). Reload showed the
+  // login page because no request was in flight then. Cleared on next login.
+  const logOutRef = useRef(false);
   const [alertMsg, setAlertMsg] = useState(null);
   const [pullRefreshing, setPullRefreshing] = useState(false);
 
@@ -64,11 +72,16 @@ export default function App() {
   const [filterAccount, setFilterAccount] = useState('All');
 
   const can = useCallback((perm) => !!currentUser?.permissions?.includes(perm), [currentUser?.permissions]);
+  const canAny = useCallback((perms) => (perms || []).some((p) => can(p)), [can]);
 
-  // Loan module is gated by the manage_loan permission; Admins always see it
-  // (their backend permissions list will include manage_loan once the backend
-  // ships it, but the role fallback keeps the module usable in the meantime).
-  const canLoan = can('manage_loan') || currentUser?.role === 'Admin';
+  // Page-level gates: a page is visible when the user has ANY of the actions
+  // that page exercises. The backend enforces all of them independently.
+  const canManageUsers = canAny(['ADD_USER', 'EDIT_USER', 'DELETE_USER', 'MANAGE_USER_PERMISSIONS']);
+  const canManageWallets = canAny(['ADD_WALLET', 'EDIT_WALLET', 'MANAGE_WALLET_STATUS']);
+  const canManageSettings = canAny(['BACKUP_RESTORE', 'MANAGE_CATEGORIES']);
+  // Loan module: visible to everyone with wallet access (VIEW_LOANS is implied
+  // by wallet access); Admins have it via their full effective permission set.
+  const canLoan = can('VIEW_LOANS');
 
   const showAlert = useCallback((msg, type = 'success') => {
     setAlertMsg({ msg, type });
@@ -77,7 +90,8 @@ export default function App() {
 
   const loadData = useCallback(() => {
     setLoading(true);
-    api.getInitialData(currentUser.username).then((res) => {
+      api.getInitialData(currentUser.username).then((res) => {
+      if (logOutRef.current) return;
       if (res.status === 'ERROR') {
         showAlert(res.message, 'error');
         if (/session|login/i.test(res.message || '')) {
@@ -98,6 +112,9 @@ export default function App() {
       setUsersList(data.users);
       setWallets(data.wallets);
       setCategories(data.categories);
+      // Stale-response guard: if the user hit logout while this
+      // getInitialData was in flight, do NOT resurrect the session here.
+      if (logOutRef.current) return;
       // Keep permissions in sync in case Admin changed them elsewhere.
       if (res.permissions) {
         const updated = { ...currentUser, permissions: res.permissions };
@@ -106,6 +123,7 @@ export default function App() {
       }
       setLoading(false);
     }).catch((err) => {
+      if (logOutRef.current) return;
       showAlert('ডেটা লোড করতে ব্যর্থ হয়েছে: ' + err, 'error');
       setLoading(false);
     });
@@ -296,7 +314,13 @@ export default function App() {
 
 
   if (!currentUser) {
-    return <LoginScreen onLogin={(user, token) => { session.save(token); localStorage.setItem("hisab_user", JSON.stringify(user)); setCurrentUser(user); }} />;
+    return <LoginScreen onLogin={(user, token) => {
+      // Balance the logout guard: a successful login re-arms normal loading.
+      logOutRef.current = false;
+      session.save(token);
+      localStorage.setItem("hisab_user", JSON.stringify(user));
+      setCurrentUser(user);
+    }} />;
   }
 
   return (
@@ -320,7 +344,7 @@ export default function App() {
             <i className="fa-solid fa-user-gear"></i>
           </button>
           <button
-            onClick={() => { api.logout().catch(() => {}); setCurrentUser(null); session.clear(); localStorage.removeItem("hisab_user"); }}
+            onClick={() => { logOutRef.current = true; api.logout().catch(() => {}); setCurrentUser(null); session.clear(); localStorage.removeItem("hisab_user"); }}
             className="text-gray-400 hover:text-red-400 text-sm"
             title="লগআউট"
           >
@@ -362,34 +386,34 @@ export default function App() {
           </div>
         )}
         <Suspense fallback={<PageFallback />}>
-        {activeTab === 'home' && can('view_dashboard') && (
+        {activeTab === 'home' && can('VIEW_DASHBOARD') && (
           <DashboardView wallets={wallets} walletSummaries={walletSummaries} setActiveTab={setActiveTab} can={can} />
         )}
 
-        {can('add_income') && activeTab === 'income' && (
+        {can('ADD_INCOME') && activeTab === 'income' && (
           <IncomeForm wallets={wallets} categories={categories} onSave={handleSaveTransaction} onCancel={() => setActiveTab('home')} />
         )}
 
-        {can('add_expense') && activeTab === 'expense' && (
+        {can('ADD_EXPENSE') && activeTab === 'expense' && (
           <ExpenseForm wallets={wallets} categories={categories} onSave={handleSaveTransaction} onCancel={() => setActiveTab('home')} />
         )}
 
-        {can('add_transfer') && activeTab === 'transfer' && (
+        {can('TRANSFER_MONEY') && activeTab === 'transfer' && (
           <TransferForm wallets={wallets} onSave={handleSaveTransaction} onCancel={() => setActiveTab('home')} />
         )}
 
-        {can('manage_bank') && activeTab === 'bank' && (
+        {can('BANK_OPERATIONS') && activeTab === 'bank' && (
           <BankOperationForm wallets={wallets} onSave={handleSaveTransaction} onCancel={() => setActiveTab('home')} />
         )}
 
-        {can('view_transactions') && activeTab === 'transactions' && (
+        {can('VIEW_TRANSACTIONS') && activeTab === 'transactions' && (
           <TransactionsView
             transactions={transactions}
             wallets={wallets}
             onDelete={handleDeleteTxn}
             onEdit={(txn) => setActiveTab('edit-' + txn.ID)}
-            canEdit={can('edit_transaction')}
-            canDelete={can('delete_transaction')}
+            canEdit={can('MANAGE_TRANSACTIONS')}
+            canDelete={can('MANAGE_TRANSACTIONS')}
             searchTerm={searchTerm} setSearchTerm={setSearchTerm}
             filterType={filterType} setFilterType={setFilterType}
             filterWallet={filterWallet} setFilterWallet={setFilterWallet}
@@ -397,12 +421,12 @@ export default function App() {
             filterDescription={filterDescription} setFilterDescription={setFilterDescription}
             filterUser={filterUser} setFilterUser={setFilterUser}
             filterAccount={filterAccount} setFilterAccount={setFilterAccount}
-            canViewUsers={can('view_users')}
+            canViewUsers={canManageUsers}
             users={usersList}
           />
         )}
 
-        {activeTab.indexOf('edit-') === 0 && can('edit_transaction') && (() => {
+        {activeTab.indexOf('edit-') === 0 && can('MANAGE_TRANSACTIONS') && (() => {
           const editTxn = transactions.find(t => String(t.ID) === activeTab.slice(5));
           if (!editTxn) return <EditTransactionForm transaction={null} onSave={handleUpdateTransaction} onCancel={() => setActiveTab('transactions')} />;
           if (editTxn.Type === 'Transfer Out' || editTxn.Type === 'Transfer In') {
@@ -411,7 +435,7 @@ export default function App() {
           return <EditTransactionForm key={editTxn.ID} transaction={editTxn} onSave={handleUpdateTransaction} onCancel={() => setActiveTab('transactions')} />;
         })()}
 
-        {activeTab.indexOf('edit-') === 0 && !can('edit_transaction') && (
+        {activeTab.indexOf('edit-') === 0 && !can('MANAGE_TRANSACTIONS') && (
           <div className="text-center py-16 px-4">
             <i className="fa-solid fa-lock text-3xl text-gray-300 dark:text-gray-600 mb-3"></i>
             <div className="text-sm font-semibold text-slate-600 dark:text-gray-300">লেনদেন এডিট করার অনুমতি নেই</div>
@@ -432,6 +456,7 @@ export default function App() {
 
         {canLoan && activeTab === 'loan-add' && (
           <LoanForm
+            can={can}
             wallets={wallets}
             loans={loans}
             currentUser={currentUser}
@@ -497,23 +522,23 @@ export default function App() {
           </div>
         )}
 
-        {can('view_reports') && activeTab === 'reports' && (
+        {can('VIEW_REPORTS') && activeTab === 'reports' && (
           <ReportsView wallets={wallets} currentUser={currentUser} />
         )}
 
-        {can('view_users') && activeTab === 'users' && (
+        {canManageUsers && activeTab === 'users' && (
           <UserManagementView users={usersList} wallets={wallets} onRefresh={loadData} showAlert={showAlert} currentUser={currentUser} onUserAction={handleUserAction} can={can} />
         )}
 
-        {can('view_wallets') && activeTab === 'wallets' && (
+        {canManageWallets && activeTab === 'wallets' && (
           <WalletManagementView currentUser={currentUser} can={can} showAlert={showAlert} />
         )}
 
-        {can('view_audit_log') && activeTab === 'auditlog' && (
+        {can('VIEW_AUDIT_LOG') && activeTab === 'auditlog' && (
           <AuditLogView currentUser={currentUser} onCancel={() => setActiveTab('home')} />
         )}
 
-        {can('manage_settings') && activeTab === 'settings' && (
+        {canManageSettings && activeTab === 'settings' && (
           <SettingsView showAlert={showAlert} currentUser={currentUser} onImport={handleImportBackup} can={can} />
         )}
 
@@ -521,7 +546,7 @@ export default function App() {
           <UserProfileView currentUser={currentUser} transactions={transactions} wallets={wallets} onSave={handleProfileUpdate} onCancel={() => setActiveTab('home')} onEditTxn={(txn) => setActiveTab('edit-' + txn.ID)} onDeleteTxn={handleDeleteTxn} />
         )}
 
-        {activeTab === 'home' && !can('view_dashboard') && (
+        {activeTab === 'home' && !can('VIEW_DASHBOARD') && (
           <div className="text-center py-16 px-4">
             <i className="fa-solid fa-lock text-3xl text-gray-300 dark:text-gray-600 mb-3"></i>
             <div className="text-sm font-semibold text-slate-600 dark:text-gray-300">ড্যাশবোর্ড দেখার অনুমতি নেই</div>
@@ -544,22 +569,22 @@ export default function App() {
         <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center text-xs font-medium ${activeTab === 'home' ? 'text-emerald-600' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}>
           <i className="fa-solid fa-house text-lg mb-0.5"></i> Home
         </button>
-        {can('add_income') && <button onClick={() => setActiveTab('income')} className={`flex flex-col items-center text-xs font-medium ${activeTab === 'income' ? 'text-emerald-600' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}>
+        {can('ADD_INCOME') && <button onClick={() => setActiveTab('income')} className={`flex flex-col items-center text-xs font-medium ${activeTab === 'income' ? 'text-emerald-600' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}>
           <i className="fa-solid fa-circle-plus text-lg mb-0.5"></i> Income
         </button>}
-        {can('add_expense') && <button onClick={() => setActiveTab('expense')} className={`flex flex-col items-center text-xs font-medium ${activeTab === 'expense' ? 'text-emerald-600' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}>
+        {can('ADD_EXPENSE') && <button onClick={() => setActiveTab('expense')} className={`flex flex-col items-center text-xs font-medium ${activeTab === 'expense' ? 'text-emerald-600' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}>
           <i className="fa-solid fa-circle-minus text-lg mb-0.5"></i> Expense
         </button>}
-        {can('add_transfer') && <button onClick={() => setActiveTab('transfer')} className={`flex flex-col items-center text-xs font-medium ${activeTab === 'transfer' ? 'text-emerald-600' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}>
+        {can('TRANSFER_MONEY') && <button onClick={() => setActiveTab('transfer')} className={`flex flex-col items-center text-xs font-medium ${activeTab === 'transfer' ? 'text-emerald-600' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}>
           <i className="fa-solid fa-right-left text-lg mb-0.5"></i> Transfer
         </button>}
-        {can('manage_bank') && <button onClick={() => setActiveTab('bank')} className={`flex flex-col items-center text-xs font-medium ${activeTab === 'bank' ? 'text-emerald-600' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}>
+        {can('BANK_OPERATIONS') && <button onClick={() => setActiveTab('bank')} className={`flex flex-col items-center text-xs font-medium ${activeTab === 'bank' ? 'text-emerald-600' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}>
           <i className="fa-solid fa-building-columns text-lg mb-0.5"></i> Bank
         </button>}
         {canLoan && <button onClick={() => setActiveTab('loans')} className={`flex flex-col items-center text-xs font-medium ${activeTab === 'loans' ? 'text-emerald-600' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}>
           <i className="fa-solid fa-hand-holding-dollar text-lg mb-0.5"></i> Loan
         </button>}
-        {can('view_reports') && <button onClick={() => setActiveTab('reports')} className={`flex flex-col items-center text-xs font-medium ${activeTab === 'reports' ? 'text-emerald-600' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}>
+        {can('VIEW_REPORTS') && <button onClick={() => setActiveTab('reports')} className={`flex flex-col items-center text-xs font-medium ${activeTab === 'reports' ? 'text-emerald-600' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}>
           <i className="fa-solid fa-chart-pie text-lg mb-0.5"></i> Reports
         </button>}
       </nav>

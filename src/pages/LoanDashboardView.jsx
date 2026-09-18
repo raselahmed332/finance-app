@@ -347,7 +347,7 @@ export default function LoanDashboardView({ currentUser, loans, onLoansChange, c
         </div>
       )}
 
-      {!loading && !hasAnyLoan && !can("manage_loan") && (
+      {!loading && !hasAnyLoan && !can('MANAGE_LOANS') && (
         <div className="text-center py-6 text-xs text-gray-400 dark:text-gray-500">
           নতুন হাওলাত যোগ করতে প্রশাসকের সাথে যোগাযোগ করুন।
         </div>

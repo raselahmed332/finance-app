@@ -89,28 +89,65 @@ export const session = {
   exists: () => !!localStorage.getItem(TOKEN_KEY),
 };
 
+// Actions automatically granted to any user who has access to at least one
+// wallet. Never shown as grantable checkboxes.
+export const DEFAULT_WALLET_ACTIONS = [
+  "VIEW_DASHBOARD", "ADD_EXPENSE", "BANK_OPERATIONS",
+  "VIEW_TRANSACTIONS", "VIEW_REPORTS", "VIEW_LOANS",
+  "LOAN_GIVE", "LOAN_TAKE", "LOAN_PAYMENT",
+];
+
+// Actions an Admin may additionally grant to a Sub-Admin/User.
+export const ADDITIONAL_PERMISSIONS = [
+  "ADD_INCOME", "TRANSFER_MONEY", "MANAGE_TRANSACTIONS",
+  "ADD_WALLET", "EDIT_WALLET", "MANAGE_WALLET_STATUS",
+  "MANAGE_LOANS", "MANAGE_LOAN_TRANSACTIONS",
+  "ADD_USER", "EDIT_USER", "DELETE_USER", "MANAGE_USER_PERMISSIONS",
+  "BACKUP_RESTORE", "VIEW_AUDIT_LOG", "MANAGE_CATEGORIES",
+];
+
+// Reserved for the Admin role — never grantable to non-Admins.
+export const ADMIN_ONLY_ACTIONS = [
+  "CHANGE_USER_ROLE", "CHANGE_USER_PASSWORD", "CREATE_ADMIN",
+];
+
+export const GRANTABLE_PERMISSIONS = ADDITIONAL_PERMISSIONS;
+
 export const ALL_PERMISSIONS = [
-  "view_dashboard", "view_transactions", "add_income", "add_expense", "add_transfer",
-  "edit_transaction", "delete_transaction", "manage_bank",
-  "view_wallets", "add_wallet", "edit_wallet", "delete_wallet",
-  "view_reports",
-  "view_users", "add_user", "edit_user", "delete_user", "change_user_role",
-  "manage_user_permissions", "manage_user_wallet_access",
-  "create_backup", "restore_backup",
-  "manage_settings", "manage_categories", "view_audit_log", "manage_loan",
+  ...DEFAULT_WALLET_ACTIONS,
+  ...ADDITIONAL_PERMISSIONS,
+  ...ADMIN_ONLY_ACTIONS,
 ];
 
 export const PERMISSION_LABELS = {
-  view_dashboard: "ড্যাশবোর্ড দেখা", view_transactions: "লেনদেন দেখা",
-  add_income: "আয় যোগ করা", add_expense: "খরচ যোগ করা", add_transfer: "ট্রান্সফার করা",
-  edit_transaction: "লেনদেন এডিট করা", delete_transaction: "লেনদেন ডিলিট করা", manage_bank: "ব্যাংক অপারেশন (Cash ↔ Bank)",
-  view_wallets: "Wallet দেখা", add_wallet: "Wallet যোগ করা", edit_wallet: "Wallet এডিট করা",
-  delete_wallet: "Wallet ডিলিট করা",
-  view_reports: "রিপোর্ট দেখা",
-  view_users: "ইউজার দেখা", add_user: "ইউজার যোগ করা", edit_user: "ইউজার এডিট করা",
-  delete_user: "ইউজার ডিলিট করা", change_user_role: "ইউজার Role পরিবর্তন",
-  manage_user_permissions: "Permission ম্যানেজ করা", manage_user_wallet_access: "Wallet Access ম্যানেজ করা",
-  create_backup: "ব্যাকআপ নেওয়া", restore_backup: "ব্যাকআপ রিস্টোর করা",
-  manage_settings: "সেটিংস ম্যানেজ করা", manage_categories: "ক্যাটাগরি ম্যানেজ করা", view_audit_log: "Audit Log দেখা",
-  manage_loan: "হাওলাত (লোন) ম্যানেজ করা",
+  // Defaults (auto via wallet access)
+  VIEW_DASHBOARD: "ড্যাশবোর্ড দেখা",
+  ADD_EXPENSE: "খরচ যোগ করা",
+  BANK_OPERATIONS: "ব্যাংক অপারেশন (Cash ↔ Bank)",
+  VIEW_TRANSACTIONS: "লেনদেন দেখা",
+  VIEW_REPORTS: "রিপোর্ট দেখা",
+  VIEW_LOANS: "হাওলাত দেখা",
+  LOAN_GIVE: "হাওলাত দেয়া",
+  LOAN_TAKE: "হাওলাত নেয়া",
+  LOAN_PAYMENT: "হাওলাতের ফেরত",
+  // Grantable (additional)
+  ADD_INCOME: "আয় যোগ করা",
+  TRANSFER_MONEY: "ট্রান্সফার করা",
+  MANAGE_TRANSACTIONS: "লেনদেন এডিট/ডিলিট করা",
+  ADD_WALLET: "Wallet যোগ করা",
+  EDIT_WALLET: "Wallet এডিট করা",
+  MANAGE_WALLET_STATUS: "Wallet ডিলিট/ডিঅ্যাকটিভেট করা",
+  MANAGE_LOANS: "হাওলাত এডিট/ডিলিট করা",
+  MANAGE_LOAN_TRANSACTIONS: "হাওলাতের ফেরত এডিট/ডিলিট করা",
+  ADD_USER: "ইউজার যোগ করা",
+  EDIT_USER: "ইউজার এডিট করা",
+  DELETE_USER: "ইউজার ডিলিট করা",
+  MANAGE_USER_PERMISSIONS: "Permission ও Wallet Access ম্যানেজ করা",
+  BACKUP_RESTORE: "ব্যাকআপ / রিস্টোর করা",
+  VIEW_AUDIT_LOG: "Audit Log দেখা",
+  MANAGE_CATEGORIES: "ক্যাটাগরি ম্যানেজ করা",
+  // Admin-only
+  CHANGE_USER_ROLE: "ইউজার Role পরিবর্তন",
+  CHANGE_USER_PASSWORD: "ইউজার PIN রিসেট",
+  CREATE_ADMIN: "Admin তৈরি করা",
 };

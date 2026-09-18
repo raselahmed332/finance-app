@@ -1,5 +1,5 @@
 import { useState, memo, useRef } from "react";
-import { api, ALL_PERMISSIONS, PERMISSION_LABELS } from "../api.js";
+import { api, GRANTABLE_PERMISSIONS, PERMISSION_LABELS } from "../api.js";
 import Select from "../components/Select.jsx";
 
 const CheckboxGrid = memo(function CheckboxGrid({ options, selected, onToggle, labelFn }) {
@@ -51,9 +51,9 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
   const [permissions, setPermissions] = useState(user.Permissions || []);
   const [walletAccess, setWalletAccess] = useState(user.WalletAccess || []);
   const isAdmin = user.Role === 'Admin';
-  const canExpand = can('edit_user') || can('change_user_role') || can('manage_user_permissions') || can('manage_user_wallet_access');
-  const canDel = can('delete_user') && !isAdmin;
-  const canResetPin = can('edit_user') && String(user.Username).toLowerCase() !== String(currentUser.username || '').toLowerCase();
+  const canExpand = can('EDIT_USER') || can('CHANGE_USER_ROLE') || can('MANAGE_USER_PERMISSIONS');
+  const canDel = can('DELETE_USER') && !isAdmin;
+  const canResetPin = can('CHANGE_USER_PASSWORD') && String(user.Username).toLowerCase() !== String(currentUser.username || '').toLowerCase();
 
   const handleResetPin = () => {
     const newPin = window.prompt('নতুন PIN লিখুন (min 4 character):');
@@ -67,12 +67,12 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
   const toggleWallet = (id) => setWalletAccess(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
   const saveAll = () => {
-    const roleChanged = can('change_user_role') && role !== user.Role;
-    const nameChanged = can('edit_user') && fullName !== (user.FullName || '');
+    const roleChanged = can('CHANGE_USER_ROLE') && role !== user.Role;
+    const nameChanged = can('EDIT_USER') && fullName !== (user.FullName || '');
     Promise.all([
       (roleChanged || nameChanged) ? api.updateUser(user.Username, fullName, roleChanged ? role : undefined, currentUser.username) : Promise.resolve({ status: 'SUCCESS' }),
-      can('manage_user_permissions') ? api.updateUserPermissions(user.Username, permissions, currentUser.username) : Promise.resolve({ status: 'SUCCESS' }),
-      can('manage_user_wallet_access') ? api.updateUserWalletAccess(user.Username, walletAccess, currentUser.username) : Promise.resolve({ status: 'SUCCESS' }),
+      can('MANAGE_USER_PERMISSIONS') ? api.updateUserPermissions(user.Username, permissions, currentUser.username) : Promise.resolve({ status: 'SUCCESS' }),
+      can('MANAGE_USER_PERMISSIONS') ? api.updateUserWalletAccess(user.Username, walletAccess, currentUser.username) : Promise.resolve({ status: 'SUCCESS' }),
     ]).then(([r0, r1, r2]) => {
       const results = [r0, r1, r2];
       const failedResult = results.find(r => r.status === 'ERROR');
@@ -89,7 +89,7 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
           <div className="text-[10px] text-gray-400 dark:text-gray-500">@{user.Username} • {user.Role}</div>
         </div>
         <div className="flex items-center gap-2">
-          <button disabled={!can('edit_user') || isAdmin}
+          <button disabled={!can('EDIT_USER') || isAdmin}
             onClick={() => onUserAction('status', user.Username, (user.Status || 'Active') === 'Active' ? 'Inactive' : 'Active')}
             className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${(user.Status || 'Active') === 'Active' ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400' : 'bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}>
             {user.Status || 'Active'}
@@ -115,13 +115,13 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
 
       {expanded && !isAdmin && (
         <div className="bg-slate-50 dark:bg-gray-950 rounded-xl p-3 mb-3 space-y-3 border border-gray-200 dark:border-gray-800">
-          {can('edit_user') && (
+          {can('EDIT_USER') && (
             <div>
               <div className="text-[11px] font-bold text-slate-600 dark:text-gray-300 mb-1.5">Full Name</div>
               <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder={user.Username} className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-2.5 py-1.5 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" />
             </div>
           )}
-          {can('change_user_role') && (
+          {can('CHANGE_USER_ROLE') && (
             <div>
               <div className="text-[11px] font-bold text-slate-600 dark:text-gray-300 mb-1.5">Role</div>
               <Select value={role} onChange={setRole}>
@@ -132,7 +132,7 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
           )}
           <div>
             <div className="text-[11px] font-bold text-slate-600 dark:text-gray-300 mb-1.5">Permissions</div>
-            <CheckboxGrid options={ALL_PERMISSIONS} selected={permissions} onToggle={togglePerm} labelFn={(p) => PERMISSION_LABELS[p] || p} />
+            <CheckboxGrid options={GRANTABLE_PERMISSIONS} selected={permissions} onToggle={togglePerm} labelFn={(p) => PERMISSION_LABELS[p] || p} />
           </div>
           <div>
             <div className="text-[11px] font-bold text-slate-600 dark:text-gray-300 mb-1.5">Wallet Access</div>
@@ -150,7 +150,7 @@ export default function UserManagementView({ users, wallets, onRefresh, showAler
   const [newUsername, setNewUsername] = useState('');
   const [newPin, setNewPin] = useState('');
   const [role, setRole] = useState('User');
-  const [permissions, setPermissions] = useState(['view_dashboard', 'view_transactions']);
+  const [permissions, setPermissions] = useState([]);
   const [walletAccess, setWalletAccess] = useState([]);
 
   const togglePerm = (p) => setPermissions(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]);
@@ -161,7 +161,7 @@ export default function UserManagementView({ users, wallets, onRefresh, showAler
     if (!newUsername || !newPin) return alert('সকল তথ্য পূরণ করুন!');
     api.addUser(fullName, newUsername, newPin, role, permissions, walletAccess, currentUser.username).then((res) => {
       showAlert(res.message, res.status === 'ERROR' ? 'error' : 'success');
-      if (res.status !== 'ERROR') { setFullName(''); setNewUsername(''); setNewPin(''); setPermissions(['view_dashboard', 'view_transactions']); setWalletAccess([]); onRefresh(); }
+      if (res.status !== 'ERROR') { setFullName(''); setNewUsername(''); setNewPin(''); setPermissions([]); setWalletAccess([]); onRefresh(); }
     });
   };
 
@@ -169,7 +169,7 @@ export default function UserManagementView({ users, wallets, onRefresh, showAler
     <div className="space-y-4">
       <h3 className="font-bold text-slate-800 dark:text-gray-100 text-base">User Access & Management (ইউজার ম্যানেজমেন্ট)</h3>
 
-      {can('add_user') ? (
+      {can('ADD_USER') ? (
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-200 dark:border-gray-800 shadow-2xs space-y-3">
           <div className="text-xs font-bold text-slate-700 dark:text-gray-200">নতুন ইউজার যোগ করুন</div>
           <form onSubmit={handleAddUser} className="space-y-3">
@@ -185,7 +185,7 @@ export default function UserManagementView({ users, wallets, onRefresh, showAler
               <>
                 <div>
                   <div className="text-[11px] font-bold text-slate-600 dark:text-gray-300 mb-1.5">Permissions</div>
-                  <CheckboxGrid options={ALL_PERMISSIONS} selected={permissions} onToggle={togglePerm} labelFn={(p) => PERMISSION_LABELS[p] || p} />
+                  <CheckboxGrid options={GRANTABLE_PERMISSIONS} selected={permissions} onToggle={togglePerm} labelFn={(p) => PERMISSION_LABELS[p] || p} />
                 </div>
                 <div>
                   <div className="text-[11px] font-bold text-slate-600 dark:text-gray-300 mb-1.5">Wallet Access</div>
@@ -202,7 +202,7 @@ export default function UserManagementView({ users, wallets, onRefresh, showAler
 
       <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-200 dark:border-gray-800 shadow-2xs">
         <div className="text-xs font-bold text-slate-700 dark:text-gray-200 mb-1">ইউজার তালিকা</div>
-        {can('delete_user') && (
+        {can('DELETE_USER') && (
           <div className="text-[10px] text-gray-400 dark:text-gray-500 mb-2 flex items-center gap-1">
             <i className="fa-solid fa-hand-pointer"></i> Swipe right to edit, left to delete
           </div>

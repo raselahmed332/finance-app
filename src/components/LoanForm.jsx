@@ -40,10 +40,10 @@ function StepIndicator({ step }) {
   );
 }
 
-export default function LoanForm({ wallets, loans, loan, onSave, onCancel, onDone, onGoHome, onShow }) {
+export default function LoanForm({ can, wallets, loans, loan, onSave, onCancel, onDone, onGoHome, onShow }) {
   const isEdit = !!loan;
   const [step, setStep] = useState(1);
-  const [type, setType] = useState(loan?.type || "given");
+  const [type, setType] = useState(loan?.type || (can && !can('LOAN_GIVE') && can('LOAN_TAKE') ? "taken" : "given"));
   const [personName, setPersonName] = useState(loan?.personName || "");
   const [phone, setPhone] = useState(loan?.phone || "");
   const [amount, setAmount] = useState(loan ? String(loan.amount) : "");

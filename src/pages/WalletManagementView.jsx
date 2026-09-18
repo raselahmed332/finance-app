@@ -77,8 +77,8 @@ function EditWalletRow({ wallet, currentUser, can, onRefresh, showAlert }) {
     }).catch(() => showAlert('নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।', 'error'));
   };
 
-  const canEdit = can('edit_wallet');
-  const canDel = can('delete_wallet') && wallet.Status === 'Active';
+  const canEdit = can('EDIT_WALLET');
+  const canDel = can('MANAGE_WALLET_STATUS') && wallet.Status === 'Active';
 
   const row = (
     <div className="border-b border-gray-100 dark:border-gray-800 last:border-0 py-2.5 bg-white dark:bg-gray-900">
@@ -149,7 +149,7 @@ export default function WalletManagementView({ currentUser, can, showAlert }) {
     <div className="space-y-4">
       <h3 className="font-bold text-slate-800 dark:text-gray-100 text-base">Wallet ম্যানেজমেন্ট</h3>
 
-      {can('add_wallet') && (
+      {can('ADD_WALLET') && (
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-200 dark:border-gray-800 shadow-2xs space-y-3">
           <div className="text-xs font-bold text-slate-700 dark:text-gray-200">নতুন Wallet তৈরি করুন</div>
           <form onSubmit={handleAdd} className="space-y-3">
@@ -184,7 +184,7 @@ export default function WalletManagementView({ currentUser, can, showAlert }) {
 
       <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-200 dark:border-gray-800 shadow-2xs">
         <div className="text-xs font-bold text-slate-700 dark:text-gray-200 mb-1">সব Wallet</div>
-        {(can('edit_wallet') || can('delete_wallet')) && (
+        {(can('EDIT_WALLET') || can('MANAGE_WALLET_STATUS')) && (
           <div className="text-[10px] text-gray-400 dark:text-gray-500 mb-2 flex items-center gap-1">
             <i className="fa-solid fa-hand-pointer"></i> Swipe right to edit, left to delete
           </div>

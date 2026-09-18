@@ -61,7 +61,7 @@ function CategoriesManager({ currentUser, can, showAlert }) {
     });
   };
 
-  if (!can('manage_categories')) return null;
+  if (!can('MANAGE_CATEGORIES')) return null;
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-200 dark:border-gray-800 shadow-2xs space-y-3">
@@ -137,14 +137,14 @@ export default function SettingsView({ showAlert, currentUser, onImport, can }) 
         <div className="text-xs font-bold text-slate-700 dark:text-gray-200">ডাটাবেজ ও ব্যাকআপ</div>
         <p className="text-xs text-gray-500 dark:text-gray-400">আপনার সমস্ত হিসাব গুগল সিট (Google Sheets)-এ রিয়েলটাইমে সংরক্ষিত হচ্ছে। চাইলে অফলাইন কপি ডাউনলোড করে রাখতে পারেন।</p>
 
-        {can('create_backup') ? (
+        {can('BACKUP_RESTORE') ? (
           <button onClick={handleBackup} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2">
             <i className="fa-solid fa-download"></i> Download Full JSON Backup
           </button>
         ) : (
           <div className="text-[10px] text-gray-400 dark:text-gray-500">ব্যাকআপ ডাউনলোড করার অনুমতি আপনার নেই।</div>
         )}
-        {can('restore_backup') ? <label className="w-full bg-slate-800 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer"><i className="fa-solid fa-upload"></i> Import / Restore JSON<input type="file" accept="application/json,.json" onChange={handleImport} className="hidden" /></label> : <div className="text-[10px] text-gray-400 dark:text-gray-500">Backup restore করার অনুমতি আপনার নেই।</div>}
+        {can('BACKUP_RESTORE') ? <label className="w-full bg-slate-800 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer"><i className="fa-solid fa-upload"></i> Import / Restore JSON<input type="file" accept="application/json,.json" onChange={handleImport} className="hidden" /></label> : <div className="text-[10px] text-gray-400 dark:text-gray-500">Backup restore করার অনুমতি আপনার নেই।</div>}
       </div>
 
       <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-4 text-xs text-amber-800 dark:text-amber-300 space-y-1.5">
