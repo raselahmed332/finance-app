@@ -11,7 +11,18 @@ function EditWalletRow({ wallet, currentUser, can, onRefresh, showAlert }) {
   const [status, setStatus] = useState(wallet.Status);
 
   const handleSave = () => {
-    api.updateWallet(wallet.WalletID, name, status, currentUser.username).then((res) => {
+    // Send only the fields that actually changed. The backend treats a
+    // non-empty status as a status change requiring MANAGE_WALLET_STATUS, so
+    // always sending the current status would block EDIT_WALLET-only renames.
+    const nameChanged = name.trim() !== wallet.WalletName;
+    const statusChanged = status !== wallet.Status;
+    if (!nameChanged && !statusChanged) { showAlert('কোনো পরিবর্তন হয়নি।', 'error'); return; }
+    api.updateWallet(
+      wallet.WalletID,
+      nameChanged ? name.trim() : '',
+      statusChanged ? status : '',
+      currentUser.username
+    ).then((res) => {
       showAlert(res.message, res.status === 'ERROR' ? 'error' : 'success');
       if (res.status === 'SUCCESS') { onRefresh(); setEditing(false); }
     }).catch(() => showAlert('নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।', 'error'));

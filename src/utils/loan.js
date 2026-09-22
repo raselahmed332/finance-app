@@ -64,6 +64,17 @@ export function remainingOf(loan) {
   return Number.isFinite(n) && loan.remaining !== undefined && loan.remaining !== null ? n : Math.max(0, amount - repaid);
 }
 
+// Grand total across the original loan amount AND every extra addition:
+// totalLoan = originalAmount + SUM(additions). Falls back to the original
+// amount for loans created before additions existed.
+export function totalAmountOf(loan) {
+  if (!loan) return 0;
+  if (Number.isFinite(Number(loan.totalAmount)) && loan.totalAmount !== undefined && loan.totalAmount !== null) {
+    return Number(loan.totalAmount);
+  }
+  return (Number(loan.amount) || 0) + (Number(loan.additionalAmount) || 0);
+}
+
 export const STATUS_META = {
   active: { label: "Active", bg: "bg-sky-100 dark:bg-sky-900/40", text: "text-sky-700 dark:text-sky-400", dot: "bg-sky-500" },
   partial: { label: "Partial", bg: "bg-amber-100 dark:bg-amber-900/40", text: "text-amber-700 dark:text-amber-400", dot: "bg-amber-500" },
@@ -143,11 +154,13 @@ export function loanTypeMeta(type) {
     totalLabel: "মোট দিয়েছি", repaidLabel: "ফেরত পেয়েছি", remainingLabel: "বাকি",
     outstandingLabel: "এখনো ফেরত পাবো",
     repaymentTitle: "ফেরত পেয়েছি", ledgerLabel: "ফেরত পেয়েছি",
+    additionLabel: "আরও দিলাম", additionTitle: "আরও টাকা যোগ করুন",
   };
   return {
     label: "হাওলাত নিয়েছি", short: "নিয়েছি", action: "হাওলাত নিলাম",
     totalLabel: "মোট নিয়েছি", repaidLabel: "ফেরত দিয়েছি", remainingLabel: "বাকি",
     outstandingLabel: "এখনো ফেরত দিতে হবে",
     repaymentTitle: "ফেরত দিয়েছি", ledgerLabel: "ফেরত দিয়েছি",
+    additionLabel: "আরও নিলাম", additionTitle: "আরও টাকা যোগ করুন",
   };
 }

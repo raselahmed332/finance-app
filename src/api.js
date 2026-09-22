@@ -71,9 +71,13 @@ export const api = {
   // Loans / Hawlat
   getLoans: (username, type, opts) => callApi("getLoans", [username, type, opts]),
   getLoanDetails: (username, loanId) => callApi("getLoanDetails", [username, loanId]),
+  getPersonActiveLoans: (username, identity) => callApi("getPersonActiveLoans", [username, identity]),
   addLoan: (data) => callApi("addLoan", [data]),
   updateLoan: (data, adminUsername) => callApi("updateLoan", [data, adminUsername]),
   addLoanRepayment: (data) => callApi("addLoanRepayment", [data]),
+  addLoanAddition: (data) => callApi("addLoanAddition", [data]),
+  editLoanAddition: (data, adminUsername) => callApi("editLoanAddition", [data, adminUsername]),
+  deleteLoanAddition: (additionId, adminUsername) => callApi("deleteLoanAddition", [additionId, adminUsername]),
 
   // Users
   addUser: (fullName, username, pin, role, permissions, walletAccess, adminUsername) =>

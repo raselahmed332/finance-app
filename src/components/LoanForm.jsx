@@ -1,6 +1,10 @@
 import { useMemo, useState } from "react";
 import Select from "./Select.jsx";
-import { isValidPhone, knownPeople, loanTypeMeta, todayStr, pickDefaultWalletId } from "../utils/loan.js";
+import {
+  formatMoney, isValidPhone, knownPeople, loanTypeMeta, remainingOf,
+  totalAmountOf, todayStr, pickDefaultWalletId,
+} from "../utils/loan.js";
+import LoanAddForm from "./LoanAddForm.jsx";
 
 function ErrorText({ msg }) {
   return msg ? <div className="text-[10px] text-rose-600 dark:text-rose-400 mt-1 flex items-center gap-1"><i className="fa-solid fa-circle-exclamation"></i>{msg}</div> : null;
@@ -40,7 +44,7 @@ function StepIndicator({ step }) {
   );
 }
 
-export default function LoanForm({ can, wallets, loans, loan, currentUser, onSave, onCancel, onDone, onGoHome, onShow }) {
+export default function LoanForm({ can, wallets, loans, loan, currentUser, onSave, onCancel, onDone, onGoHome, onShow, onAddToLoan, onCheckActive }) {
   const isEdit = !!loan;
   const [step, setStep] = useState(1);
   const [type, setType] = useState(loan?.type || (can && !can('LOAN_GIVE') && can('LOAN_TAKE') ? "taken" : "given"));
@@ -57,6 +61,16 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [createdLoan, setCreatedLoan] = useState(null);
+  const [showActiveWarning, setShowActiveWarning] = useState(false);
+  const [showLoanPicker, setShowLoanPicker] = useState(false);
+  const [addTarget, setAddTarget] = useState(null);
+  const [addResult, setAddResult] = useState(null);
+  // Server-authoritative active-loan check (only for NEW loans). "failed" means
+  // the backend could not be reached/validated — we NEVER treat that as "no active
+  // loan", we only offer Retry, so a false "separate loan" is impossible.
+  const [activeCheck, setActiveCheck] = useState("idle");
+  const [serverActive, setServerActive] = useState([]);
+  const [resolvedPersonId, setResolvedPersonId] = useState("");
   const [clientId, setClientId] = useState(() => (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : "l" + Date.now() + Math.random().toString(36).slice(2)));
 
   const selectedWallet = wallets.find(w => w.WalletID === walletId);
@@ -70,6 +84,18 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
   }, [people, personName]);
 
   const meta = loanTypeMeta(type);
+
+  // Loans returned by the backend check. When creating a NEW loan the server —
+  // not the stale local list — decides whether the person truly has outstanding
+  // loans (any type/currency). "Add to existing" is only offered for loans that
+  // are compatible (same type + currency), matching how an addition behaves.
+  const compatibleActiveLoans = useMemo(() => {
+    if (isEdit) return [];
+    return (serverActive || []).filter(l =>
+      String(l.type) === type &&
+      String(l.currency || "") === String(currency),
+    );
+  }, [serverActive, type, currency, isEdit]);
 
   const changeWallet = (id) => {
     setWalletId(id);
@@ -114,8 +140,41 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
 
   const handleSubmit = (ev) => {
     ev.preventDefault();
-    if (submitting) return;
+    if (submitting || activeCheck === "checking") return;
     if (step !== 3) { goNext(); return; }
+    // Creating is NEVER blocked by existing active loans — we only ask how to
+    // proceed. But whether the person HAS an active loan is a SERVER decision.
+    if (isEdit) { doCreate(); return; }
+    runActiveCheck();
+  };
+
+  // Backend-driven active-loan check. Any failure (network, permission) shows a
+  // "CHECK FAILED" state with Retry — it is never treated as "no active loan".
+  const runActiveCheck = () => {
+    const qName = personName.trim();
+    const qPhone = phone.trim();
+    if (!qName || !qPhone) { setStep(1); return; }
+    if (typeof onCheckActive !== "function") { doCreate(); return; }
+    setActiveCheck("checking");
+    const run = () => {
+      setActiveCheck("checking");
+      onCheckActive({ personName: qName, phone: qPhone }).then((res) => {
+        if (res && res.status === "SUCCESS") {
+          const list = res.loans || [];
+          setServerActive(list);
+          setResolvedPersonId(res.personId || "");
+          setActiveCheck("done");
+          if (list.length > 0) setShowActiveWarning(true);
+          else doCreate();
+        } else {
+          setActiveCheck("failed");
+        }
+      }).catch(() => setActiveCheck("failed"));
+    };
+    run();
+  };
+
+  const doCreate = () => {
     const payload = {
       type, personName: personName.trim(), phone: phone.trim(),
       amount, currency, walletId, walletName: selectedWallet?.WalletName,
@@ -123,6 +182,10 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
       clientId,
     };
     if (isEdit) payload.id = loan.id;
+    else {
+      payload.mode = "NEW_SEPARATE_LOAN";
+      payload.personId = resolvedPersonId || "";
+    }
     setSubmitting(true);
     onSave(payload).then((res) => {
       if (res && res.status === "SUCCESS") {
@@ -133,12 +196,77 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
     }).catch(() => setSubmitting(false));
   };
 
+  const openAddFlow = (targetLoan) => {
+    setAddTarget({ loan: targetLoan, amount, date: loanDate, walletId, account, note: note.trim() });
+  };
+
+  const chooseAddToExisting = () => {
+    setShowActiveWarning(false);
+    if (compatibleActiveLoans.length === 1) openAddFlow(compatibleActiveLoans[0]);
+    else setShowLoanPicker(true);
+  };
+
+  const handleAddToLoanSaved = (res) => {
+    if (res && res.status === "SUCCESS") {
+      setAddResult(res);
+      setAddTarget(null);
+    }
+    return res;
+  };
+
   const resetForMore = () => {
     setPersonName(""); setPhone(""); setAmount(""); setDueDate(""); setReminderDate("");
-    setNote(""); setErrors({}); setSuccess(false); setCreatedLoan(null); setStep(1);
-    setLoanDate(todayStr());
+    setNote(""); setErrors({}); setSuccess(false); setCreatedLoan(null); setAddResult(null);
+    setShowActiveWarning(false); setShowLoanPicker(false); setAddTarget(null);
+    setActiveCheck("idle"); setServerActive([]); setResolvedPersonId("");
+    setStep(1); setLoanDate(todayStr());
     setClientId(typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : "l" + Date.now() + Math.random().toString(36).slice(2));
   };
+
+  if (addResult) {
+    const l = addResult.loan;
+    const added = addResult.addition || {};
+    const cur = l?.currency || currency;
+    return (
+      <div className="bg-white dark:bg-gray-900 rounded-2xl p-5 border border-gray-200 dark:border-gray-800 shadow-sm space-y-4">
+        <div className="text-center">
+          <div className="w-16 h-16 mx-auto rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400 text-3xl">
+            <i className="fa-solid fa-circle-check"></i>
+          </div>
+          <h3 className="font-bold text-slate-800 dark:text-gray-100 text-base mt-3">হাওলাতে টাকা যোগ হয়েছে!</h3>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">সক্রিয় লোনের হিসাব আপডেট হয়েছে।</p>
+        </div>
+
+        <div className="bg-slate-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-3 text-xs">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center text-base font-bold">{String(l?.personName || "?").charAt(0).toUpperCase()}</div>
+            <div>
+              <div className="font-bold text-slate-800 dark:text-gray-100">{l?.personName}</div>
+              <div className="text-[10px] text-gray-500 dark:text-gray-400"><i className="fa-solid fa-phone me-1"></i>{l?.phone}</div>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">হাওলাতের ধরন</span><span className="font-bold">{loanTypeMeta(l?.type).action}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">যোগ হয়েছে</span><span className="font-bold text-amber-600">+{formatMoney(Number(added.amount || 0), cur)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">মোট হাওলাত</span><span className="font-bold text-emerald-600">{formatMoney(totalAmountOf(l), cur)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">বাকি</span><span className="font-bold text-amber-600">{formatMoney(remainingOf(l), cur)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">তারিখ</span><span className="font-bold">{added.date || l?.loanDate}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">ওয়ালেট</span><span className="font-bold">{added.walletName || l?.walletName || "—"}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">Wallet Account</span><span className="font-bold">{added.account || l?.account}</span></div>
+            {added.note && <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">নোট</span><span className="font-bold text-right">{added.note}</span></div>}
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <button onClick={() => onDone && onShow(l)} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm shadow-md">লোন দেখুন</button>
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={onGoHome} className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-slate-700 dark:text-gray-200 font-bold py-2.5 rounded-xl text-xs">হোমে যান</button>
+            <button onClick={resetForMore} className="bg-slate-800 text-white font-bold py-2.5 rounded-xl text-xs"><i className="fa-solid fa-plus me-1"></i>আরো হাওলাত দিন</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (success) {
     const l = createdLoan;
@@ -320,12 +448,124 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
           {step < 3 ? (
             <button type="button" onClick={goNext} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl shadow-md text-sm"><i className="fa-solid fa-arrow-right me-1"></i>পরবর্তী</button>
           ) : (
-            <button type="submit" disabled={submitting} className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl shadow-md text-sm flex items-center justify-center gap-2">
-              <i className="fa-solid fa-floppy-disk"></i> {submitting ? "সাবমিট হচ্ছে..." : (isEdit ? "আপডেট করুন" : "হাওলাত যোগ করুন")}
+            <button type="submit" disabled={submitting || activeCheck === "checking"} className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl shadow-md text-sm flex items-center justify-center gap-2">
+              <i className={`${activeCheck === "checking" ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-floppy-disk"}`}></i> {activeCheck === "checking" ? "রেকর্ড যাচাই হচ্ছে..." : (submitting ? "সাবমিট হচ্ছে..." : (isEdit ? "আপডেট করুন" : "হাওলাত যোগ করুন"))}
             </button>
           )}
         </div>
       </form>
+
+      {showActiveWarning && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/50"></div>
+          <div className="relative bg-white dark:bg-gray-900 w-full max-w-[480px] rounded-t-2xl p-4 pb-8 shadow-2xl max-h-[92vh] overflow-y-auto">
+            <div className="text-center mb-4">
+              <div className="w-14 h-14 mx-auto rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center text-amber-600 dark:text-amber-400 text-2xl">
+                <i className="fa-solid fa-triangle-exclamation"></i>
+              </div>
+              <h4 className="font-bold text-sm text-slate-800 dark:text-gray-100 mt-3">সক্রিয় হাওলাত পাওয়া গেছে</h4>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                <span className="font-semibold text-slate-700 dark:text-gray-200">{personName}</span>{" "}
+                এর{" "}{serverActive.length}টি সক্রিয় হাওলাত আছে। আপনি কী করতে চান?
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <button type="button" onClick={() => { setShowActiveWarning(false); doCreate(); }} className="w-full text-left bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl p-3 active:scale-95 transition-transform">
+                <div className="text-sm font-bold text-slate-800 dark:text-gray-100"><i className="fa-solid fa-file-circle-plus text-emerald-600 me-2"></i>নতুন আলাদা লোন তৈরি করুন</div>
+                <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">নতুন হাওলাত হিসাবে আলাদাভাবে সংরক্ষণ হবে।</div>
+              </button>
+              <button type="button" onClick={chooseAddToExisting} disabled={compatibleActiveLoans.length === 0}
+                className={`w-full text-left rounded-xl p-3 active:scale-95 transition-transform ${compatibleActiveLoans.length === 0 ? "bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 opacity-60" : "bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-300 dark:border-emerald-800"}`}>
+                <div className="text-sm font-bold text-slate-800 dark:text-gray-100"><i className={`fa-solid fa-circle-plus ${compatibleActiveLoans.length === 0 ? "text-gray-400" : "text-emerald-600"} me-2`}></i>সক্রিয় লোনের সাথে যোগ করুন</div>
+                <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                  {compatibleActiveLoans.length === 0
+                    ? "এই ধরন/কারেন্সির সাথে মেলে এমন সক্রিয় লোন নেই — শুধু নতুন লোন তৈরি করা যাবে।"
+                    : "নতুন টাকা ওই লোনের হিসাবের সাথে যোগ হবে।"}
+                </div>
+              </button>
+            </div>
+
+            <div className="border-t border-gray-100 dark:border-gray-800 mt-4 pt-3 space-y-2">
+              <div className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase">সক্রিয় হাওলাত</div>
+              {serverActive.map((al, i) => (
+                <div key={al.id} className="flex items-center justify-between bg-slate-50 dark:bg-gray-950 border border-gray-100 dark:border-gray-800 rounded-xl px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${String(al.type) === "given" ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700"}`}>{i + 1}</span>
+                    <span className="text-xs font-semibold text-slate-800 dark:text-gray-100">{loanTypeMeta(al.type).action} <span className="text-[10px] font-medium text-gray-400">{al.currency}</span></span>
+                  </div>
+                  <span className="text-xs font-bold text-amber-600 dark:text-amber-400">{formatMoney(remainingOf(al), al.currency)} বাকি</span>
+                </div>
+              ))}
+            </div>
+
+            <button type="button" onClick={() => setShowActiveWarning(false)} className="mt-4 w-full bg-gray-100 dark:bg-gray-800 text-slate-600 dark:text-gray-300 font-bold py-2.5 rounded-xl text-xs">বাতিল</button>
+          </div>
+        </div>
+      )}
+
+      {activeCheck === "failed" && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/50"></div>
+          <div className="relative bg-white dark:bg-gray-900 w-full max-w-[480px] rounded-t-2xl p-4 pb-8 shadow-2xl max-h-[92vh] overflow-y-auto">
+            <div className="text-center mb-4">
+              <div className="w-14 h-14 mx-auto rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center text-amber-600 dark:text-amber-400 text-2xl">
+                <i className="fa-solid fa-triangle-exclamation"></i>
+              </div>
+              <h4 className="font-bold text-sm text-slate-800 dark:text-gray-100 mt-3">রেকর্ড যাচাই করা যায়নি</h4>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                লোনের আগের রেকর্ড যাচাই করা যায়নি। আবার চেষ্টা করুন।
+              </p>
+            </div>
+            <div className="space-y-2">
+              <button type="button" onClick={() => { setShowActiveWarning(false); runActiveCheck(); }} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm shadow-md">
+                <i className="fa-solid fa-rotate-right me-2"></i>আবার চেষ্টা করুন
+              </button>
+              <button type="button" onClick={() => setActiveCheck("idle")} className="w-full bg-gray-100 dark:bg-gray-800 text-slate-600 dark:text-gray-300 font-bold py-2.5 rounded-xl text-xs">বাতিল</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showLoanPicker && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowLoanPicker(false)}></div>
+          <div className="relative bg-white dark:bg-gray-900 w-full max-w-[480px] rounded-t-2xl p-4 pb-8 shadow-2xl max-h-[75vh] overflow-y-auto">
+            <div className="text-xs font-bold text-slate-700 dark:text-gray-200 mb-1">কোন লোনে যোগ করবেন?</div>
+            <p className="text-[11px] text-gray-400 dark:text-gray-500 mb-3">নিচের যেকোনো একটি সক্রিয় লোন নির্বাচন করুন।</p>
+            <div className="space-y-2">
+              {compatibleActiveLoans.map((al) => (
+                <button key={al.id} type="button" onClick={() => { setShowLoanPicker(false); openAddFlow(al); }} className="w-full text-left bg-slate-50 dark:bg-gray-950 border border-gray-100 dark:border-gray-800 rounded-xl p-3 active:scale-95 transition-transform">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-800 dark:text-gray-100">{loanTypeMeta(al.type).action}</span>
+                    <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400">{formatMoney(remainingOf(al), al.currency)} বাকি</span>
+                  </div>
+                  <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">
+                    মোট: {formatMoney(totalAmountOf(al), al.currency)} • ফেরত: {formatMoney(al.repaid, al.currency)}
+                  </div>
+                </button>
+              ))}
+            </div>
+            <button type="button" onClick={() => setShowLoanPicker(false)} className="mt-3 w-full bg-gray-100 dark:bg-gray-800 text-slate-600 dark:text-gray-300 font-bold py-2.5 rounded-xl text-xs">বাতিল</button>
+          </div>
+        </div>
+      )}
+
+      {addTarget && !addResult && (
+        <LoanAddForm
+          loan={addTarget.loan}
+          prefill={addTarget}
+          wallets={wallets}
+          currentUser={currentUser}
+          person={{ personName: personName.trim(), phone: phone.trim(), personId: resolvedPersonId }}
+          onCancel={() => setAddTarget(null)}
+          onSave={(formData) => {
+            // Goes through createLoan (mode=ADD_TO_EXISTING_LOAN) so the backend
+            // re-validates the person/type/paid state authoritatively.
+            return onSave(formData).then(handleAddToLoanSaved).catch(() => {});
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Select from "./Select.jsx";
-import { formatMoney, loanTypeMeta, remainingOf, todayStr, pickDefaultWalletId } from "../utils/loan.js";
+import { formatMoney, loanTypeMeta, remainingOf, todayStr, pickDefaultWalletId, totalAmountOf } from "../utils/loan.js";
 
 function ErrorText({ msg }) {
   return msg ? <div className="text-[10px] text-rose-600 dark:text-rose-400 mt-1 flex items-center gap-1"><i className="fa-solid fa-circle-exclamation"></i>{msg}</div> : null;
@@ -68,7 +68,7 @@ export default function LoanRepaymentForm({ loan, wallets, currentUser, onSave, 
           <div className="grid grid-cols-3 gap-1 text-center">
             <div>
               <div className="text-[9px] text-gray-500 dark:text-gray-400 font-medium">মোট হাওলাত</div>
-              <div className="text-[11px] font-bold text-slate-800 dark:text-gray-100 mt-0.5">{formatMoney(loan?.amount, currency)}</div>
+              <div className="text-[11px] font-bold text-slate-800 dark:text-gray-100 mt-0.5">{formatMoney(totalAmountOf(loan), currency)}</div>
             </div>
             <div>
               <div className="text-[9px] text-emerald-600 dark:text-emerald-400 font-medium">ফেরত হয়েছে</div>

@@ -363,6 +363,17 @@ export default function App() {
     return Array.from(byId.values());
   };
 
+  const handleCheckActiveLoans = (identity) => {
+    // Quiet server-side check used before creating a NEW loan. The server, not
+    // the local loan list, decides whether this person has outstanding loans.
+    return api
+      .getPersonActiveLoans(currentUser.username, identity)
+      .then((res) => {
+        if (res && res.status === "ERROR") throw new Error(res.message || "লোনের আগের রেকর্ড যাচাই করা যায়নি।");
+        return res;
+      });
+  };
+
   const handleSaveLoan = (formData) => {
     setLoading(true);
     return api
@@ -416,6 +427,77 @@ export default function App() {
           if (res.loan) setLoans((prev) => upsertLoans(prev, [res.loan]));
           if (res.transactions?.length)
             setTransactions((prev) => upsertTxns(prev, res.transactions));
+        }
+        setLoading(false);
+        return res;
+      })
+      .catch((err) => {
+        showAlert("ত্রুটি: " + err, "error");
+        setLoading(false);
+        throw err;
+      });
+  };
+
+  const handleAddLoanAddition = (loanId, formData) => {
+    setLoading(true);
+    return api
+      .addLoanAddition({ ...formData, loanId, user: currentUser.username })
+      .then((res) => {
+        showAlert(res.message, res.status === "ERROR" ? "error" : "success");
+        if (res.status === "SUCCESS") {
+          if (res.loan) setLoans((prev) => upsertLoans(prev, [res.loan]));
+          if (res.transactions?.length)
+            setTransactions((prev) => upsertTxns(prev, res.transactions));
+        }
+        setLoading(false);
+        return res;
+      })
+      .catch((err) => {
+        showAlert("ত্রুটি: " + err, "error");
+        setLoading(false);
+        throw err;
+      });
+  };
+
+  const handleEditLoanAddition = (formData) => {
+    setLoading(true);
+    return api
+      .editLoanAddition({ ...formData, user: currentUser.username }, currentUser.username)
+      .then((res) => {
+        showAlert(res.message, res.status === "ERROR" ? "error" : "success");
+        if (res.status === "SUCCESS") {
+          if (res.loan) setLoans((prev) => upsertLoans(prev, [res.loan]));
+          if (res.transactions?.length)
+            setTransactions((prev) => upsertTxns(prev, res.transactions));
+          else if (res.loan)
+            // The wallet effect row was updated in place (no new transaction is
+            // returned), so re-pull transactions/wallets or balance cards stay stale.
+            loadData();
+        }
+        setLoading(false);
+        return res;
+      })
+      .catch((err) => {
+        showAlert("ত্রুটি: " + err, "error");
+        setLoading(false);
+        throw err;
+      });
+  };
+
+  const handleDeleteLoanAddition = (additionId) => {
+    setLoading(true);
+    return api
+      .deleteLoanAddition(additionId, currentUser.username)
+      .then((res) => {
+        showAlert(res.message, res.status === "ERROR" ? "error" : "success");
+        if (res.status === "SUCCESS") {
+          if (res.loan) setLoans((prev) => upsertLoans(prev, [res.loan]));
+          if (res.transactions?.length)
+            setTransactions((prev) => upsertTxns(prev, res.transactions));
+          else if (res.loan)
+            // Deleting an addition reverses the wallet effect row in place, so
+            // re-pull transactions/wallets to keep balance cards accurate.
+            loadData();
         }
         setLoading(false);
         return res;
@@ -720,6 +802,8 @@ export default function App() {
               loans={loans}
               currentUser={currentUser}
               onSave={handleSaveLoan}
+              onAddToLoan={handleAddLoanAddition}
+              onCheckActive={handleCheckActiveLoans}
               onCancel={() => setActiveTab("loans")}
               onDone={() => setActiveTab("loans")}
               onGoHome={() => setActiveTab("home")}
@@ -746,6 +830,9 @@ export default function App() {
                   onGoHome={() => setActiveTab("home")}
                   onEdit={() => setActiveTab("loan-edit-" + loanId)}
                   onRepayment={handleLoanRepayment}
+                  onAddAddition={handleAddLoanAddition}
+                  onEditAddition={handleEditLoanAddition}
+                  onDeleteAddition={handleDeleteLoanAddition}
                 />
               );
             })()}

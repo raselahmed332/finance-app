@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../api.js";
 import {
   formatMoney, fmtDate, statusOf, STATUS_META, dateInRange,
-  STATUS_CHOICES, DATE_CHOICES, avatarClass, initialOf, loanTypeMeta, remainingOf,
+  STATUS_CHOICES, DATE_CHOICES, avatarClass, initialOf, loanTypeMeta, remainingOf, totalAmountOf,
 } from "../utils/loan.js";
 
 function SumRow({ label, value, accent }) {
@@ -81,7 +81,7 @@ function LoanCard({ loan, onSelect }) {
       <div className="grid grid-cols-3 gap-2 mt-3">
         <div className="bg-slate-50 dark:bg-gray-950 rounded-xl p-2 text-center border border-gray-100 dark:border-gray-800">
           <div className="text-[9px] text-gray-500 dark:text-gray-400 font-medium">{meta.totalLabel}</div>
-          <div className="text-[11px] font-bold text-slate-800 dark:text-gray-100 mt-0.5">{formatMoney(loan.amount, loan.currency)}</div>
+          <div className="text-[11px] font-bold text-slate-800 dark:text-gray-100 mt-0.5">{formatMoney(totalAmountOf(loan), loan.currency)}</div>
         </div>
         <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-2 text-center border border-emerald-100 dark:border-emerald-800">
           <div className="text-[9px] text-emerald-700 dark:text-emerald-400 font-medium">{meta.repaidLabel}</div>
@@ -228,9 +228,9 @@ export default function LoanDashboardView({ currentUser, loans, onLoansChange, c
 
   const given = useMemo(() => allLoans.filter(l => l.type === "given"), [allLoans]);
   const taken = useMemo(() => allLoans.filter(l => l.type === "taken"), [allLoans]);
-  const givenTotal = useMemo(() => totalBy(given, "amount"), [given]);
+  const givenTotal = useMemo(() => totalBy(given, totalAmountOf), [given]);
   const givenRemain = useMemo(() => totalBy(given, remainingOf) || {}, [given]);
-  const takenTotal = useMemo(() => totalBy(taken, "amount"), [taken]);
+  const takenTotal = useMemo(() => totalBy(taken, totalAmountOf), [taken]);
   const takenRemain = useMemo(() => totalBy(taken, remainingOf) || {}, [taken]);
 
   const currencies = useMemo(() => [...new Set(allLoans.map(l => l.currency).filter(Boolean))], [allLoans]);

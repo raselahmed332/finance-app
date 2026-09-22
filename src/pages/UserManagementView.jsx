@@ -85,6 +85,23 @@ function itemKey(item) {
   return Array.isArray(item) ? item[0] : item;
 }
 
+// The backend rejects a Sub-Admin granting any permission they don't hold
+// ("You cannot grant a permission you do not have"), so only offer the options
+// the actor can actually grant. Admins may grant everything.
+function grantableFor(currentUser) {
+  const perms = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
+  return isAdminRole(currentUser?.role)
+    ? GRANTABLE_PERMISSIONS.slice()
+    : GRANTABLE_PERMISSIONS.filter((p) => perms.includes(p));
+}
+
+function filterGroups(groups, allowed) {
+  const set = new Set(allowed);
+  return groups
+    .map((g) => ({ ...g, items: g.items.filter((i) => set.has(itemKey(i))) }))
+    .filter((g) => g.items.length > 0);
+}
+
 // ---------- Small presentational pieces ----------
 
 function SectionCard({ icon, title, hint, children, className = "" }) {
@@ -252,6 +269,8 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
   const knownIds = new Set(wallets.map((w) => String(w.WalletID)));
   const targetAccess = (user.WalletAccess || []).map(String);
   const otherAccess = targetAccess.filter((id) => !knownIds.has(id));
+  const storedGrantables = (user.Permissions || []).filter((p) => GRANTABLE_PERMISSIONS.includes(p));
+  const outOfScopeWallets = otherAccess;
 
   const [fullName, setFullName] = useState(user.FullName || "");
   const [role, setRole] = useState(normRole(user.Role));
@@ -271,6 +290,14 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
   const canToggleStatus = actorAdmin && canEditName;
   const active = (user.Status || "Active") === "Active";
 
+  // A Sub-Admin may only grant permissions they hold and wallets they can see.
+  // If the target holds grants beyond the actor's scope, editing would either
+  // be rejected by the backend or silently revoke those grants — so lock the
+  // panels and tell the user why instead of offering a dead-end.
+  const actorPerms = grantableFor(currentUser);
+  const permLocked = !actorAdmin && storedGrantables.some((p) => !actorPerms.includes(p));
+  const walletLocked = !actorAdmin && outOfScopeWallets.length > 0;
+
   const togglePerm = (p) => setPermissions((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]));
   const toggleWallet = (id) => setWalletAccess((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
@@ -288,13 +315,12 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
   };
 
   const saveAll = () => {
-    const storedGrantables = (user.Permissions || []).filter((p) => GRANTABLE_PERMISSIONS.includes(p));
     const storedAccess = targetAccess.filter((id) => knownIds.has(id));
     const nameChanged = canEditName && fullName !== (user.FullName || "");
     const roleChanged = canEditRole && role !== normRole(user.Role);
-    const permChanged = canManagePerms &&
+    const permChanged = canManagePerms && !permLocked &&
       JSON.stringify([...permissions].sort()) !== JSON.stringify([...storedGrantables].sort());
-    const walletChanged = canManagePerms &&
+    const walletChanged = canManagePerms && !walletLocked &&
       JSON.stringify([...walletAccess].sort()) !== JSON.stringify([...storedAccess].sort());
 
     const calls = [];
@@ -392,19 +418,30 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
 
           {canManagePerms && (
             <SectionCard icon="fa-wallet" title="Wallet Access" hint="কোন ওয়ালেটে ইউজার এক্সেস পাবে তা নির্বাচন করুন। Permissions শুধু অ্যাক্সেসযোগ্য ওয়ালেটের ভেতরেই কাজ করে।">
-              <WalletChecklist wallets={wallets} selected={walletAccess} onToggle={toggleWallet} />
-              {otherAccess.length > 0 && (
-                <div className="text-[10px] text-gray-400 dark:text-gray-500">
-                  এই ইউজারের আরও অ্যাক্সেস আছে, কিন্তু তা আপনার বর্তমান Wallet তালিকায় নেই:{" "}
-                  {otherAccess.join(", ")}
+              {walletLocked && !actorAdmin ? (
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-2.5 text-[10px] text-amber-700 dark:text-amber-400 leading-snug">
+                  <i className="fa-solid fa-triangle-exclamation me-1"></i>
+                  এই ইউজারের আরও Wallet Access আছে, কিন্তু সেগুলো আপনার বর্তমান Wallet তালিকার বাইরে ({" "}
+                  {outOfScopeWallets.join(", ")} )। এখানে সম্পাদনা করলে সেগুলো হারাবে, তাই Wallet Access
+                  এডিট বন্ধ আছে — আগে Admin এর সাথে যোগাযোগ করুন।
                 </div>
-              )}
-              {!hasWallet && <NoWalletAccessNotice showInactiveNote={AnyAdditionalGranted({ selected: permissions })} />}
-              {hasWallet && (
-                <div className="text-[10px] text-gray-400 dark:text-gray-500 flex items-center gap-1">
-                  <i className="fa-solid fa-circle-check text-emerald-500"></i>
-                  Wallet Access সক্রিয় → Default Wallet Actions + Additional Permissions প্রযোজ্য
-                </div>
+              ) : (
+                <>
+                  <WalletChecklist wallets={wallets} selected={walletAccess} onToggle={toggleWallet} />
+                  {otherAccess.length > 0 && (
+                    <div className="text-[10px] text-gray-400 dark:text-gray-500">
+                      এই ইউজারের আরও অ্যাক্সেস আছে, কিন্তু তা আপনার বর্তমান Wallet তালিকায় নেই:{" "}
+                      {otherAccess.join(", ")}
+                    </div>
+                  )}
+                  {!hasWallet && <NoWalletAccessNotice showInactiveNote={AnyAdditionalGranted({ selected: permissions })} />}
+                  {hasWallet && (
+                    <div className="text-[10px] text-gray-400 dark:text-gray-500 flex items-center gap-1">
+                      <i className="fa-solid fa-circle-check text-emerald-500"></i>
+                      Wallet Access সক্রিয় → Default Wallet Actions + Additional Permissions প্রযোজ্য
+                    </div>
+                  )}
+                </>
               )}
             </SectionCard>
           )}
@@ -415,16 +452,26 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
 
           {canManagePerms && (
             <SectionCard icon="fa-user-shield" title="Additional Permissions" hint="এই Permissions Admin কে স্পষ্টভাবে দিতে হয়। এগুলো ইউজারের অ্যাক্সেসযোগ্য সব ওয়ালেটে প্রযোজ্য।">
-              {!hasWallet && (
+              {permLocked ? (
                 <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-2.5 text-[10px] text-amber-700 dark:text-amber-400 leading-snug">
                   <i className="fa-solid fa-triangle-exclamation me-1"></i>
-                  Add Income ইত্যাদি Permission দেওয়া থাকলেও Wallet Access না থাকায় সেগুলো নিষ্ক্রিয় থাকবে।
+                  এই ইউজারের কিছু Permission আপনার অনুমতির বাইরে, তাই Additional Permissions এডিট বন্ধ
+                  আছে — আগে Admin এর সাথে যোগাযোগ করুন।
                 </div>
+              ) : (
+                <>
+                  {!hasWallet && (
+                    <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-2.5 text-[10px] text-amber-700 dark:text-amber-400 leading-snug">
+                      <i className="fa-solid fa-triangle-exclamation me-1"></i>
+                      Add Income ইত্যাদি Permission দেওয়া থাকলেও Wallet Access না থাকায় সেগুলো নিষ্ক্রিয় থাকবে।
+                    </div>
+                  )}
+                  {filterGroups(ADDITIONAL_GROUPS, actorPerms).map((g) => (
+                    <PermissionGroup key={g.title} group={g} selected={permissions} onToggle={togglePerm} />
+                  ))}
+                  <AdminOnlyNote />
+                </>
               )}
-              {ADDITIONAL_GROUPS.map((g) => (
-                <PermissionGroup key={g.title} group={g} selected={permissions} onToggle={togglePerm} />
-              ))}
-              <AdminOnlyNote />
             </SectionCard>
           )}
 
@@ -555,8 +602,14 @@ function AddUserCard({ wallets, currentUser, showAlert, onRefresh }) {
   const actorAdmin = isAdminRole(currentUser?.role);
   const isAdminNew = isAdminRole(role);
   const hasWallet = walletAccess.length > 0;
+  // Sub-Admin can only grant permissions they themselves hold — matching the
+  // backend's escalation guard. Admins get the full list.
+  const actorPerms = grantableFor(currentUser);
 
-  const togglePerm = (p) => setPermissions((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]));
+  const togglePerm = (p) => {
+    if (!actorPerms.includes(p)) return;
+    setPermissions((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]));
+  };
   const toggleWallet = (id) => setWalletAccess((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   const resetForm = () => {
@@ -612,7 +665,7 @@ function AddUserCard({ wallets, currentUser, showAlert, onRefresh }) {
                   Add Income ইত্যাদি Permission দেওয়া থাকলেও Wallet Access না থাকায় সেগুলো নিষ্ক্রিয় থাকবে।
                 </div>
               )}
-              {ADDITIONAL_GROUPS.map((g) => (
+              {filterGroups(ADDITIONAL_GROUPS, actorPerms).map((g) => (
                 <PermissionGroup key={g.title} group={g} selected={permissions} onToggle={togglePerm} />
               ))}
               <AdminOnlyNote />

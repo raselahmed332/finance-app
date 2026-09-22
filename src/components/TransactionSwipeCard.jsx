@@ -16,20 +16,31 @@ const TYPE_BADGES = {
   "Bank Withdraw": { bg: "bg-rose-100 dark:bg-rose-900/40", text: "text-rose-700 dark:text-rose-400", icon: "fa-arrow-up", label: "Bank Withdraw" },
 };
 
+// Bank operation rows are real Transfer In/Out PAIRS with a "Bank Operation"
+// category. The badge color/icon follow the row's money direction (in = green,
+// out = rose) so they never contradict the +/- amount; the label keeps the
+// operation name that the user performed.
 function getBadge(t) {
-  // Bank operations store real Transfer In/Out rows with a "Bank Operation"
-  // category — a borrower named e.g. "Momtaz Deposit" is NOT a bank op, so gate
-  // the Withdraw/Deposit classification on the category, not the vendor text.
   if (t.SourceCategory === "Bank Operation") {
-    return String(t.WhereVendor || "").toLowerCase().includes("withdraw")
-      ? TYPE_BADGES["Bank Withdraw"]
-      : TYPE_BADGES["Bank Deposit"];
+    const into = t.Type === "Transfer In";
+    const isWithdraw = String(t.WhereVendor || "").toLowerCase().includes("withdraw");
+    return {
+      ...TYPE_BADGES[into ? "Bank Deposit" : "Bank Withdraw"],
+      label: isWithdraw ? "Bank Withdraw" : "Bank Deposit",
+    };
   }
+  // Legacy transfer rows that carry their direction in the vendor text. Only
+  // applied to transfer rows — an Expense vendor containing "deposit"/"withdraw"
+  // is NOT a bank operation and must keep its own badge.
   const v = (t.WhereVendor || "").toLowerCase();
-  if (v.includes("deposit")) return TYPE_BADGES.Deposit;
-  if (v.includes("withdraw")) return TYPE_BADGES.Withdraw;
+  if ((t.Type === "Transfer In" || t.Type === "Transfer Out") &&
+      (v.includes("deposit") || v.includes("withdraw"))) {
+    return t.Type === "Transfer In" ? TYPE_BADGES.Deposit : TYPE_BADGES.Withdraw;
+  }
   return TYPE_BADGES[t.Type] || TYPE_BADGES.Transfer;
 }
+
+const LOAN_TXN_TYPES = ["Loan Out", "Loan In", "Loan Payment", "Loan Repaid"];
 
 export default function TransactionSwipeCard({ t, userMap, canEdit, canDelete, onEdit, onDelete }) {
   const badge = getBadge(t);
@@ -56,7 +67,8 @@ export default function TransactionSwipeCard({ t, userMap, canEdit, canDelete, o
 
   const handleTouchEnd = () => {
     setSwiping(false);
-    if (currentX.current < -80 && canDelete) {
+    const deletable = !LOAN_TXN_TYPES.includes(t.Type);
+    if (currentX.current < -80 && canDelete && deletable) {
       onDelete(t.ID, t.WalletID);
     } else if (currentX.current > 80 && canEdit && (t.Type === "Income" || t.Type === "Expense" || t.Type === "Transfer Out" || t.Type === "Transfer In")) {
       onEdit(t);
@@ -71,9 +83,13 @@ export default function TransactionSwipeCard({ t, userMap, canEdit, canDelete, o
         <div className="w-1/2 bg-blue-500 flex items-center justify-end pr-4 text-white text-xs font-semibold">
           <i className="fa-solid fa-pen me-1"></i> Edit
         </div>
-        <div className="w-1/2 bg-red-500 flex items-center justify-start pl-4 text-white text-xs font-semibold">
-          Delete <i className="fa-solid fa-trash-can ms-1"></i>
-        </div>
+        {canDelete && !LOAN_TXN_TYPES.includes(t.Type) ? (
+          <div className="w-1/2 bg-red-500 flex items-center justify-start pl-4 text-white text-xs font-semibold">
+            Delete <i className="fa-solid fa-trash-can ms-1"></i>
+          </div>
+        ) : (
+          <div className="w-1/2"></div>
+        )}
       </div>
 
       {/* Card */}
