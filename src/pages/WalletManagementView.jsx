@@ -30,15 +30,18 @@ function EditWalletRow({ wallet, currentUser, can, onRefresh, showAlert }) {
     }).catch(() => showAlert('নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।', 'error'));
   };
 
-  const canEdit = can('EDIT_WALLET');
-  const canDel = can('MANAGE_WALLET_STATUS') && wallet.Status === 'Active';
+  // The backend scopes the wallet list to the caller's access range, so each row
+  // can only ever be managed if the caller can actually reach that wallet.
+  const canAccess = String(currentUser?.role) === 'Admin' || (currentUser?.walletAccess || []).includes(String(wallet.WalletID));
+  const canEdit = canAccess && can('EDIT_WALLET');
+  const canDel = canAccess && can('MANAGE_WALLET_STATUS') && wallet.Status === 'Active';
 
   const row = (
     <div className="border-b border-gray-100 dark:border-gray-800 last:border-0 py-2.5 bg-white dark:bg-gray-900">
       <div className="flex justify-between items-center text-xs px-1">
         <div>
           <div className="font-bold text-slate-800 dark:text-gray-100">{wallet.WalletName} <span className="text-[10px] text-gray-400 font-normal">({wallet.WalletID})</span></div>
-          <div className="text-[10px] text-gray-400 dark:text-gray-500">{wallet.Currency} • {wallet.SheetName}</div>
+          <div className="text-[10px] text-gray-400 dark:text-gray-500">{wallet.Currency}{wallet.SheetName ? ` • ${wallet.SheetName}` : ''}</div>
         </div>
         <div className="flex items-center gap-2">
           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${wallet.Status === 'Active' ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400' : 'bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}>{wallet.Status}</span>

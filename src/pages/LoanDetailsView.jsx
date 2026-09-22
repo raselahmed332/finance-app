@@ -15,16 +15,22 @@ function DetailRow({ label, value, bold }) {
   );
 }
 
-export default function LoanDetailsView({ loan: initialLoan, wallets, currentUser, showAlert, onBack, onGoHome, onEdit, onRepayment }) {
+export default function LoanDetailsView({ loan: initialLoan, wallets, currentUser, can, showAlert, onBack, onGoHome, onEdit, onRepayment }) {
   const meta = loanTypeMeta(initialLoan?.type);
-  const status = statusOf(initialLoan);
-  const statusMeta = STATUS_META[status];
-  const remaining = remainingOf(initialLoan);
 
   const [loan, setLoan] = useState(initialLoan);
   const [payments, setPayments] = useState(initialLoan?.payments || []);
   const [loading, setLoading] = useState(true);
   const [showRepay, setShowRepay] = useState(false);
+
+  // Derive status/remaining from the live fetched loan state (not the initial
+  // prop) so they refresh immediately after a payment is saved.
+  const status = statusOf(loan);
+  const statusMeta = STATUS_META[status];
+  const remaining = remainingOf(loan);
+  // Editing needs MANAGE_LOANS (never auto-granted) — hide the affordance from
+  // viewers so they don't hit a dead-end edit screen.
+  const canEditLoan = can && can("MANAGE_LOANS");
 
   useEffect(() => {
     let active = true;
@@ -147,14 +153,16 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
         {loan.note && <DetailRow label="নোট" value={loan.note} />}
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className={canEditLoan ? "grid grid-cols-2 gap-2" : "grid grid-cols-1 gap-2"}>
         <button onClick={() => setShowRepay(true)} disabled={remaining <= 0.005}
           className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold py-3 rounded-xl text-sm shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-transform">
           <i className="fa-solid fa-plus"></i> ফেরত যোগ করুন
         </button>
-        <button onClick={onEdit} className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-slate-700 dark:text-gray-200 font-bold py-3 rounded-xl text-sm shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-transform">
-          <i className="fa-solid fa-pen"></i> এডিট করুন
-        </button>
+        {canEditLoan && (
+          <button onClick={onEdit} className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-slate-700 dark:text-gray-200 font-bold py-3 rounded-xl text-sm shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-transform">
+            <i className="fa-solid fa-pen"></i> এডিট করুন
+          </button>
+        )}
       </div>
 
       {remaining <= 0.005 && (

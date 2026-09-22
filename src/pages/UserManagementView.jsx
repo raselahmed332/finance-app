@@ -262,8 +262,13 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
   const actorAdmin = isAdminRole(currentUser?.role);
   const canEditName = can("EDIT_USER");
   const canEditRole = can("CHANGE_USER_ROLE") && actorAdmin;
-  const canManagePerms = can("MANAGE_USER_PERMISSIONS");
+  // Permissions/wallet-access panels are admin-manageable on self, but the
+  // backend rejects a Sub-Admin editing their OWN perms/wallets — hide the
+  // controls so they can't surface an error that can never succeed.
+  const canManagePerms = can("MANAGE_USER_PERMISSIONS") && (actorAdmin || !isSelf);
   const canResetPin = can("CHANGE_USER_PASSWORD") && !isSelf;
+  // User status changes are Admin-only on the backend (EDIT_USER alone is not enough).
+  const canToggleStatus = actorAdmin && canEditName;
   const active = (user.Status || "Active") === "Active";
 
   const togglePerm = (p) => setPermissions((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]));
@@ -444,7 +449,7 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
                 <i className={`fa-solid fa-circle text-[9px] ${active ? "text-emerald-500" : "text-gray-400"}`}></i>
                 <span className={`text-xs font-bold ${active ? "text-emerald-600 dark:text-emerald-400" : "text-gray-500 dark:text-gray-400"}`}>{active ? "Active" : "Inactive"}</span>
               </div>
-              {canEditName && (
+              {canToggleStatus && (
                 <button onClick={handleToggleStatus} className={`text-[11px] font-bold px-3 py-1.5 rounded-lg ${active ? "bg-red-500/90 hover:bg-red-600 text-white" : "bg-emerald-600 hover:bg-emerald-700 text-white"}`}>
                   {active ? "Deactivate User" : "Activate User"}
                 </button>
@@ -467,8 +472,10 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
   const [expanded, setExpanded] = useState(false);
   const isAdmin = isAdminRole(user.Role);
   const isSelf = String(user.Username).toLowerCase() === String(currentUser.username || "").toLowerCase();
+  const actorAdmin = isAdminRole(currentUser?.role);
   const canResetPin = can("CHANGE_USER_PASSWORD") && !isSelf;
-  const canDel = can("DELETE_USER") && !isAdmin;
+  // Delete is Admin-only on the backend — DELETE_USER alone never succeeds for a Sub-Admin.
+  const canDel = actorAdmin && can("DELETE_USER") && !isAdmin;
   const canManageTarget = isAdmin || can("EDIT_USER") || can("CHANGE_USER_ROLE") || can("MANAGE_USER_PERMISSIONS") || canResetPin;
   const active = (user.Status || "Active") === "Active";
   const walletCount = (user.WalletAccess || []).length;
@@ -625,6 +632,7 @@ function AddUserCard({ wallets, currentUser, showAlert, onRefresh }) {
 // ---------- Main view ----------
 
 export default function UserManagementView({ users, wallets, onRefresh, showAlert, currentUser, onUserAction, can }) {
+  const actorAdmin = isAdminRole(currentUser?.role);
   return (
     <div className="space-y-4">
       <h3 className="font-bold text-slate-800 dark:text-gray-100 text-base">User Access & Management (ইউজার ম্যানেজমেন্ট)</h3>
@@ -637,11 +645,11 @@ export default function UserManagementView({ users, wallets, onRefresh, showAler
 
       <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-200 dark:border-gray-800 shadow-2xs">
         <div className="text-xs font-bold text-slate-700 dark:text-gray-200 mb-1">ইউজার তালিকা <span className="text-[10px] text-gray-400 font-normal">({users.length})</span></div>
-        {(can("DELETE_USER") || can("MANAGE_USER_PERMISSIONS") || can("EDIT_USER")) && (
+        {(can("DELETE_USER") && actorAdmin) || can("MANAGE_USER_PERMISSIONS") || can("EDIT_USER") ? (
           <div className="text-[10px] text-gray-400 dark:text-gray-500 mb-2 flex items-center gap-1">
             <i className="fa-solid fa-hand-pointer"></i> Swipe right to manage, left to delete
           </div>
-        )}
+        ) : null}
         {users.map((u, i) => (
           <UserRow key={u.Username || i} user={u} wallets={wallets} currentUser={currentUser} can={can} onRefresh={onRefresh} showAlert={showAlert} onUserAction={onUserAction} />
         ))}

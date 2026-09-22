@@ -8,6 +8,9 @@ export default function AuditLogView({ currentUser, onCancel }) {
   const [total, setTotal] = useState(0);
   const [checking, setChecking] = useState(false);
   const [checkResult, setCheckResult] = useState(null);
+  // Pair-integrity check is Admin-only on the backend — don't offer it as an
+  // affordance that can only ever error for Sub-Admins with VIEW_AUDIT_LOG.
+  const isAdmin = String(currentUser?.role) === 'Admin';
 
   const load = (p) => {
     api.getAuditLog(currentUser.username, { page: p, pageSize: 20 }).then((res) => {
@@ -52,10 +55,11 @@ export default function AuditLogView({ currentUser, onCancel }) {
         <span className="text-xs bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-full font-semibold">{total} টি</span>
       </div>
 
-      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3.5 shadow-2xs space-y-2">
-        <button onClick={handleCheckIntegrity} disabled={checking} className="w-full bg-slate-800 disabled:opacity-50 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5">
-          <i className="fa-solid fa-shield-halved"></i> {checking ? 'পরীক্ষা করা হচ্ছে...' : 'Check Transfer Pair Integrity'}
-        </button>
+      {isAdmin && (
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3.5 shadow-2xs space-y-2">
+          <button onClick={handleCheckIntegrity} disabled={checking} className="w-full bg-slate-800 disabled:opacity-50 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5">
+            <i className="fa-solid fa-shield-halved"></i> {checking ? 'পরীক্ষা করা হচ্ছে...' : 'Check Transfer Pair Integrity'}
+          </button>
         {checkResult && (
           checkResult.error ? (
             <div className="text-xs text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-lg px-2.5 py-2">
@@ -78,7 +82,8 @@ export default function AuditLogView({ currentUser, onCancel }) {
             </div>
           )
         )}
-      </div>
+        </div>
+      )}
 
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-3.5 shadow-2xs">
         {entries === null && <div className="text-center text-xs text-gray-400 dark:text-gray-500 py-8">লোড হচ্ছে...</div>}

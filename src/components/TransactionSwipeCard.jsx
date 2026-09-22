@@ -17,6 +17,14 @@ const TYPE_BADGES = {
 };
 
 function getBadge(t) {
+  // Bank operations store real Transfer In/Out rows with a "Bank Operation"
+  // category — a borrower named e.g. "Momtaz Deposit" is NOT a bank op, so gate
+  // the Withdraw/Deposit classification on the category, not the vendor text.
+  if (t.SourceCategory === "Bank Operation") {
+    return String(t.WhereVendor || "").toLowerCase().includes("withdraw")
+      ? TYPE_BADGES["Bank Withdraw"]
+      : TYPE_BADGES["Bank Deposit"];
+  }
   const v = (t.WhereVendor || "").toLowerCase();
   if (v.includes("deposit")) return TYPE_BADGES.Deposit;
   if (v.includes("withdraw")) return TYPE_BADGES.Withdraw;
@@ -105,7 +113,7 @@ export default function TransactionSwipeCard({ t, userMap, canEdit, canDelete, o
         <div className="text-right">
           <div className={`font-bold text-xs ${isIncome ? "text-emerald-600 dark:text-emerald-400" : isExpense ? "text-rose-600 dark:text-rose-400" : "text-purple-600 dark:text-purple-400"}`}>
             {isIncome ? "+" : "-"}
-            {parseFloat(t.Amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            {(Number.isFinite(parseFloat(t.Amount)) ? parseFloat(t.Amount) : 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <div className="text-[10px] font-bold text-gray-400 dark:text-gray-500">{t.Currency}</div>
         </div>

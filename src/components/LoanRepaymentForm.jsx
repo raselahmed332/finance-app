@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Select from "./Select.jsx";
-import { formatMoney, loanTypeMeta, remainingOf, todayStr } from "../utils/loan.js";
+import { formatMoney, loanTypeMeta, remainingOf, todayStr, pickDefaultWalletId } from "../utils/loan.js";
 
 function ErrorText({ msg }) {
   return msg ? <div className="text-[10px] text-rose-600 dark:text-rose-400 mt-1 flex items-center gap-1"><i className="fa-solid fa-circle-exclamation"></i>{msg}</div> : null;
@@ -9,7 +9,7 @@ function ErrorText({ msg }) {
 export default function LoanRepaymentForm({ loan, wallets, currentUser, onSave, onCancel }) {
   const meta = loanTypeMeta(loan?.type);
   const remaining = remainingOf(loan);
-  const [walletId, setWalletId] = useState(loan?.walletId || wallets[0]?.WalletID || "");
+  const [walletId, setWalletId] = useState((loan?.walletId && (wallets || []).some((w) => String(w.WalletID) === String(loan.walletId))) ? loan.walletId : pickDefaultWalletId(currentUser?.username, wallets));
   const [account, setAccount] = useState(loan?.account || "Cash");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(todayStr());

@@ -120,6 +120,10 @@ export default function App() {
   // Loan module: visible to everyone with wallet access (VIEW_LOANS is implied
   // by wallet access); Admins have it via their full effective permission set.
   const canLoan = can("VIEW_LOANS");
+  // Loan creation needs an issuing action (not just view); loan editing needs
+  // the management grant the backend requires (MANAGE_LOANS is never auto-granted).
+  const canAddLoan = canAny(["LOAN_GIVE", "LOAN_TAKE", "MANAGE_LOANS"]);
+  const canEditLoan = can("MANAGE_LOANS");
 
   const showAlert = useCallback((msg, type = "success") => {
     setAlertMsg({ msg, type });
@@ -580,6 +584,7 @@ export default function App() {
             <IncomeForm
               wallets={wallets}
               categories={categories}
+              currentUser={currentUser}
               onSave={handleSaveTransaction}
               onCancel={() => setActiveTab("home")}
             />
@@ -589,6 +594,7 @@ export default function App() {
             <ExpenseForm
               wallets={wallets}
               categories={categories}
+              currentUser={currentUser}
               onSave={handleSaveTransaction}
               onCancel={() => setActiveTab("home")}
             />
@@ -597,6 +603,7 @@ export default function App() {
           {can("TRANSFER_MONEY") && activeTab === "transfer" && (
             <TransferForm
               wallets={wallets}
+              currentUser={currentUser}
               onSave={handleSaveTransaction}
               onCancel={() => setActiveTab("home")}
             />
@@ -605,6 +612,7 @@ export default function App() {
           {can("BANK_OPERATIONS") && activeTab === "bank" && (
             <BankOperationForm
               wallets={wallets}
+              currentUser={currentUser}
               onSave={handleSaveTransaction}
               onCancel={() => setActiveTab("home")}
             />
@@ -705,7 +713,7 @@ export default function App() {
             />
           )}
 
-          {canLoan && activeTab === "loan-add" && (
+          {canAddLoan && activeTab === "loan-add" && (
             <LoanForm
               can={can}
               wallets={wallets}
@@ -742,7 +750,7 @@ export default function App() {
               );
             })()}
 
-          {canLoan &&
+          {canEditLoan &&
             activeTab.indexOf("loan-edit-") === 0 &&
             (() => {
               const loanId = activeTab.slice("loan-edit-".length);

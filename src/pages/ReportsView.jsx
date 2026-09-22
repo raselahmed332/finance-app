@@ -14,6 +14,16 @@ export default function ReportsView({ wallets, currentUser }) {
   const chartRef = useRef(null);
   const chartInstance = useRef(null);
 
+  // Wallets may load asynchronously after this view mounts — if the selected id
+  // is blank or is no longer available, fall back to the first available wallet
+  // so the report actually renders instead of silently showing nothing.
+  useEffect(() => {
+    if (wallets && wallets.length && !(wallets || []).some(w => String(w.WalletID) === String(walletId))) {
+      setWalletId(String(wallets[0].WalletID));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wallets]);
+
   const selectedWallet = wallets.find(w => String(w.WalletID) === String(walletId));
 
   const changePeriod = (val) => {
@@ -132,17 +142,17 @@ export default function ReportsView({ wallets, currentUser }) {
           <div className="grid grid-cols-2 gap-2">
             <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 rounded-xl p-3">
               <div className="text-[10px] font-bold text-emerald-800 dark:text-emerald-300">Total Income</div>
-              <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-1">{selectedWallet?.Currency} {report.totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+              <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-1">{selectedWallet?.Currency} {report.totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             </div>
             <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-100 dark:border-rose-800 rounded-xl p-3">
               <div className="text-[10px] font-bold text-rose-800 dark:text-rose-300">Total Expense</div>
-              <div className="text-sm font-bold text-rose-600 dark:text-rose-400 mt-1">{selectedWallet?.Currency} {report.totalExpense.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+              <div className="text-sm font-bold text-rose-600 dark:text-rose-400 mt-1">{selectedWallet?.Currency} {report.totalExpense.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             </div>
           </div>
 
           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl p-3 text-center">
             <div className="text-[11px] font-bold text-blue-800 dark:text-blue-300">Net Balance (অবশিষ্ট)</div>
-            <div className="text-lg font-extrabold text-blue-700 dark:text-blue-400 mt-0.5">{selectedWallet?.Currency} {report.netChange.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+            <div className="text-lg font-extrabold text-blue-700 dark:text-blue-400 mt-0.5">{selectedWallet?.Currency} {report.netChange.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             <div className="text-[10px] text-blue-600 dark:text-blue-400 mt-1">{report.transactionCount} টি লেনদেন</div>
           </div>
 
@@ -152,7 +162,7 @@ export default function ReportsView({ wallets, currentUser }) {
               {Object.entries(report.accountBreakdown || {}).map(([acc, bal]) => (
                 <div key={acc} className="bg-slate-50 dark:bg-gray-950 rounded-lg p-2 text-center">
                   <div className="text-[10px] text-gray-500 dark:text-gray-400">{acc}</div>
-                  <div className={`text-xs font-bold mt-1 ${bal >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{selectedWallet?.Currency} {bal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+                  <div className={`text-xs font-bold mt-1 ${bal >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{selectedWallet?.Currency} {bal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                 </div>
               ))}
             </div>

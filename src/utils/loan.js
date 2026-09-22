@@ -25,6 +25,16 @@ export function todayStr() {
   return toDateStr(new Date());
 }
 
+const DEFAULT_WALLET_KEY = "hisab_default_wallet";
+
+export function pickDefaultWalletId(username, wallets) {
+  const list = wallets || [];
+  if (!list.length) return "";
+  const saved = localStorage.getItem(`${DEFAULT_WALLET_KEY}_${username}`);
+  if (saved && list.some((w) => String(w.WalletID) === String(saved))) return String(saved);
+  return String(list[0].WalletID);
+}
+
 export function fmtDate(str) {
   if (!str) return "—";
   const parts = String(str).split("-");

@@ -1,11 +1,11 @@
 import { useState } from "react";
 import Select from "./Select.jsx";
-import { todayStr } from "../utils/loan.js";
+import { todayStr, pickDefaultWalletId } from "../utils/loan.js";
 
-export default function IncomeForm({ wallets, categories, onSave, onCancel }) {
+export default function IncomeForm({ wallets, categories, currentUser, onSave, onCancel }) {
   const incomeCategories = (categories || []).filter(c => c.Type === 'Income');
   const fallbackCategories = ['Salary', 'Business', 'Remittance', 'Other'];
-  const [walletId, setWalletId] = useState(wallets[0]?.WalletID || '');
+  const [walletId, setWalletId] = useState(pickDefaultWalletId(currentUser?.username, wallets));
   const [account, setAccount] = useState('Bank');
   const [sourceCategory, setSourceCategory] = useState(incomeCategories[0]?.Name || 'Salary');
   const [description, setDescription] = useState('');

@@ -24,7 +24,7 @@ export default function BackupRestoreView({ currentUser, showAlert, onImport, ca
       downloadAnchor.remove();
       URL.revokeObjectURL(url);
       showAlert('ব্যাকআপ ডাউনলোড সফল হয়েছে!');
-    });
+    }).catch(() => showAlert('ব্যাকআপ ডাউনলোডে ত্রুটি হয়েছে। আবার চেষ্টা করুন।', 'error'));
   };
 
   const handleImport = (event) => {

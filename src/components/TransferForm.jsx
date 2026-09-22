@@ -1,13 +1,14 @@
 import { useState } from "react";
 import Select from "./Select.jsx";
-import { todayStr } from "../utils/loan.js";
+import { todayStr, pickDefaultWalletId } from "../utils/loan.js";
 
-export default function TransferForm({ wallets, onSave, onCancel }) {
-  const [fromWalletId, setFromWalletId] = useState(wallets[0]?.WalletID || '');
+export default function TransferForm({ wallets, currentUser, onSave, onCancel }) {
+  const defaultFrom = pickDefaultWalletId(currentUser?.username, wallets);
+  const [fromWalletId, setFromWalletId] = useState(defaultFrom);
   const [fromAccount, setFromAccount] = useState('Bank');
   const [fromAmount, setFromAmount] = useState('');
 
-  const [toWalletId, setToWalletId] = useState(wallets[1]?.WalletID || wallets[0]?.WalletID || '');
+  const [toWalletId, setToWalletId] = useState((wallets || []).find((w) => String(w.WalletID) !== String(defaultFrom))?.WalletID || defaultFrom || '');
   const [toAccount, setToAccount] = useState('Cash');
   const [toAmount, setToAmount] = useState('');
 

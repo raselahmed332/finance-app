@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import Select from "./Select.jsx";
-import { isValidPhone, knownPeople, loanTypeMeta, todayStr } from "../utils/loan.js";
+import { isValidPhone, knownPeople, loanTypeMeta, todayStr, pickDefaultWalletId } from "../utils/loan.js";
 
 function ErrorText({ msg }) {
   return msg ? <div className="text-[10px] text-rose-600 dark:text-rose-400 mt-1 flex items-center gap-1"><i className="fa-solid fa-circle-exclamation"></i>{msg}</div> : null;
@@ -40,7 +40,7 @@ function StepIndicator({ step }) {
   );
 }
 
-export default function LoanForm({ can, wallets, loans, loan, onSave, onCancel, onDone, onGoHome, onShow }) {
+export default function LoanForm({ can, wallets, loans, loan, currentUser, onSave, onCancel, onDone, onGoHome, onShow }) {
   const isEdit = !!loan;
   const [step, setStep] = useState(1);
   const [type, setType] = useState(loan?.type || (can && !can('LOAN_GIVE') && can('LOAN_TAKE') ? "taken" : "given"));
@@ -50,7 +50,7 @@ export default function LoanForm({ can, wallets, loans, loan, onSave, onCancel, 
   const [loanDate, setLoanDate] = useState(loan?.loanDate || todayStr());
   const [dueDate, setDueDate] = useState(loan?.dueDate || "");
   const [reminderDate, setReminderDate] = useState(loan?.reminderDate || "");
-  const [walletId, setWalletId] = useState(loan?.walletId || wallets[0]?.WalletID || "");
+  const [walletId, setWalletId] = useState((loan?.walletId && (wallets || []).some((w) => String(w.WalletID) === String(loan.walletId))) ? loan.walletId : pickDefaultWalletId(currentUser?.username, wallets));
   const [account, setAccount] = useState(loan?.account || "Cash");
   const [note, setNote] = useState(loan?.note || "");
   const [errors, setErrors] = useState({});
