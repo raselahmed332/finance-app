@@ -9,6 +9,7 @@ const UserManagementView = lazy(() => import("./pages/UserManagementView.jsx"));
 const WalletManagementView = lazy(() => import("./pages/WalletManagementView.jsx"));
 const AuditLogView = lazy(() => import("./pages/AuditLogView.jsx"));
 const SettingsView = lazy(() => import("./pages/SettingsView.jsx"));
+const BackupRestoreView = lazy(() => import("./pages/BackupRestoreView.jsx"));
 const UserProfileView = lazy(() => import("./pages/UserProfileView.jsx"));
 const LoanDashboardView = lazy(() => import("./pages/LoanDashboardView.jsx"));
 const LoanDetailsView = lazy(() => import("./pages/LoanDetailsView.jsx"));
@@ -32,7 +33,15 @@ function PageFallback() {
 export default function App() {
   const [currentUser, setCurrentUser] = useState(() => {
     const saved = localStorage.getItem("hisab_user");
-    return saved ? JSON.parse(saved) : null;
+    if (!saved) return null;
+    try {
+      return JSON.parse(saved);
+    } catch {
+      // Corrupted/truncated stored session — don't white-screen the app.
+      localStorage.removeItem("hisab_user");
+      session.clear();
+      return null;
+    }
   });
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem("hisab_dark");
@@ -46,14 +55,12 @@ export default function App() {
   const [categories, setCategories] = useState([]);
   const [loans, setLoans] = useState([]);
   const [loading, setLoading] = useState(false);
-  // Lost-session guard.
-  // Set true the instant the user clicks logout (BEFORE state is cleared). Any
-  // in-flight getInitialData/loadData promise that resolves AFTER must NOT
-  // write user/session state — otherwise that stale response re-sets
-  // currentUser({...currentUser, permissions}) and "un-logouts" the user the
-  // same frame (login page flashes, dashboard returns). Reload showed the
-  // login page because no request was in flight then. Cleared on next login.
-  const logOutRef = useRef(false);
+  // Session epoch guard. Bumped on every login AND every logout. Each request
+  // captures the current epoch when it STARTS and only writes user/session
+  // state if the epoch is still current when it RESOLVES. A boolean flag alone
+  // was racy: it was re-armed at login, so a pre-logout response could resolve
+  // after a new login and resurrect the previous user's session/data.
+  const sessionEpoch = useRef(0);
   const [alertMsg, setAlertMsg] = useState(null);
   const [pullRefreshing, setPullRefreshing] = useState(false);
 
@@ -90,8 +97,9 @@ export default function App() {
 
   const loadData = useCallback(() => {
     setLoading(true);
+    const epoch = sessionEpoch.current;
     api.getInitialData(currentUser.username).then((res) => {
-      if (logOutRef.current) return;
+      if (sessionEpoch.current !== epoch) return;
       if (res.status === 'ERROR') {
         showAlert(res.message, 'error');
         if (/session|login/i.test(res.message || '')) {
@@ -112,9 +120,10 @@ export default function App() {
       setUsersList(data.users);
       setWallets(data.wallets);
       setCategories(data.categories);
-      // Stale-response guard: if the user hit logout while this
-      // getInitialData was in flight, do NOT resurrect the session here.
-      if (logOutRef.current) return;
+      // Stale-response guard: if the user logged out or a different user
+      // logged in while this getInitialData was in flight, do NOT resurrect
+      // that session here.
+      if (sessionEpoch.current !== epoch) return;
       // Keep permissions in sync in case Admin changed them elsewhere.
       if (res.permissions) {
         const updated = { ...currentUser, permissions: res.permissions };
@@ -123,7 +132,7 @@ export default function App() {
       }
       setLoading(false);
     }).catch((err) => {
-      if (logOutRef.current) return;
+      if (sessionEpoch.current !== epoch) return;
       showAlert('ডেটা লোড করতে ব্যর্থ হয়েছে: ' + err, 'error');
       setLoading(false);
     });
@@ -135,6 +144,34 @@ export default function App() {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.username]);
+
+  // Clear every user-scoped list and search/filter state so a freshly
+  // logged-in user never sees the previous user's data or a stale filter
+  // that silently hides rows.
+  const resetUiState = () => {
+    setTransactions([]);
+    setUsersList([]);
+    setWallets([]);
+    setCategories([]);
+    setLoans([]);
+    setSearchTerm('');
+    setFilterType('All');
+    setFilterWallet('All');
+    setFilterDate('');
+    setFilterDescription('');
+    setFilterUser('All');
+    setFilterAccount('All');
+    setActiveTab('home');
+  };
+
+  const handleLogout = useCallback(() => {
+    sessionEpoch.current += 1;
+    resetUiState();
+    api.logout().catch(() => {});
+    setCurrentUser(null);
+    session.clear();
+    localStorage.removeItem("hisab_user");
+  }, []);
 
   // Per-wallet summary, computed from already-authorized transactions.
   // Single pass over all transactions rather than re-filtering the whole
@@ -207,7 +244,9 @@ export default function App() {
       if (res.status === 'SUCCESS') {
         const updated = res.transactions || (res.transaction ? [res.transaction] : []);
         if (updated.length) setTransactions(prev => upsertTxns(prev, updated));
-        setActiveTab('transactions');
+        // A user who came from the profile swipe-edit may not have
+        // VIEW_TRANSACTIONS; don't dump them on a gated-off blank tab.
+        setActiveTab(can('VIEW_TRANSACTIONS') ? 'transactions' : 'home');
       }
       setLoading(false);
       return res;
@@ -315,8 +354,8 @@ export default function App() {
 
   if (!currentUser) {
     return <LoginScreen onLogin={(user, token) => {
-      // Balance the logout guard: a successful login re-arms normal loading.
-      logOutRef.current = false;
+      sessionEpoch.current += 1;
+      resetUiState();
       session.save(token);
       localStorage.setItem("hisab_user", JSON.stringify(user));
       setCurrentUser(user);
@@ -334,21 +373,11 @@ export default function App() {
           </button>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setDarkMode(!darkMode)} className="text-gray-400 hover:text-amber-300 text-sm" title={darkMode ? "Light Mode" : "Dark Mode"}>
-            <i className={`fa-solid ${darkMode ? "fa-sun" : "fa-moon"}`}></i>
-          </button>
           <span className="text-xs bg-gray-800 dark:bg-gray-800 px-2.5 py-1 rounded-full text-emerald-300 border border-gray-700 dark:border-gray-700">
             <i className="fa-solid fa-user me-1"></i> {currentUser.fullName || currentUser.username}
           </span>
           <button onClick={() => setActiveTab('profile')} className="text-gray-400 hover:text-emerald-300 text-sm" title="প্রোফাইল">
             <i className="fa-solid fa-user-gear"></i>
-          </button>
-          <button
-            onClick={() => { logOutRef.current = true; api.logout().catch(() => {}); setCurrentUser(null); session.clear(); localStorage.removeItem("hisab_user"); }}
-            className="text-gray-400 hover:text-red-400 text-sm"
-            title="লগআউট"
-          >
-            <i className="fa-solid fa-right-from-bracket"></i>
           </button>
         </div>
       </header>
@@ -428,11 +457,12 @@ export default function App() {
 
         {activeTab.indexOf('edit-') === 0 && can('MANAGE_TRANSACTIONS') && (() => {
           const editTxn = transactions.find(t => String(t.ID) === activeTab.slice(5));
-          if (!editTxn) return <EditTransactionForm transaction={null} onSave={handleUpdateTransaction} onCancel={() => setActiveTab('transactions')} />;
+          const postEdit = () => setActiveTab(can('VIEW_TRANSACTIONS') ? 'transactions' : 'home');
+          if (!editTxn) return <EditTransactionForm transaction={null} onSave={handleUpdateTransaction} onCancel={postEdit} />;
           if (editTxn.Type === 'Transfer Out' || editTxn.Type === 'Transfer In') {
-            return <EditTransferForm key={editTxn.ID} transaction={editTxn} currentUser={currentUser} onSave={handleUpdateTransaction} onCancel={() => setActiveTab('transactions')} />;
+            return <EditTransferForm key={editTxn.ID} transaction={editTxn} currentUser={currentUser} onSave={handleUpdateTransaction} onCancel={postEdit} />;
           }
-          return <EditTransactionForm key={editTxn.ID} transaction={editTxn} onSave={handleUpdateTransaction} onCancel={() => setActiveTab('transactions')} />;
+          return <EditTransactionForm key={editTxn.ID} transaction={editTxn} onSave={handleUpdateTransaction} onCancel={postEdit} />;
         })()}
 
         {activeTab.indexOf('edit-') === 0 && !can('MANAGE_TRANSACTIONS') && (
@@ -539,11 +569,28 @@ export default function App() {
         )}
 
         {canManageSettings && activeTab === 'settings' && (
-          <SettingsView showAlert={showAlert} currentUser={currentUser} onImport={handleImportBackup} can={can} />
+          <SettingsView showAlert={showAlert} currentUser={currentUser} can={can} />
+        )}
+
+        {can('BACKUP_RESTORE') && activeTab === 'backup' && (
+          <BackupRestoreView currentUser={currentUser} showAlert={showAlert} onImport={handleImportBackup} can={can} onCancel={() => setActiveTab('profile')} />
         )}
 
         {activeTab === 'profile' && (
-          <UserProfileView currentUser={currentUser} transactions={transactions} wallets={wallets} onSave={handleProfileUpdate} onCancel={() => setActiveTab('home')} onEditTxn={(txn) => setActiveTab('edit-' + txn.ID)} onDeleteTxn={handleDeleteTxn} />
+          <UserProfileView
+            currentUser={currentUser}
+            transactions={transactions}
+            wallets={wallets}
+            darkMode={darkMode}
+            onSetDark={setDarkMode}
+            can={can}
+            onSave={handleProfileUpdate}
+            onCancel={() => setActiveTab('home')}
+            onEditTxn={(txn) => setActiveTab('edit-' + txn.ID)}
+            onDeleteTxn={handleDeleteTxn}
+            onLogout={handleLogout}
+            setActiveTab={setActiveTab}
+          />
         )}
 
         {activeTab === 'home' && !can('VIEW_DASHBOARD') && (

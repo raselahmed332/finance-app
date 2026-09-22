@@ -31,8 +31,9 @@ export default function LoanRepaymentForm({ loan, wallets, currentUser, onSave, 
     const num = Number(amount);
     if (!amount || amount === "") e.amount = "টাকার পরিমাণ লিখুন।";
     else if (!Number.isFinite(num) || num <= 0) e.amount = "টাকার পরিমাণ ০-এর বেশি হতে হবে।";
-    else if (num > remaining + 0.005) e.amount = "ফেরতের পরিমাণ বাকি টাকার চেয়ে বেশি হতে পারবে না।";
+    else if (num > remaining + 0.001) e.amount = "ফেরতের পরিমাণ বাকি টাকার চেয়ে বেশি হতে পারবে না।";
     if (!date) e.date = "তারিখ নির্বাচন করুন।";
+    else if (loan?.loanDate && date < String(loan.loanDate)) e.date = "ফেরতের তারিখ হাওলাতের তারিখের আগে হতে পারবে না।";
     if (!walletId) e.wallet = "Wallet নির্বাচন করুন।";
     if (!account) e.account = "Wallet Account নির্বাচন করুন।";
     setErrors(e);
@@ -44,8 +45,11 @@ export default function LoanRepaymentForm({ loan, wallets, currentUser, onSave, 
     if (submitting) return;
     if (!validate()) return;
     setSubmitting(true);
+    // Clamp any sub-epsilon overpayment down to exactly what is owed so money
+    // moved out of the wallet never exceeds the remaining balance.
+    const payAmount = String(Math.min(Number(amount), remaining));
     onSave({
-      amount, paymentDate: date, walletId, account, currency, note, clientId, user: currentUser.username,
+      amount: payAmount, paymentDate: date, walletId, account, currency, note, clientId, user: currentUser.username,
     }).catch(() => {}).finally(() => setSubmitting(false));
   };
 
@@ -82,7 +86,7 @@ export default function LoanRepaymentForm({ loan, wallets, currentUser, onSave, 
             <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">ফেরতের পরিমাণ ({currency})</label>
             <input type="number" step="any" min="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm font-semibold focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-900 dark:text-gray-100" />
             <ErrorText msg={errors.amount} />
-            {Number(amount) > 0 && Number(amount) <= remaining + 0.005 && (
+            {Number(amount) > 0 && Number(amount) <= remaining + 0.001 && (
               <div className={`mt-1.5 flex justify-between text-[10px] font-semibold ${remaining - Number(amount) > 0 ? "text-gray-400 dark:text-gray-500" : "text-emerald-600 dark:text-emerald-400"}`}>
                 <span>পরিশোধের পর বাকি: {formatMoney(Math.max(0, remaining - Number(amount)), currency)}</span>
                 {remaining - Number(amount) <= 0.005 && <span><i className="fa-solid fa-circle-check me-0.5"></i>সম্পূর্ণ পরিশোধ হবে</span>}
@@ -124,7 +128,7 @@ export default function LoanRepaymentForm({ loan, wallets, currentUser, onSave, 
             <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="নোট লিখুন..." className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-900 dark:text-gray-100" />
           </div>
 
-          <button type="submit" disabled={submitting || amount && Number(amount) > remaining + 0.005}
+          <button type="submit" disabled={submitting || amount && Number(amount) > remaining + 0.001}
             className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl shadow-md text-sm flex items-center justify-center gap-2 mt-1">
             <i className="fa-solid fa-floppy-disk"></i> {submitting ? "সাবমিট হচ্ছে..." : "ফেরত যোগ করুন"}
           </button>

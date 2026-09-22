@@ -16,16 +16,23 @@ export default function TransactionsView({ transactions, wallets, onDelete, onEd
     return map;
   }, [users]);
 
+  // Defense-in-depth: only ever render/export transactions belonging to a
+  // wallet in the user's authorized wallet list. The backend already filters,
+  // but this keeps a stray row from leaking into the UI or CSV export.
+  const accessibleWalletIds = useMemo(() => new Set((wallets || []).map(w => String(w.WalletID))), [wallets]);
+
   const filteredTxns = useMemo(
     () =>
       transactions
         .filter((t) => {
+          const matchesWalletAccess = !accessibleWalletIds.size || accessibleWalletIds.has(String(t.WalletID));
+          if (!matchesWalletAccess) return false;
           const matchesSearch =
             (t.Description || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
             (t.SourceCategory || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
             (t.WhereVendor || "").toLowerCase().includes(searchTerm.toLowerCase());
           const matchesType = filterType === "All" || t.Type.toLowerCase().includes(filterType.toLowerCase());
-          const matchesWallet = filterWallet === "All" || t.WalletID === filterWallet;
+          const matchesWallet = filterWallet === "All" || String(t.WalletID) === String(filterWallet);
           const matchesDate = !filterDate || t.Date === filterDate;
           const matchesDescription = !filterDescription || (t.Description || "").toLowerCase().includes(filterDescription.toLowerCase());
           const matchesUser = !canViewUsers || filterUser === "All" || t.User === filterUser;
@@ -33,7 +40,7 @@ export default function TransactionsView({ transactions, wallets, onDelete, onEd
           return matchesSearch && matchesType && matchesWallet && matchesDate && matchesDescription && matchesUser && matchesAccount;
         })
         .sort((a, b) => new Date(b.Date) - new Date(a.Date)),
-    [transactions, searchTerm, filterType, filterWallet, filterDate, filterDescription, filterUser, filterAccount, canViewUsers]
+    [transactions, searchTerm, filterType, filterWallet, filterDate, filterDescription, filterUser, filterAccount, canViewUsers, accessibleWalletIds]
   );
 
   useEffect(() => {
@@ -42,6 +49,12 @@ export default function TransactionsView({ transactions, wallets, onDelete, onEd
 
   const totalPages = Math.max(1, Math.ceil(filteredTxns.length / PER_PAGE));
   const pageItems = filteredTxns.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
+  // After deleting rows (or a filter reducing the list), page may point past
+  // the last page; clamp it so the list and the "Showing X–Y" text stay valid.
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const handleExportCsv = () => {
     downloadCsv(

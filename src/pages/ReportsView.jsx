@@ -14,15 +14,14 @@ export default function ReportsView({ wallets, currentUser }) {
   const chartRef = useRef(null);
   const chartInstance = useRef(null);
 
-  const selectedWallet = wallets.find(w => w.WalletID === walletId);
+  const selectedWallet = wallets.find(w => String(w.WalletID) === String(walletId));
 
-  useEffect(() => {
-    // Reset the period-value field to a sensible default whenever the period type changes.
-    if (period === 'daily') setPeriodValue(todayStr());
-    else if (period === 'weekly') setPeriodValue(todayStr());
-    else if (period === 'monthly') setPeriodValue(todayStr().slice(0, 7));
-    else if (period === 'yearly') setPeriodValue(String(new Date().getFullYear()));
-  }, [period]);
+  const changePeriod = (val) => {
+    setPeriod(val);
+    if (val === 'daily' || val === 'weekly') setPeriodValue(todayStr());
+    else if (val === 'monthly') setPeriodValue(todayStr().slice(0, 7));
+    else if (val === 'yearly') setPeriodValue(String(new Date().getFullYear()));
+  };
 
   useEffect(() => {
     if (!walletId) return;
@@ -36,7 +35,16 @@ export default function ReportsView({ wallets, currentUser }) {
   const CHART_COLORS = ['#2563eb', '#3b82f6', '#f97316', '#eab308', '#10b981', '#8b5cf6', '#ec4899', '#14b8a6', '#f43f5e', '#64748b'];
 
   useEffect(() => {
-    if (!chartRef.current || !report) return;
+    if (!chartRef.current || !report) {
+      // Tear down any instance when there is nothing to draw (e.g. a new
+      // request is loading or report was cleared) so canvas re-renders don't
+      // stack stale doughnuts.
+      if (chartInstance.current) {
+        chartInstance.current.destroy();
+        chartInstance.current = null;
+      }
+      return;
+    }
     if (chartInstance.current) {
       chartInstance.current.destroy();
       chartInstance.current = null;
@@ -83,7 +91,7 @@ export default function ReportsView({ wallets, currentUser }) {
         <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Period</label>
         <div className="grid grid-cols-4 gap-1.5 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl text-xs font-bold">
           {[['daily', 'Daily'], ['weekly', 'Weekly'], ['monthly', 'Monthly'], ['yearly', 'Yearly']].map(([val, label]) => (
-            <button key={val} onClick={() => setPeriod(val)} className={`py-1.5 rounded-lg transition-all ${period === val ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-600 dark:text-gray-400'}`}>
+            <button key={val} onClick={() => changePeriod(val)} className={`py-1.5 rounded-lg transition-all ${period === val ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-600 dark:text-gray-400'}`}>
               {label}
             </button>
           ))}

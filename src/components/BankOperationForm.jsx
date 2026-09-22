@@ -13,6 +13,11 @@ export default function BankOperationForm({ wallets, onSave, onCancel }) {
   const [clientId] = useState(() => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'c' + Date.now() + Math.random().toString(36).slice(2)));
   const selectedWallet = wallets.find(w => w.WalletID === walletId);
 
+  const changeWallet = (id) => {
+    setWalletId(id);
+    setAmount('');
+  };
+
   const submit = (event) => {
     event.preventDefault();
     if (submitting) return;
@@ -34,7 +39,7 @@ export default function BankOperationForm({ wallets, onSave, onCancel }) {
           <option value="Bank Withdraw">Withdraw from Bank to Cash</option>
           <option value="Bank Deposit">Deposit Cash to Bank</option>
         </Select>
-        <Select value={walletId} onChange={setWalletId}>
+        <Select value={walletId} onChange={changeWallet}>
           {wallets.map(w => <option key={w.WalletID} value={w.WalletID}>{w.WalletName} ({w.Currency})</option>)}
         </Select>
         <div className="relative flex items-center">

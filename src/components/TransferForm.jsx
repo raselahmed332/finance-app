@@ -19,16 +19,23 @@ export default function TransferForm({ wallets, onSave, onCancel }) {
   const fromWallet = wallets.find(w => w.WalletID === fromWalletId);
   const toWallet = wallets.find(w => w.WalletID === toWalletId);
 
+  // Clearing amounts on wallet switch prevents a value typed under one wallet's
+  // currency from being silently re-tagged with another wallet's currency.
+  const changeFromWallet = (id) => { setFromWalletId(id); setFromAmount(''); setToAmount(''); };
+  const changeToWallet = (id) => { setToWalletId(id); setToAmount(''); };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (submitting) return;
     if (!fromWalletId || !toWalletId) return alert('From এবং To Wallet নির্বাচন করুন!');
     if (fromWalletId === toWalletId && fromAccount === toAccount) return alert('একই Wallet ও Account এ ট্রান্সফার করা যাবে না!');
-    if (!fromAmount || fromAmount <= 0) return alert('সঠিক পরিমাণ লিখুন!');
+    if (!fromAmount || Number(fromAmount) <= 0) return alert('সঠিক পরিমাণ লিখুন!');
+    const received = toAmount || fromAmount;
+    if (!received || Number(received) <= 0) return alert('Amount Received (To) সঠিকভাবে লিখুন!');
     setSubmitting(true);
     onSave({
       type: 'Transfer', fromWalletId, fromAccount, fromAmount, fromCurrency: fromWallet?.Currency,
-      toWalletId, toAccount, toAmount: toAmount || fromAmount, toCurrency: toWallet?.Currency,
+      toWalletId, toAccount, toAmount: received, toCurrency: toWallet?.Currency,
       clientId,
       date, note,
     }).catch(() => {}).finally(() => setSubmitting(false));
@@ -51,7 +58,7 @@ export default function TransferForm({ wallets, onSave, onCancel }) {
           <div className="text-xs font-bold text-slate-700 dark:text-gray-200 uppercase tracking-wider">From (কোথা থেকে)</div>
           <div>
             <label className="block text-[11px] text-gray-500 dark:text-gray-400 font-medium mb-1">Wallet</label>
-            <Select value={fromWalletId} onChange={setFromWalletId}>
+            <Select value={fromWalletId} onChange={changeFromWallet}>
               {wallets.map(w => <option key={w.WalletID} value={w.WalletID}>{w.WalletName} ({w.Currency})</option>)}
             </Select>
           </div>
@@ -82,7 +89,7 @@ export default function TransferForm({ wallets, onSave, onCancel }) {
           <div className="text-xs font-bold text-slate-700 dark:text-gray-200 uppercase tracking-wider">To (কোথায়)</div>
           <div>
             <label className="block text-[11px] text-gray-500 dark:text-gray-400 font-medium mb-1">Wallet</label>
-            <Select value={toWalletId} onChange={setToWalletId}>
+            <Select value={toWalletId} onChange={changeToWallet}>
               {wallets.map(w => <option key={w.WalletID} value={w.WalletID}>{w.WalletName} ({w.Currency})</option>)}
             </Select>
           </div>

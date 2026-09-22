@@ -268,6 +268,10 @@ export default function LoanDashboardView({ currentUser, loans, onLoansChange, c
   }, [filters]);
 
   const hasAnyLoan = allLoans.length > 0;
+  // Creating a loan requires LOAN_GIVE/LOAN_TAKE (admins have them via their
+  // effective permission set) — the "+ Add" button must not be shown to users
+  // who only have VIEW_LOANS.
+  const canAddLoan = can("LOAN_GIVE") || can("LOAN_TAKE") || can("MANAGE_LOANS");
 
   return (
     <div className="space-y-4">
@@ -275,9 +279,13 @@ export default function LoanDashboardView({ currentUser, loans, onLoansChange, c
         <h3 className="font-bold text-slate-800 dark:text-gray-100 text-base flex items-center gap-2">
           <i className="fa-solid fa-hand-holding-dollar text-emerald-600"></i> হাওলাত (Loan)
         </h3>
-        <button onClick={onAdd} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-sm active:scale-95 transition-transform">
-          <i className="fa-solid fa-plus"></i> হাওলাত যোগ করুন
-        </button>
+        {canAddLoan ? (
+          <button onClick={onAdd} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-sm active:scale-95 transition-transform">
+            <i className="fa-solid fa-plus"></i> হাওলাত যোগ করুন
+          </button>
+        ) : (
+          <span className="text-[10px] text-gray-400 dark:text-gray-500">যোগ করতে অনুমতি নেই</span>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-2.5">
@@ -320,9 +328,11 @@ export default function LoanDashboardView({ currentUser, loans, onLoansChange, c
           <div className="text-5xl mb-3">📒</div>
           <div className="text-sm font-semibold text-gray-500 dark:text-gray-400">এখনো কোনো হাওলাতের হিসাব নেই</div>
           <div className="text-xs text-gray-400 dark:text-gray-500 mt-1 mb-4">প্রথম হাওলাত যোগ করে শুরু করুন।</div>
-          <button onClick={onAdd} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 mx-auto shadow-sm">
-            <i className="fa-solid fa-plus"></i> হাওলাত যোগ করুন
-          </button>
+          {canAddLoan && (
+            <button onClick={onAdd} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 mx-auto shadow-sm">
+              <i className="fa-solid fa-plus"></i> হাওলাত যোগ করুন
+            </button>
+          )}
         </div>
       )}
 

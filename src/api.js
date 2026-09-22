@@ -13,15 +13,34 @@ async function callApi(action, params = []) {
   if (!API_URL) {
     throw new Error("Apps Script API URL সেট করা নেই! অনুগ্রহ করে src/api.js ফাইলে আপনার Google Apps Script Web App URL পেস্ট করুন।");
   }
-  const res = await fetch(API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain;charset=utf-8" }, // avoids CORS preflight
-    // The server derives the signed-in user from this short-lived session token.
-    // Never send a username as proof of identity.
-    body: JSON.stringify({ action, params, token: localStorage.getItem(TOKEN_KEY) || "" }),
-  });
-  if (!res.ok) throw new Error("Network error: " + res.status);
-  return res.json();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 25000);
+  try {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" }, // avoids CORS preflight
+      // The server derives the signed-in user from this short-lived session token.
+      // Never send a username as proof of identity.
+      signal: controller.signal,
+      body: JSON.stringify({ action, params, token: localStorage.getItem(TOKEN_KEY) || "" }),
+    });
+    if (!res.ok) throw new Error("Network error: " + res.status);
+    try {
+      return await res.json();
+    } catch (parseError) {
+      // Apps Script occasionally returns HTTP 200 with an HTML body
+      // (login redirect / error page); surface a friendly error, not a raw
+      // SyntaxError, so login screens don't print "Unexpected token...".
+      throw new Error("সার্ভার থেকে অজানা প্রতিক্রিয়া পেয়েছি। কিছুক্ষণ পর আবার চেষ্টা করুন।");
+    }
+  } catch (err) {
+    if (err && err.name === "AbortError") {
+      throw new Error("সার্ভারে উত্তর দিতে অনেক সময় লাগছে। ইন্টারনেট সংযোগ ঠিক আছে কিনা দেখে আবার চেষ্টা করুন।");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export const api = {

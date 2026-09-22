@@ -19,6 +19,11 @@ export default function IncomeForm({ wallets, categories, onSave, onCancel }) {
 
   const selectedWallet = wallets.find(w => w.WalletID === walletId);
 
+  const changeWallet = (id) => {
+    setWalletId(id);
+    setAmount('');
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (submitting) return;
@@ -46,7 +51,7 @@ export default function IncomeForm({ wallets, categories, onSave, onCancel }) {
       <form onSubmit={handleSubmit} className="space-y-3.5">
         <div>
           <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Wallet (কোন হিসাবে)</label>
-          <Select value={walletId} onChange={setWalletId} required>
+          <Select value={walletId} onChange={changeWallet} required>
             {wallets.length === 0 && <option value="">কোনো Wallet এক্সেস নেই</option>}
             {wallets.map(w => <option key={w.WalletID} value={w.WalletID}>{w.WalletName} ({w.Currency})</option>)}
           </Select>

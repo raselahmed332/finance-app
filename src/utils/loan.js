@@ -62,11 +62,13 @@ export const STATUS_META = {
 };
 
 export function statusOf(loan, today) {
-  if (loan && loan.status && STATUS_META[loan.status]) return loan.status;
   const t = today || todayStr();
   const remaining = remainingOf(loan);
   if (remaining <= 0.005) return "paid";
-  if (loan.dueDate && String(loan.dueDate) < t) return "overdue";
+  // Overdue is derived from the due date at read time — a stored status
+  // computed at the last mutation goes stale the moment the date passes.
+  if (loan && loan.dueDate && String(loan.dueDate) < t) return "overdue";
+  if (loan && loan.status && STATUS_META[loan.status]) return loan.status;
   if (Number(loan.repaid) > 0) return "partial";
   return "active";
 }

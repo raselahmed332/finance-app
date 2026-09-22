@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { api } from "../api.js";
 import Select from "../components/Select.jsx";
-import { todayStr } from "../utils/loan.js";
 import SwipeCard from "../components/SwipeCard.jsx";
 
 function CategoriesManager({ currentUser, can, showAlert }) {
@@ -11,8 +10,9 @@ function CategoriesManager({ currentUser, can, showAlert }) {
 
   const load = () => {
     api.getCategories(currentUser.username).then((res) => {
+      if (res.status === 'ERROR') { showAlert(res.message || 'ক্যাটাগরি লোড করা যায়নি।', 'error'); return; }
       if (res.status === 'SUCCESS') setCategories(res.categories);
-    });
+    }).catch(() => showAlert('ক্যাটাগরি লোড করা যায়নি।', 'error'));
   };
 
   useEffect(() => {
@@ -76,52 +76,10 @@ function CategoriesManager({ currentUser, can, showAlert }) {
   );
 }
 
-export default function SettingsView({ showAlert, currentUser, onImport, can }) {
-  const handleBackup = () => {
-    api.getBackupData(currentUser.username).then((res) => {
-      if (!res || res.status === 'ERROR') {
-        showAlert((res && res.message) || 'Backup download failed.', 'error');
-        return;
-      }
-      const blob = new Blob([JSON.stringify(res, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const downloadAnchor = document.createElement('a');
-      downloadAnchor.href = url;
-      downloadAnchor.download = `hisab_backup_${todayStr()}.json`;
-      document.body.appendChild(downloadAnchor);
-      downloadAnchor.click();
-      downloadAnchor.remove();
-      URL.revokeObjectURL(url);
-      showAlert('ব্যাকআপ ডাউনলোড সফল হয়েছে!');
-    });
-  };
-
-  const handleImport = (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => { try { onImport(JSON.parse(e.target.result)); } catch (error) { showAlert('ভুল JSON backup ফাইল!', 'error'); } };
-    reader.readAsText(file);
-    event.target.value = '';
-  };
-
+export default function SettingsView({ showAlert, currentUser, can }) {
   return (
     <div className="space-y-4">
-      <h3 className="font-bold text-slate-800 dark:text-gray-100 text-base">Settings & Backup (সেটিংস)</h3>
-
-      <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-200 dark:border-gray-800 shadow-2xs space-y-3">
-        <div className="text-xs font-bold text-slate-700 dark:text-gray-200">ডাটাবেজ ও ব্যাকআপ</div>
-        <p className="text-xs text-gray-500 dark:text-gray-400">আপনার সমস্ত হিসাব গুগল সিট (Google Sheets)-এ রিয়েলটাইমে সংরক্ষিত হচ্ছে। চাইলে অফলাইন কপি ডাউনলোড করে রাখতে পারেন।</p>
-
-        {can('BACKUP_RESTORE') ? (
-          <button onClick={handleBackup} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2">
-            <i className="fa-solid fa-download"></i> Download Full JSON Backup
-          </button>
-        ) : (
-          <div className="text-[10px] text-gray-400 dark:text-gray-500">ব্যাকআপ ডাউনলোড করার অনুমতি আপনার নেই।</div>
-        )}
-        {can('BACKUP_RESTORE') ? <label className="w-full bg-slate-800 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer"><i className="fa-solid fa-upload"></i> Import / Restore JSON<input type="file" accept="application/json,.json" onChange={handleImport} className="hidden" /></label> : <div className="text-[10px] text-gray-400 dark:text-gray-500">Backup restore করার অনুমতি আপনার নেই।</div>}
-      </div>
+      <h3 className="font-bold text-slate-800 dark:text-gray-100 text-base">Settings (সেটিংস)</h3>
 
       <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-4 text-xs text-amber-800 dark:text-amber-300 space-y-1.5">
         <div className="font-bold flex items-center gap-1.5 text-amber-900 dark:text-amber-200">
