@@ -138,10 +138,17 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
     else if (step === 2 && validateStep2()) setStep(3);
   };
 
+  // Form-native submits (Enter/Go key) only advance to the next step — they
+  // must NEVER start the active-loan check. The check and the loan creation
+  // are started exclusively by a real tap on the final submit button.
   const handleSubmit = (ev) => {
     ev.preventDefault();
     if (submitting || activeCheck === "checking") return;
     if (step !== 3) { goNext(); return; }
+  };
+
+  const handleFinalSubmit = () => {
+    if (submitting || activeCheck === "checking") return;
     // Creating is NEVER blocked by existing active loans — we only ask how to
     // proceed. But whether the person HAS an active loan is a SERVER decision.
     if (isEdit) { doCreate(); return; }
@@ -154,7 +161,10 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
     const qName = personName.trim();
     const qPhone = phone.trim();
     if (!qName || !qPhone) { setStep(1); return; }
-    if (typeof onCheckActive !== "function") { doCreate(); return; }
+    // The active-loan check is REQUIRED before creating a new loan. If it
+    // cannot run we fail closed (NO loan is created) and only offer Retry —
+    // we never treat an unavailable check as "no active loan".
+    if (typeof onCheckActive !== "function") { setActiveCheck("failed"); return; }
     setActiveCheck("checking");
     const run = () => {
       setActiveCheck("checking");
@@ -174,7 +184,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
     run();
   };
 
-  const doCreate = () => {
+  const doCreate = (separateConfirmed) => {
     const payload = {
       type, personName: personName.trim(), phone: phone.trim(),
       amount, currency, walletId, walletName: selectedWallet?.WalletName,
@@ -185,9 +195,22 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
     else {
       payload.mode = "NEW_SEPARATE_LOAN";
       payload.personId = resolvedPersonId || "";
+      // Only set AFTER the user saw the active-loan warning and consciously
+      // chose "নতুন আলাদা লোন তৈরি করুন". The backend refuses a blind,
+      // unconfirmed separate creation when the person is genuinely outstanding.
+      if (separateConfirmed) payload.separateLoanConfirmed = true;
     }
     setSubmitting(true);
     onSave(payload).then((res) => {
+      if (res && res.code === "ACTIVE_LOAN_DECISION_REQUIRED") {
+        // The person gained/still has an outstanding loan that this submission
+        // did NOT confirm (data may have changed between check and submit).
+        // Re-run the check so the warning with BOTH options is shown again —
+        // never auto-create.
+        setSubmitting(false);
+        runActiveCheck();
+        return;
+      }
       if (res && res.status === "SUCCESS") {
         if (isEdit) onDone();
         else { setSuccess(true); setCreatedLoan(res.loan || payload); }
@@ -237,7 +260,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">সক্রিয় লোনের হিসাব আপডেট হয়েছে।</p>
         </div>
 
-        <div className="bg-slate-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-3 text-xs">
+        <div className="bg-slate-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-3 text-xs text-slate-800 dark:text-gray-100">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center text-base font-bold">{String(l?.personName || "?").charAt(0).toUpperCase()}</div>
             <div>
@@ -280,7 +303,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">আপনার হিসাব আপডেট করা হয়েছে।</p>
         </div>
 
-        <div className="bg-slate-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-3 text-xs">
+        <div className="bg-slate-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-3 text-xs text-slate-800 dark:text-gray-100">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center text-base font-bold">{String(l?.personName || "?").charAt(0).toUpperCase()}</div>
             <div>
@@ -317,7 +340,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
         <button onClick={onCancel} className="text-gray-500 hover:text-slate-800 dark:text-gray-400 dark:hover:text-gray-200">
           <i className="fa-solid fa-arrow-left text-lg"></i>
         </button>
-        <h3 className="font-bold text-slate-800 dark:text-gray-100 text-base text-center flex-1 text-emerald-600">
+        <h3 className="font-bold text-emerald-600 dark:text-emerald-400 text-base text-center flex-1">
           {isEdit ? "হাওলাত এডিট করুন" : "নতুন হাওলাত"}
         </h3>
         <div className="w-5"></div>
@@ -419,7 +442,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
         )}
 
         {step === 3 && (
-          <div className="bg-slate-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-3.5 text-xs space-y-2">
+          <div className="bg-slate-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-3.5 text-xs space-y-2 text-slate-800 dark:text-gray-100">
             <div className="font-bold text-sm text-slate-800 dark:text-gray-100 mb-1">বিস্তারিত নিশ্চিত করুন</div>
             <div className="flex items-center gap-2.5">
               <div className="w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center text-sm font-bold">{String(personName || "?").charAt(0).toUpperCase()}</div>
@@ -448,7 +471,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
           {step < 3 ? (
             <button type="button" onClick={goNext} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl shadow-md text-sm"><i className="fa-solid fa-arrow-right me-1"></i>পরবর্তী</button>
           ) : (
-            <button type="submit" disabled={submitting || activeCheck === "checking"} className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl shadow-md text-sm flex items-center justify-center gap-2">
+            <button type="button" onClick={handleFinalSubmit} disabled={submitting || activeCheck === "checking"} className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl shadow-md text-sm flex items-center justify-center gap-2">
               <i className={`${activeCheck === "checking" ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-floppy-disk"}`}></i> {activeCheck === "checking" ? "রেকর্ড যাচাই হচ্ছে..." : (submitting ? "সাবমিট হচ্ছে..." : (isEdit ? "আপডেট করুন" : "হাওলাত যোগ করুন"))}
             </button>
           )}
@@ -471,7 +494,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
             </div>
 
             <div className="space-y-2">
-              <button type="button" onClick={() => { setShowActiveWarning(false); doCreate(); }} className="w-full text-left bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl p-3 active:scale-95 transition-transform">
+              <button type="button" onClick={() => { setShowActiveWarning(false); doCreate(true); }} className="w-full text-left bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl p-3 active:scale-95 transition-transform">
                 <div className="text-sm font-bold text-slate-800 dark:text-gray-100"><i className="fa-solid fa-file-circle-plus text-emerald-600 me-2"></i>নতুন আলাদা লোন তৈরি করুন</div>
                 <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">নতুন হাওলাত হিসাবে আলাদাভাবে সংরক্ষণ হবে।</div>
               </button>
