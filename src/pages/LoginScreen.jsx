@@ -1,24 +1,24 @@
 import { useState } from "react";
 import { api } from "../api.js";
+import { useToast } from "../components/Toast.jsx";
 
 export default function LoginScreen({ onLogin }) {
   const [username, setUsername] = useState('');
   const [pin, setPin] = useState('');
-  const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const toast = useToast();
 
   const handleLoginSubmit = (e) => {
     e.preventDefault();
     if (submitting) return;
-    setError('');
     setSubmitting(true);
     api.login(username, pin).then((res) => {
       if (res.status === 'SUCCESS') {
         onLogin(res.user, res.token);
       } else {
-        setError(res.message);
+        toast.error(res.message);
       }
-    }).catch((err) => setError(String(err))).finally(() => setSubmitting(false));
+    }).catch((err) => toast.error(String(err))).finally(() => setSubmitting(false));
   };
 
   return (
@@ -31,8 +31,6 @@ export default function LoginScreen({ onLogin }) {
           <h2 className="text-xl font-bold text-slate-800">মাই পার্সোনাল হিসাব</h2>
           <p className="text-xs text-gray-500">আপনার ব্যক্তিগত ও ফ্যামিলি আয়-ব্যয় ম্যানেজার</p>
         </div>
-
-        {error && <div className="mb-4 text-xs bg-red-100 text-red-600 p-2.5 rounded-lg text-center font-medium">{error}</div>}
 
         <form onSubmit={handleLoginSubmit} className="space-y-4">
           <div>
@@ -59,9 +57,9 @@ export default function LoginScreen({ onLogin }) {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl shadow-md text-sm transition-all"
+            className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl shadow-md text-sm transition-all flex items-center justify-center gap-2"
           >
-            {submitting ? 'লগইন হচ্ছে...' : 'লগইন করুন (Login)'}
+            {submitting ? <><i className="fa-solid fa-spinner fa-spin"></i> লগইন হচ্ছে...</> : 'লগইন করুন (Login)'}
           </button>
         </form>
       </div>

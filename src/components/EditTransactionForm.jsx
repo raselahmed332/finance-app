@@ -1,9 +1,11 @@
 import { useState } from "react";
 import Select from "./Select.jsx";
 import Popup from "./Popup.jsx";
+import { useToast } from "./Toast.jsx";
 
 export default function EditTransactionForm({ transaction, onSave, onCancel }) {
   const [submitting, setSubmitting] = useState(false);
+  const toast = useToast();
   const [form, setForm] = useState(transaction ? {
     date: transaction.Date, type: transaction.Type, currency: transaction.Currency, account: transaction.Account,
     sourceCategory: transaction.SourceCategory || 'Other', whereVendor: transaction.WhereVendor || '',
@@ -21,7 +23,7 @@ export default function EditTransactionForm({ transaction, onSave, onCancel }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (submitting) return;
-    if (!form.amount || Number(form.amount) <= 0) return alert('সঠিক পরিমাণ লিখুন!');
+    if (!form.amount || Number(form.amount) <= 0) return toast.error('সঠিক পরিমাণ লিখুন!');
     setSubmitting(true);
     onSave({ id: transaction.ID, walletId: transaction.WalletID, ...form })
       .catch(() => {})
@@ -42,7 +44,7 @@ export default function EditTransactionForm({ transaction, onSave, onCancel }) {
         <input value={form.description || ''} onChange={(e) => change('description', e.target.value)} placeholder="Description" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" />
         <input type="number" step="any" value={form.amount || ''} onChange={(e) => change('amount', e.target.value)} placeholder="Amount" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" required />
         <textarea value={form.note || ''} onChange={(e) => change('note', e.target.value)} placeholder="Note" rows="2" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl p-3 text-sm resize-none bg-white dark:bg-gray-900 dark:text-gray-100"></textarea>
-        <button disabled={submitting} className="w-full bg-emerald-600 disabled:opacity-50 text-white font-bold py-3 rounded-xl"><i className="fa-solid fa-floppy-disk"></i> {submitting ? 'Updating...' : 'Update Transaction'}</button>
+        <button disabled={submitting} className="w-full bg-emerald-600 disabled:opacity-50 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2">{submitting ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-floppy-disk"></i>} {submitting ? 'Updating...' : 'Update Transaction'}</button>
       </form>
     </Popup>
   );

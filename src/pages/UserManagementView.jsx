@@ -2,6 +2,7 @@ import { useState, memo } from "react";
 import { api, GRANTABLE_PERMISSIONS, PERMISSION_LABELS, DEFAULT_WALLET_ACTIONS } from "../api.js";
 import Select from "../components/Select.jsx";
 import SwipeCard from "../components/SwipeCard.jsx";
+import { useConfirm } from "../components/ConfirmDialog.jsx";
 
 // ---------- Role handling (friendly labels only, never raw DB keys) ----------
 
@@ -276,6 +277,8 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
   const [role, setRole] = useState(normRole(user.Role));
   const [permissions, setPermissions] = useState(() => (user.Permissions || []).filter((p) => GRANTABLE_PERMISSIONS.includes(p)));
   const [walletAccess, setWalletAccess] = useState(() => targetAccess.filter((id) => knownIds.has(id)));
+  const [saving, setSaving] = useState(false);
+  const [resettingPin, setResettingPin] = useState(false);
 
   const hasWallet = walletAccess.length > 0;
   const actorAdmin = isAdminRole(currentUser?.role);
@@ -304,9 +307,10 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
   const handleResetPin = () => {
     const newPin = window.prompt("নতুন PIN লিখুন (min 4 character):");
     if (!newPin || !newPin.trim()) return;
+    setResettingPin(true);
     api.resetPin(user.Username, newPin.trim(), currentUser.username).then((res) => {
       showAlert(res.message, res.status === "ERROR" ? "error" : "success");
-    }).catch(() => showAlert("নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।", "error"));
+    }).catch(() => showAlert("নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।", "error")).finally(() => setResettingPin(false));
   };
 
   const handleToggleStatus = () => {
@@ -315,6 +319,7 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
   };
 
   const saveAll = () => {
+    if (saving) return;
     const storedAccess = targetAccess.filter((id) => knownIds.has(id));
     const nameChanged = canEditName && fullName !== (user.FullName || "");
     const roleChanged = canEditRole && role !== normRole(user.Role);
@@ -333,6 +338,7 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
       showAlert("কোনো পরিবর্তন হয়নি।", "error");
       return;
     }
+    setSaving(true);
     Promise.all(calls).then((results) => {
       const failed = results.find((r) => r.status === "ERROR");
       showAlert(failed ? failed.message : "আপডেট হয়েছে!", failed ? "error" : "success");
@@ -340,7 +346,7 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
         onRefresh();
         onClose();
       }
-    }).catch(() => showAlert("নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।", "error"));
+    }).catch(() => showAlert("নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।", "error")).finally(() => setSaving(false));
   };
 
   return (
@@ -362,8 +368,8 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
                   <div className="text-[11px] font-bold text-slate-600 dark:text-gray-300">PIN</div>
                   <div className="text-[10px] text-gray-400 dark:text-gray-500 tracking-widest">•••••••••</div>
                 </div>
-                <button onClick={handleResetPin} className="bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg">
-                  <i className="fa-solid fa-key me-1"></i>Reset PIN
+                <button onClick={handleResetPin} disabled={resettingPin} className="bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg">
+                  {resettingPin ? <i className="fa-solid fa-spinner fa-spin"></i> : <><i className="fa-solid fa-key me-1"></i>Reset PIN</>}
                 </button>
               </div>
             </SectionCard>
@@ -482,8 +488,8 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
                   <div className="text-[11px] font-bold text-slate-600 dark:text-gray-300">PIN</div>
                   <div className="text-[10px] text-gray-400 dark:text-gray-500 tracking-widest">•••••••••</div>
                 </div>
-                <button onClick={handleResetPin} className="bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg">
-                  <i className="fa-solid fa-key me-1"></i>Reset PIN
+                <button onClick={handleResetPin} disabled={resettingPin} className="bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg">
+                  {resettingPin ? <i className="fa-solid fa-spinner fa-spin"></i> : <><i className="fa-solid fa-key me-1"></i>Reset PIN</>}
                 </button>
               </div>
               <div className="text-[10px] text-gray-400 dark:text-gray-500"><i className="fa-solid fa-circle-info me-1"></i>PIN/password কখনো প্লেইন টেক্সটে দেখানো হয় না।</div>
@@ -504,8 +510,8 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
             </div>
           </SectionCard>
 
-          <button onClick={saveAll} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl text-xs shadow-sm">
-            Save Changes
+          <button onClick={saveAll} disabled={saving} className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold py-2 rounded-xl text-xs shadow-sm flex items-center justify-center gap-1.5">
+            {saving && <i className="fa-solid fa-spinner fa-spin"></i>} {saving ? 'Saving...' : 'Save Changes'}
           </button>
         </>
       )}
@@ -517,6 +523,7 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
 
 const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefresh, showAlert, onUserAction }) {
   const [expanded, setExpanded] = useState(false);
+  const confirm = useConfirm();
   const isAdmin = isAdminRole(user.Role);
   const isSelf = String(user.Username).toLowerCase() === String(currentUser.username || "").toLowerCase();
   const actorAdmin = isAdminRole(currentUser?.role);
@@ -578,7 +585,7 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
   return (
     <div>
       {(canManageTarget || canDel) ? (
-        <SwipeCard onSwipeRight={canManageTarget ? () => setExpanded(true) : undefined} onSwipeLeft={canDel ? () => { if (window.confirm("এই ইউজার মুছে ফেলবেন?")) onUserAction("delete", user.Username); } : undefined}>
+        <SwipeCard onSwipeRight={canManageTarget ? () => setExpanded(true) : undefined} onSwipeLeft={canDel ? async () => { const ok = await confirm({ message: "এই ইউজার মুছে ফেলবেন?" }); if (ok) onUserAction("delete", user.Username); } : undefined}>
           {row}
         </SwipeCard>
       ) : row}
@@ -599,6 +606,7 @@ function AddUserCard({ wallets, currentUser, showAlert, onRefresh }) {
   const [role, setRole] = useState("User");
   const [permissions, setPermissions] = useState([]);
   const [walletAccess, setWalletAccess] = useState([]);
+  const [adding, setAdding] = useState(false);
   const actorAdmin = isAdminRole(currentUser?.role);
   const isAdminNew = isAdminRole(role);
   const hasWallet = walletAccess.length > 0;
@@ -618,11 +626,13 @@ function AddUserCard({ wallets, currentUser, showAlert, onRefresh }) {
 
   const handleAddUser = (e) => {
     e.preventDefault();
+    if (adding) return;
     if (!newUsername || !newPin) { showAlert("সকল তথ্য পূরণ করুন!", "error"); return; }
+    setAdding(true);
     api.addUser(fullName, newUsername, newPin, role, permissions, walletAccess, currentUser.username).then((res) => {
       showAlert(res.message, res.status === "ERROR" ? "error" : "success");
       if (res.status !== "ERROR") { resetForm(); onRefresh(); }
-    }).catch(() => showAlert("নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।", "error"));
+    }).catch(() => showAlert("নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।", "error")).finally(() => setAdding(false));
   };
 
   return (
@@ -675,7 +685,9 @@ function AddUserCard({ wallets, currentUser, showAlert, onRefresh }) {
 
         <div className="grid grid-cols-2 gap-2">
           <button type="button" onClick={resetForm} className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-bold py-2 rounded-xl text-xs">Cancel</button>
-          <button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl text-xs">Create User</button>
+          <button type="submit" disabled={adding} className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5">
+            {adding && <i className="fa-solid fa-spinner fa-spin"></i>} {adding ? 'Creating...' : 'Create User'}
+          </button>
         </div>
       </form>
     </div>

@@ -2,6 +2,7 @@
 import { todayStr } from "../utils/loan.js";
 import Select from "../components/Select.jsx";
 import Popup from "../components/Popup.jsx";
+import { useToast } from "../components/Toast.jsx";
 import TransactionSwipeCard from "../components/TransactionSwipeCard.jsx";
 
 const DEFAULT_WALLET_KEY = "hisab_default_wallet";
@@ -36,6 +37,7 @@ function MenuButton({ icon, label, sub, onClick, danger }) {
 
 export default function UserProfileView({ currentUser, transactions, wallets, darkMode, onSetDark, can, onSave, onCancel, onEditTxn, onDeleteTxn, onLogout, setActiveTab }) {
   const [activeCard, setActiveCard] = useState(null);
+  const toast = useToast();
   const [currentPin, setCurrentPin] = useState('');
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
@@ -91,7 +93,7 @@ export default function UserProfileView({ currentUser, transactions, wallets, da
     // Stored as base64 in a single Google Sheets cell (~50,000 character limit),
     // and base64 inflates raw bytes by ~1.37x — 30KB is the safe ceiling that
     // actually fits, not the old 1MB figure which would have silently failed.
-    if (file.size > 30 * 1024) { alert('ছবির সাইজ ৩০ KB এর কম হতে হবে!'); return; }
+    if (file.size > 30 * 1024) { toast.error('ছবির সাইজ ৩০ KB এর কম হতে হবে!'); return; }
     const reader = new FileReader();
     reader.onload = (ev) => {
       setProfilePic(ev.target.result);
@@ -101,9 +103,9 @@ export default function UserProfileView({ currentUser, transactions, wallets, da
   };
 
   const handlePwSave = () => {
-    if (!currentPin || !newPin || !confirmPin) { alert('সবগুলো PIN ক্ষেত্র পূরণ করুন!'); return; }
-    if (newPin !== confirmPin) { alert('নতুন PIN ও Confirm PIN মিলছে না!'); return; }
-    if (newPin.length < 4) { alert('PIN কমপক্ষে 4 অক্ষরের হতে হবে!'); return; }
+    if (!currentPin || !newPin || !confirmPin) { toast.error('সবগুলো PIN ক্ষেত্র পূরণ করুন!'); return; }
+    if (newPin !== confirmPin) { toast.error('নতুন PIN ও Confirm PIN মিলছে না!'); return; }
+    if (newPin.length < 4) { toast.error('PIN কমপক্ষে 4 অক্ষরের হতে হবে!'); return; }
     onSave({ username: currentUser.username, currentPin, pin: newPin });
     setActiveCard(null);
     setCurrentPin('');
@@ -113,7 +115,7 @@ export default function UserProfileView({ currentUser, transactions, wallets, da
 
   const handleEditSave = () => {
     const name = editName.trim();
-    if (!name) { alert('Full Name খালি রাখা যাবে না!'); return; }
+    if (!name) { toast.error('Full Name খালি রাখা যাবে না!'); return; }
     localStorage.setItem(`${DEFAULT_WALLET_KEY}_${currentUser.username}`, defaultWallet);
     onSave({ username: currentUser.username, fullName: name });
     setActiveCard(null);

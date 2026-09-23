@@ -1,8 +1,10 @@
 import { useState } from "react";
 import Select from "./Select.jsx";
+import { useToast } from "./Toast.jsx";
 import { todayStr, pickDefaultWalletId } from "../utils/loan.js";
 
 export default function TransferForm({ wallets, currentUser, onSave, onCancel }) {
+  const toast = useToast();
   const defaultFrom = pickDefaultWalletId(currentUser?.username, wallets);
   const [fromWalletId, setFromWalletId] = useState(defaultFrom);
   const [fromAccount, setFromAccount] = useState('Bank');
@@ -28,11 +30,11 @@ export default function TransferForm({ wallets, currentUser, onSave, onCancel })
   const handleSubmit = (e) => {
     e.preventDefault();
     if (submitting) return;
-    if (!fromWalletId || !toWalletId) return alert('From এবং To Wallet নির্বাচন করুন!');
-    if (fromWalletId === toWalletId && fromAccount === toAccount) return alert('একই Wallet ও Account এ ট্রান্সফার করা যাবে না!');
-    if (!fromAmount || Number(fromAmount) <= 0) return alert('সঠিক পরিমাণ লিখুন!');
+    if (!fromWalletId || !toWalletId) return toast.error('From এবং To Wallet নির্বাচন করুন!');
+    if (fromWalletId === toWalletId && fromAccount === toAccount) return toast.error('একই Wallet ও Account এ ট্রান্সফার করা যাবে না!');
+    if (!fromAmount || Number(fromAmount) <= 0) return toast.error('সঠিক পরিমাণ লিখুন!');
     const received = toAmount || fromAmount;
-    if (!received || Number(received) <= 0) return alert('Amount Received (To) সঠিকভাবে লিখুন!');
+    if (!received || Number(received) <= 0) return toast.error('Amount Received (To) সঠিকভাবে লিখুন!');
     setSubmitting(true);
     onSave({
       type: 'Transfer', fromWalletId, fromAccount, fromAmount, fromCurrency: fromWallet?.Currency,
@@ -129,7 +131,7 @@ export default function TransferForm({ wallets, currentUser, onSave, onCancel })
         </div>
 
         <button type="submit" disabled={submitting} className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl shadow-md text-sm flex items-center justify-center gap-2">
-          <i className="fa-solid fa-floppy-disk"></i> {submitting ? 'Saving...' : 'Save Transfer'}
+          <i className={`${submitting ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-floppy-disk"}`}></i> {submitting ? 'Saving...' : 'Save Transfer'}
         </button>
       </form>
     </div>

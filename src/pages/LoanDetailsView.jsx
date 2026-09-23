@@ -6,6 +6,7 @@ import {
 } from "../utils/loan.js";
 import LoanRepaymentForm from "../components/LoanRepaymentForm.jsx";
 import LoanAddForm from "../components/LoanAddForm.jsx";
+import { useConfirm } from "../components/ConfirmDialog.jsx";
 
 function DetailRow({ label, value, bold }) {
   return (
@@ -27,6 +28,7 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
   const [showAdd, setShowAdd] = useState(false);
   const [editingAddition, setEditingAddition] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const confirm = useConfirm();
 
   // Derive status/remaining from the live fetched loan state (not the initial
   // prop) so they refresh immediately after a payment is saved.
@@ -101,8 +103,9 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
     setEditingAddition(null);
   };
 
-  const handleDeleteAddition = (ad) => {
-    if (!confirm("এই অ্যাডিশনটি মুছে ফেলবেন? (Wallet ব্যালেন্স থেকেও টাকার প্রভাব ফেরত নেওয়া হবে)")) return;
+  const handleDeleteAddition = async (ad) => {
+    const ok = await confirm({ message: "এই অ্যাডিশনটি মুছে ফেলবেন? (Wallet ব্যালেন্স থেকেও টাকার প্রভাব ফেরত নেওয়া হবে)" });
+    if (!ok) return;
     onDeleteAddition(ad.id).then(handleAdditionSaved).catch(() => {});
   };
 

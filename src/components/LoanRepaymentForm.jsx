@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Select from "./Select.jsx";
 import Popup from "./Popup.jsx";
+import { useToast } from "./Toast.jsx";
 import { formatMoney, loanTypeMeta, remainingOf, todayStr, pickDefaultWalletId, totalAmountOf } from "../utils/loan.js";
 
 function ErrorText({ msg }) {
@@ -17,8 +18,8 @@ export default function LoanRepaymentForm({ loan, wallets, currentUser, onSave, 
   const [note, setNote] = useState("");
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState("");
   const [clientId] = useState(() => (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : "p" + Date.now() + Math.random().toString(36).slice(2)));
+  const toast = useToast();
 
   const selectedWallet = wallets.find(w => w.WalletID === walletId);
   const currency = selectedWallet?.Currency || loan?.currency || "";
@@ -46,7 +47,6 @@ export default function LoanRepaymentForm({ loan, wallets, currentUser, onSave, 
     ev.preventDefault();
     if (submitting) return;
     if (!validate()) return;
-    setSubmitError("");
     setSubmitting(true);
     // Clamp any sub-epsilon overpayment down to exactly what is owed so money
     // moved out of the wallet never exceeds the remaining balance.
@@ -56,14 +56,12 @@ export default function LoanRepaymentForm({ loan, wallets, currentUser, onSave, 
     })
       .then((res) => {
         if (res && res.status === "ERROR") {
-          setSubmitError(res.message || "ফেরত যোগ করতে ব্যর্থ হয়েছে। আবার চেষ্টা করুন।");
-        } else {
-          setSubmitError("");
+          toast.error(res.message || "ফেরত যোগ করতে ব্যর্থ হয়েছে। আবার চেষ্টা করুন।");
         }
         return res;
       })
       .catch((err) => {
-        setSubmitError(String((err && err.message) || err || "ফেরত যোগ করতে ব্যর্থ হয়েছে। আবার চেষ্টা করুন।"));
+        toast.error(String((err && err.message) || err || "ফেরত যোগ করতে ব্যর্থ হয়েছে। আবার চেষ্টা করুন।"));
       })
       .finally(() => setSubmitting(false));
   };
@@ -135,15 +133,9 @@ export default function LoanRepaymentForm({ loan, wallets, currentUser, onSave, 
             <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="নোট লিখুন..." className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-900 dark:text-gray-100" />
           </div>
 
-          {submitError && (
-            <div className="rounded-xl bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 px-3 py-2.5 text-[11px] font-semibold text-rose-700 dark:text-rose-300">
-              <i className="fa-solid fa-circle-exclamation me-1"></i>{submitError}
-            </div>
-          )}
-
           <button type="submit" disabled={submitting || amount && Number(amount) > remaining + 0.001}
             className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl shadow-md text-sm flex items-center justify-center gap-2 mt-1">
-            <i className="fa-solid fa-floppy-disk"></i> {submitting ? "সাবমিট হচ্ছে..." : "ফেরত যোগ করুন"}
+            <i className={submitting ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-floppy-disk"}></i> {submitting ? "সাবমিট হচ্ছে..." : "ফেরত যোগ করুন"}
           </button>
         </form>
     </Popup>

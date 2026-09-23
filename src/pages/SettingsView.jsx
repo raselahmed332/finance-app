@@ -2,11 +2,16 @@ import { useState, useEffect } from "react";
 import { api } from "../api.js";
 import Select from "../components/Select.jsx";
 import SwipeCard from "../components/SwipeCard.jsx";
+import { useToast } from "../components/Toast.jsx";
+import { useConfirm } from "../components/ConfirmDialog.jsx";
 
 function CategoriesManager({ currentUser, can, showAlert }) {
   const [categories, setCategories] = useState(null);
   const [name, setName] = useState('');
   const [type, setType] = useState('Expense');
+  const [adding, setAdding] = useState(false);
+  const toast = useToast();
+  const confirm = useConfirm();
 
   const load = () => {
     api.getCategories(currentUser.username).then((res) => {
@@ -22,15 +27,18 @@ function CategoriesManager({ currentUser, can, showAlert }) {
 
   const handleAdd = (e) => {
     e.preventDefault();
-    if (!name.trim()) return alert('ক্যাটাগরির নাম দিন!');
+    if (adding) return;
+    if (!name.trim()) return toast.error('ক্যাটাগরির নাম দিন!');
+    setAdding(true);
     api.addCategory(name.trim(), type, currentUser.username).then((res) => {
       showAlert(res.message, res.status === 'ERROR' ? 'error' : 'success');
       if (res.status === 'SUCCESS') { setName(''); load(); }
-    });
+    }).finally(() => setAdding(false));
   };
 
-  const handleDelete = (categoryId) => {
-    if (!confirm('এই ক্যাটাগরি মুছে ফেলবেন? পুরনো লেনদেনে কোনো প্রভাব পড়বে না।')) return;
+  const handleDelete = async (categoryId) => {
+    const ok = await confirm({ message: 'এই ক্যাটাগরি মুছে ফেলবেন? পুরনো লেনদেনে কোনো প্রভাব পড়বে না।' });
+    if (!ok) return;
     api.deleteCategory(categoryId, currentUser.username).then((res) => {
       showAlert(res.message, res.status === 'ERROR' ? 'error' : 'success');
       if (res.status === 'SUCCESS') load();
@@ -51,7 +59,9 @@ function CategoriesManager({ currentUser, can, showAlert }) {
           <option value="Expense">Expense</option>
           <option value="Income">Income</option>
         </Select>
-        <button type="submit" className="bg-slate-800 text-white rounded-xl px-3 text-xs font-bold">+</button>
+        <button type="submit" disabled={adding} className="bg-slate-800 disabled:opacity-50 text-white rounded-xl px-3 text-xs font-bold">
+          {adding ? <i className="fa-solid fa-spinner fa-spin"></i> : '+'}
+        </button>
       </form>
 
       {categories === null && <div className="text-center text-xs text-gray-400 dark:text-gray-500 py-2">লোড হচ্ছে...</div>}

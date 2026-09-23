@@ -1,8 +1,10 @@
 import { useState } from "react";
 import Select from "./Select.jsx";
+import { useToast } from "./Toast.jsx";
 import { todayStr, pickDefaultWalletId } from "../utils/loan.js";
 
 export default function BankOperationForm({ wallets, currentUser, onSave, onCancel }) {
+  const toast = useToast();
   const [type, setType] = useState('Bank Withdraw');
   const [walletId, setWalletId] = useState(pickDefaultWalletId(currentUser?.username, wallets));
   const [amount, setAmount] = useState('');
@@ -21,8 +23,8 @@ export default function BankOperationForm({ wallets, currentUser, onSave, onCanc
   const submit = (event) => {
     event.preventDefault();
     if (submitting) return;
-    if (!walletId) return alert('একটি Wallet নির্বাচন করুন!');
-    if (!amount || Number(amount) <= 0) return alert('সঠিক পরিমাণ লিখুন!');
+    if (!walletId) return toast.error('একটি Wallet নির্বাচন করুন!');
+    if (!amount || Number(amount) <= 0) return toast.error('সঠিক পরিমাণ লিখুন!');
     setSubmitting(true);
     onSave({ type, walletId, currency: selectedWallet?.Currency, amount, date, description, note, clientId }).catch(() => {}).finally(() => setSubmitting(false));
   };
@@ -49,7 +51,7 @@ export default function BankOperationForm({ wallets, currentUser, onSave, onCanc
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" required />
         <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" />
         <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note" rows="2" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl p-3 text-sm resize-none bg-white dark:bg-gray-900 dark:text-gray-100"></textarea>
-        <button disabled={submitting} className="w-full bg-blue-600 disabled:opacity-50 text-white font-bold py-3 rounded-xl"><i className="fa-solid fa-building-columns"></i> {submitting ? 'Saving...' : 'Save Operation'}</button>
+        <button disabled={submitting} className="w-full bg-blue-600 disabled:opacity-50 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2">{submitting ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-building-columns"></i>} {submitting ? 'Saving...' : 'Save Operation'}</button>
       </form>
     </div>
   );

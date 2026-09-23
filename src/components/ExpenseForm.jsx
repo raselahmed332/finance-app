@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Select from "./Select.jsx";
+import { useToast } from "./Toast.jsx";
 import { todayStr, pickDefaultWalletId } from "../utils/loan.js";
 
 export default function ExpenseForm({ wallets, categories, currentUser, onSave, onCancel }) {
@@ -14,6 +15,7 @@ export default function ExpenseForm({ wallets, categories, currentUser, onSave, 
   const [date, setDate] = useState(todayStr());
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const toast = useToast();
   const [clientId] = useState(() => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'c' + Date.now() + Math.random().toString(36).slice(2)));
 
   const selectedWallet = wallets.find(w => w.WalletID === walletId);
@@ -26,8 +28,8 @@ export default function ExpenseForm({ wallets, categories, currentUser, onSave, 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (submitting) return;
-    if (!walletId) return alert('একটি Wallet নির্বাচন করুন!');
-    if (!amount || amount <= 0) return alert('সঠিক পরিমাণ লিখুন!');
+    if (!walletId) return toast.error('একটি Wallet নির্বাচন করুন!');
+    if (!amount || amount <= 0) return toast.error('সঠিক পরিমাণ লিখুন!');
     setSubmitting(true);
     onSave({ type: 'Expense', walletId, currency: selectedWallet?.Currency, account, sourceCategory: category, whereVendor, description, amount, date, note, clientId }).catch(() => {}).finally(() => setSubmitting(false));
   };
@@ -99,7 +101,7 @@ export default function ExpenseForm({ wallets, categories, currentUser, onSave, 
         </div>
 
         <button type="submit" disabled={submitting} className="w-full bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl shadow-md text-sm flex items-center justify-center gap-2 mt-2">
-          <i className="fa-solid fa-floppy-disk"></i> {submitting ? 'Saving...' : 'Save Expense'}
+          <i className={`${submitting ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-floppy-disk"}`}></i> {submitting ? 'Saving...' : 'Save Expense'}
         </button>
       </form>
     </div>

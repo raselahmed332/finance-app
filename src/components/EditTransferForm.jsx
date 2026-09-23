@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { api } from "../api.js";
 import Popup from "./Popup.jsx";
+import { useToast } from "./Toast.jsx";
 
 export default function EditTransferForm({ transaction, currentUser, onSave, onCancel }) {
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [pair, setPair] = useState(null);
+  const toast = useToast();
 
   const [date, setDate] = useState('');
   const [fromAmount, setFromAmount] = useState('');
@@ -16,7 +17,7 @@ export default function EditTransferForm({ transaction, currentUser, onSave, onC
 
   useEffect(() => {
     api.getTransferPair(transaction.ID, transaction.WalletID, currentUser.username).then((res) => {
-      if (res.status === 'ERROR') { setError(res.message); setLoading(false); return; }
+      if (res.status === 'ERROR') { toast.error(res.message); setLoading(false); return; }
       setPair(res);
       setDate(res.date);
       setFromAmount(res.out.amount);
@@ -36,9 +37,9 @@ export default function EditTransferForm({ transaction, currentUser, onSave, onC
       </div>
     </Popup>
   );
-  if (error || !pair) return (
+  if (!pair) return (
     <Popup open title="Edit Transfer" onClose={onCancel}>
-      <div className="text-center text-sm text-rose-600 py-4">{error || 'ট্রান্সফার পাওয়া যায়নি।'}</div>
+      <div className="text-center text-sm text-slate-500 dark:text-gray-400 py-4">ট্রান্সফার পাওয়া যায়নি।</div>
     </Popup>
   );
 
@@ -47,8 +48,8 @@ export default function EditTransferForm({ transaction, currentUser, onSave, onC
   const handleSubmit = (e) => {
     e.preventDefault();
     if (submitting) return;
-    if (!fromAmount || Number(fromAmount) <= 0) return alert('সঠিক পরিমাণ লিখুন!');
-    if (!toAmount || Number(toAmount) <= 0) return alert('সঠিক পরিমাণ লিখুন!');
+    if (!fromAmount || Number(fromAmount) <= 0) return toast.error('সঠিক পরিমাণ লিখুন!');
+    if (!toAmount || Number(toAmount) <= 0) return toast.error('সঠিক পরিমাণ লিখুন!');
     setSubmitting(true);
     onSave({ id: transaction.ID, walletId: transaction.WalletID, date, fromAmount, toAmount, note, description }).catch(() => {}).finally(() => setSubmitting(false));
   };
@@ -113,7 +114,7 @@ export default function EditTransferForm({ transaction, currentUser, onSave, onC
         </div>
 
         <button type="submit" disabled={submitting} className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl shadow-md text-sm flex items-center justify-center gap-2">
-          <i className="fa-solid fa-floppy-disk"></i> {submitting ? 'Saving...' : 'Update Transfer (উভয় পাশ)'}
+          <i className={`${submitting ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-floppy-disk"}`}></i> {submitting ? 'Saving...' : 'Update Transfer (উভয় পাশ)'}
         </button>
       </form>
     </Popup>

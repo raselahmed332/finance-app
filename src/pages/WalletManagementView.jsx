@@ -3,11 +3,14 @@ import { api } from "../api.js";
 import Select from "../components/Select.jsx";
 import SwipeCard from "../components/SwipeCard.jsx";
 import Popup from "../components/Popup.jsx";
+import { useToast } from "../components/Toast.jsx";
+import { useConfirm } from "../components/ConfirmDialog.jsx";
 
 const CURRENCIES = ["SAR", "BDT", "USD", "EUR", "KWD", "GBP", "AED"];
 
 function EditWalletRow({ wallet, currentUser, can, onRefresh, showAlert }) {
   const [editing, setEditing] = useState(false);
+  const confirm = useConfirm();
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState(wallet.WalletName);
   const [status, setStatus] = useState(wallet.Status);
@@ -33,11 +36,12 @@ function EditWalletRow({ wallet, currentUser, can, onRefresh, showAlert }) {
   };
 
   const handleDelete = () => {
-    api.checkWalletHasTransactions(wallet.WalletID, currentUser.username).then((res) => {
+    api.checkWalletHasTransactions(wallet.WalletID, currentUser.username).then(async (res) => {
       const msg = res.hasTransactions
         ? 'এই Wallet এ লেনদেন আছে।\n\nমুছে ফেললে Wallet নিষ্ক্রিয় (deactivate) হবে — পুরনো লেনদেন সংরক্ষিত থাকবে, শুধু নতুন লেনদেন যোগ করা যাবে না।\n\nআপনি কি নিশ্চিত?'
         : 'এই Wallet মুছে ফেলবেন?';
-      if (!confirm(msg)) return;
+      const ok = await confirm({ message: msg, confirmLabel: 'হ্যাঁ, মুছুন' });
+      if (!ok) return;
       api.deleteWallet(wallet.WalletID, currentUser.username).then((r) => {
         showAlert(r.message, r.status === 'ERROR' ? 'error' : 'success');
         if (r.status === 'SUCCESS') onRefresh();
@@ -80,7 +84,7 @@ function EditWalletRow({ wallet, currentUser, can, onRefresh, showAlert }) {
             <option value="Inactive">Inactive</option>
           </Select>
           <div className="text-[10px] text-gray-400 dark:text-gray-500 px-1">Currency: {wallet.Currency} (তৈরির সময় নির্ধারিত, পরিবর্তনযোগ্য নয়)</div>
-          <button onClick={handleSave} disabled={saving} className="w-full bg-emerald-600 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl text-xs">{saving ? 'Saving...' : 'Save'}</button>
+          <button onClick={handleSave} disabled={saving} className="w-full bg-emerald-600 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl text-xs">{saving ? <><i className="fa-solid fa-spinner fa-spin me-1"></i>Saving...</> : 'Save'}</button>
       </Popup>
     </div>
   );
@@ -88,6 +92,7 @@ function EditWalletRow({ wallet, currentUser, can, onRefresh, showAlert }) {
 
 export default function WalletManagementView({ currentUser, can, showAlert }) {
   const [allWallets, setAllWallets] = useState(null);
+  const [adding, setAdding] = useState(false);
   const [name, setName] = useState('');
   const [currency, setCurrency] = useState('BDT');
   const [openingCash, setOpeningCash] = useState('');
@@ -104,14 +109,16 @@ export default function WalletManagementView({ currentUser, can, showAlert }) {
 
   const handleAdd = (e) => {
     e.preventDefault();
-    if (!name.trim()) return alert('Wallet এর নাম দিন!');
+    if (adding) return;
+    if (!name.trim()) return toast.error('Wallet এর নাম দিন!');
     const oc = parseFloat(openingCash) || 0;
     const ob = parseFloat(openingBank) || 0;
-    if (oc < 0 || ob < 0) return alert('Opening balance ঋণাত্মক হতে পারবে না।');
+    if (oc < 0 || ob < 0) return toast.error('Opening balance ঋণাত্মক হতে পারবে না।');
+    setAdding(true);
     api.addWallet(name.trim(), currency, oc, ob).then((res) => {
       showAlert(res.message, res.status === 'ERROR' ? 'error' : 'success');
       if (res.status === 'SUCCESS') { setName(''); setOpeningCash(''); setOpeningBank(''); load(); }
-    });
+    }).catch(() => showAlert('নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।', 'error')).finally(() => setAdding(false));
   };
 
   return (
@@ -144,8 +151,8 @@ export default function WalletManagementView({ currentUser, can, showAlert }) {
               <i className="fa-solid fa-circle-info me-1"></i>
               শুরুর ব্যালেন্স — পরে "Edit Wallet" থেকে পরিবর্তন করা যাবে না।
             </div>
-            <button type="submit" className="w-full bg-emerald-600 text-white font-bold py-2 rounded-xl text-xs">
-              <i className="fa-solid fa-plus me-1"></i> Create Wallet
+            <button type="submit" disabled={adding} className="w-full bg-emerald-600 disabled:opacity-50 text-white font-bold py-2 rounded-xl text-xs">
+              {adding ? <><i className="fa-solid fa-spinner fa-spin me-1"></i>Creating...</> : <><i className="fa-solid fa-plus me-1"></i> Create Wallet</>}
             </button>
           </form>
         </div>

@@ -8,6 +8,8 @@ import {
   Suspense,
 } from "react";
 import { api, session } from "./api.js";
+import { useToast } from "./components/Toast.jsx";
+import { useConfirm } from "./components/ConfirmDialog.jsx";
 
 const LoginScreen = lazy(() => import("./pages/LoginScreen.jsx"));
 const DashboardView = lazy(() => import("./pages/DashboardView.jsx"));
@@ -64,6 +66,8 @@ export default function App() {
     if (saved !== null) return saved === "true";
     return window.matchMedia("(prefers-color-scheme: dark)").matches;
   });
+  const toast = useToast();
+  const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState("home");
   const [transactions, setTransactions] = useState([]);
   const [usersList, setUsersList] = useState([]);
@@ -77,7 +81,6 @@ export default function App() {
   // was racy: it was re-armed at login, so a pre-logout response could resolve
   // after a new login and resurrect the previous user's session/data.
   const sessionEpoch = useRef(0);
-  const [alertMsg, setAlertMsg] = useState(null);
   const [pullRefreshing, setPullRefreshing] = useState(false);
 
   useEffect(() => {
@@ -125,10 +128,7 @@ export default function App() {
   const canAddLoan = canAny(["LOAN_GIVE", "LOAN_TAKE", "MANAGE_LOANS"]);
   const canEditLoan = can("MANAGE_LOANS");
 
-  const showAlert = useCallback((msg, type = "success") => {
-    setAlertMsg({ msg, type });
-    setTimeout(() => setAlertMsg(null), 3000);
-  }, []);
+  const showAlert = useCallback((msg, type = "success") => toast(msg, type), [toast]);
 
   const loadData = useCallback(() => {
     setLoading(true);
@@ -290,8 +290,9 @@ export default function App() {
       });
   };
 
-  const handleDeleteTxn = (id, walletId) => {
-    if (!confirm("আপনি কি এই লেনদেনটি মুছে ফেলতে চান?")) return;
+  const handleDeleteTxn = async (id, walletId) => {
+    const ok = await confirm({ message: "আপনি কি এই লেনদেনটি মুছে ফেলতে চান?" });
+    if (!ok) return;
     setLoading(true);
     api
       .deleteTransaction(id, walletId, currentUser.username)
@@ -625,14 +626,6 @@ export default function App() {
           weekday: "long",
         })}
       </div>
-
-      {alertMsg && (
-        <div
-          className={`p-3 text-center text-sm font-semibold text-white transition-all ${alertMsg.type === "error" ? "bg-red-500" : "bg-emerald-600"}`}
-        >
-          {alertMsg.msg}
-        </div>
-      )}
 
       {loading && (
         <div className="w-full bg-emerald-100 dark:bg-emerald-900 h-1 overflow-hidden">

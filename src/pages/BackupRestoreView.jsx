@@ -1,8 +1,13 @@
+import { useState } from "react";
 import { api } from "../api.js";
 import { todayStr } from "../utils/loan.js";
 
 export default function BackupRestoreView({ currentUser, showAlert, onImport, can, onCancel }) {
+  const [downloading, setDownloading] = useState(false);
+
   const handleBackup = () => {
+    if (downloading) return;
+    setDownloading(true);
     api.getBackupData(currentUser.username).then((res) => {
       if (!res || res.status === 'ERROR') {
         showAlert((res && res.message) || 'Backup download failed.', 'error');
@@ -24,7 +29,7 @@ export default function BackupRestoreView({ currentUser, showAlert, onImport, ca
       downloadAnchor.remove();
       URL.revokeObjectURL(url);
       showAlert('ব্যাকআপ ডাউনলোড সফল হয়েছে!');
-    }).catch(() => showAlert('ব্যাকআপ ডাউনলোডে ত্রুটি হয়েছে। আবার চেষ্টা করুন।', 'error'));
+    }).catch(() => showAlert('ব্যাকআপ ডাউনলোডে ত্রুটি হয়েছে। আবার চেষ্টা করুন।', 'error')).finally(() => setDownloading(false));
   };
 
   const handleImport = (event) => {
@@ -53,8 +58,8 @@ export default function BackupRestoreView({ currentUser, showAlert, onImport, ca
         <p className="text-xs text-gray-500 dark:text-gray-400">আপনার সমস্ত হিসাব গুগল সিট (Google Sheets)-এ রিয়েলটাইমে সংরক্ষিত হচ্ছে। চাইলে অফলাইন কপি ডাউনলোড করে রাখতে পারেন।</p>
 
         {allowed ? (
-          <button onClick={handleBackup} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2">
-            <i className="fa-solid fa-download"></i> Download Full JSON Backup
+          <button onClick={handleBackup} disabled={downloading} className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2">
+            {downloading ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-download"></i>} {downloading ? 'Downloading...' : 'Download Full JSON Backup'}
           </button>
         ) : (
           <div className="text-[10px] text-gray-400 dark:text-gray-500">ব্যাকআপ ডাউনলোড করার অনুমতি আপনার নেই।</div>

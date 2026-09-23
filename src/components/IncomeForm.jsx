@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Select from "./Select.jsx";
+import { useToast } from "./Toast.jsx";
 import { todayStr, pickDefaultWalletId } from "../utils/loan.js";
 
 export default function IncomeForm({ wallets, categories, currentUser, onSave, onCancel }) {
@@ -13,6 +14,7 @@ export default function IncomeForm({ wallets, categories, currentUser, onSave, o
   const [date, setDate] = useState(todayStr());
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const toast = useToast();
   // Stable per-form-instance ID: if the same click is retried (double-click,
   // flaky network), the backend recognizes it and won't create a duplicate.
   const [clientId] = useState(() => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'c' + Date.now() + Math.random().toString(36).slice(2)));
@@ -27,8 +29,8 @@ export default function IncomeForm({ wallets, categories, currentUser, onSave, o
   const handleSubmit = (e) => {
     e.preventDefault();
     if (submitting) return;
-    if (!walletId) return alert('একটি Wallet নির্বাচন করুন!');
-    if (!amount || amount <= 0) return alert('সঠিক পরিমাণ লিখুন!');
+    if (!walletId) return toast.error('একটি Wallet নির্বাচন করুন!');
+    if (!amount || amount <= 0) return toast.error('সঠিক পরিমাণ লিখুন!');
     setSubmitting(true);
     // Disabled for exactly as long as the real request takes — no artificial wait.
     // The error itself is already shown via showAlert inside onSave; here we
@@ -98,7 +100,7 @@ export default function IncomeForm({ wallets, categories, currentUser, onSave, o
         </div>
 
         <button type="submit" disabled={submitting} className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl shadow-md text-sm flex items-center justify-center gap-2 mt-2">
-          <i className="fa-solid fa-floppy-disk"></i> {submitting ? 'Saving...' : 'Save Income'}
+          <i className={`${submitting ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-floppy-disk"}`}></i> {submitting ? 'Saving...' : 'Save Income'}
         </button>
       </form>
     </div>

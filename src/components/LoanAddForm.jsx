@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Select from "./Select.jsx";
 import Popup from "./Popup.jsx";
+import { useToast } from "./Toast.jsx";
 import {
   formatMoney, loanTypeMeta, remainingOf, totalAmountOf,
   todayStr, pickDefaultWalletId,
@@ -33,8 +34,8 @@ export default function LoanAddForm({ loan, addition, wallets, currentUser, onSa
   const [note, setNote] = useState(isEdit ? addition.note || "" : prefill?.note || "");
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState("");
   const [clientId] = useState(() => (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : "a" + Date.now() + Math.random().toString(36).slice(2)));
+  const toast = useToast();
 
   const selectedWallet = wallets.find(w => w.WalletID === walletId);
   const currency = selectedWallet?.Currency || loan?.currency || "";
@@ -61,7 +62,6 @@ export default function LoanAddForm({ loan, addition, wallets, currentUser, onSa
     ev.preventDefault();
     if (submitting) return;
     if (!validate()) return;
-    setSubmitError("");
     setSubmitting(true);
     const payload = {
       amount: String(Number(amount)), date, walletId, account, currency,
@@ -83,16 +83,15 @@ export default function LoanAddForm({ loan, addition, wallets, currentUser, onSa
     onSave(payload)
       .then((res) => {
         if (res && res.status === "ERROR") {
-          setSubmitError(res.message || "সাবমিট ব্যর্থ হয়েছে। আবার চেষ্টা করুন।");
+          toast.error(res.message || "সাবমিট ব্যর্থ হয়েছে। আবার চেষ্টা করুন।");
           setSubmitting(false);
         } else {
-          setSubmitError("");
           setSubmitting(false);
         }
         return res;
       })
       .catch((err) => {
-        setSubmitError(String((err && err.message) || err || "সাবমিট ব্যর্থ হয়েছে। আবার চেষ্টা করুন।"));
+        toast.error(String((err && err.message) || err || "সাবমিট ব্যর্থ হয়েছে। আবার চেষ্টা করুন।"));
         setSubmitting(false);
       });
   };
@@ -181,15 +180,9 @@ export default function LoanAddForm({ loan, addition, wallets, currentUser, onSa
             </div>
           )}
 
-          {submitError && (
-            <div className="rounded-xl bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 px-3 py-2.5 text-[11px] font-semibold text-rose-700 dark:text-rose-300">
-              <i className="fa-solid fa-circle-exclamation me-1"></i>{submitError}
-            </div>
-          )}
-
           <button type="submit" disabled={submitting}
             className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl shadow-md text-sm flex items-center justify-center gap-2 mt-1">
-            <i className="fa-solid fa-floppy-disk"></i> {submitting ? "সাবমিট হচ্ছে..." : (isEdit ? "আপডেট করুন" : "টাকা যোগ করুন")}
+            <i className={submitting ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-floppy-disk"}></i> {submitting ? "সাবমিট হচ্ছে..." : (isEdit ? "আপডেট করুন" : "টাকা যোগ করুন")}
           </button>
         </form>
     </Popup>
