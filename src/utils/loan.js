@@ -153,14 +153,14 @@ export function loanTypeMeta(type) {
     label: "হাওলাত দিয়েছি", short: "দিয়েছি", action: "হাওলাত দিলাম",
     totalLabel: "মোট দিয়েছি", repaidLabel: "ফেরত পেয়েছি", remainingLabel: "বাকি",
     outstandingLabel: "এখনো ফেরত পাবো",
-    repaymentTitle: "ফেরত পেয়েছি", ledgerLabel: "ফেরত পেয়েছি",
+    repaymentTitle: "ফেরত পেয়েছি", ledgerLabel: "হাওলাত দিয়েছি",
     additionLabel: "আরও দিলাম", additionTitle: "আরও টাকা যোগ করুন",
   };
   return {
     label: "হাওলাত নিয়েছি", short: "নিয়েছি", action: "হাওলাত নিলাম",
     totalLabel: "মোট নিয়েছি", repaidLabel: "ফেরত দিয়েছি", remainingLabel: "বাকি",
     outstandingLabel: "এখনো ফেরত দিতে হবে",
-    repaymentTitle: "ফেরত দিয়েছি", ledgerLabel: "ফেরত দিয়েছি",
+    repaymentTitle: "ফেরত দিয়েছি", ledgerLabel: "হাওলাত নিয়েছি",
     additionLabel: "আরও নিলাম", additionTitle: "আরও টাকা যোগ করুন",
   };
 }

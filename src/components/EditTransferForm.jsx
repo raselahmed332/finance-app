@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { api } from "../api.js";
+import Popup from "./Popup.jsx";
 
 export default function EditTransferForm({ transaction, currentUser, onSave, onCancel }) {
   const [loading, setLoading] = useState(true);
@@ -27,16 +28,18 @@ export default function EditTransferForm({ transaction, currentUser, onSave, onC
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (loading) return <div className="text-center text-sm text-gray-400 dark:text-gray-500 py-10">লোড হচ্ছে...</div>;
-  if (error || !pair) return (
-    <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow-sm border border-gray-200 dark:border-gray-800 space-y-3">
-      <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-        <button onClick={onCancel} className="text-gray-500 dark:text-gray-400"><i className="fa-solid fa-arrow-left text-lg"></i></button>
-        <h3 className="font-bold text-slate-800 dark:text-gray-100 text-base">Edit Transfer</h3>
-        <div className="w-5"></div>
+  if (loading) return (
+    <Popup open title="Edit Transfer" onClose={onCancel}>
+      <div className="text-center py-6">
+        <div className="w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+        <div className="text-xs text-gray-400 dark:text-gray-500 mt-2">লোড হচ্ছে...</div>
       </div>
+    </Popup>
+  );
+  if (error || !pair) return (
+    <Popup open title="Edit Transfer" onClose={onCancel}>
       <div className="text-center text-sm text-rose-600 py-4">{error || 'ট্রান্সফার পাওয়া যায়নি।'}</div>
-    </div>
+    </Popup>
   );
 
   const sameCurrency = pair.out.currency === pair.in.currency;
@@ -51,15 +54,7 @@ export default function EditTransferForm({ transaction, currentUser, onSave, onC
   };
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow-sm border border-gray-200 dark:border-gray-800 space-y-4">
-      <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-        <button onClick={onCancel} className="text-gray-500 hover:text-slate-800 dark:text-gray-400 dark:hover:text-gray-200">
-          <i className="fa-solid fa-arrow-left text-lg"></i>
-        </button>
-        <h3 className="font-bold text-slate-800 dark:text-gray-100 text-base text-center flex-1 text-blue-600 dark:text-blue-400">Edit Transfer</h3>
-        <div className="w-5"></div>
-      </div>
-
+    <Popup open title="Edit Transfer" onClose={submitting ? undefined : onCancel}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="bg-slate-50 dark:bg-gray-950 border border-slate-200 dark:border-gray-700 rounded-xl p-3 space-y-2">
           <div className="text-xs font-bold text-slate-700 dark:text-gray-200 uppercase tracking-wider">From (কোথা থেকে)</div>
@@ -121,6 +116,6 @@ export default function EditTransferForm({ transaction, currentUser, onSave, onC
           <i className="fa-solid fa-floppy-disk"></i> {submitting ? 'Saving...' : 'Update Transfer (উভয় পাশ)'}
         </button>
       </form>
-    </div>
+    </Popup>
   );
 }

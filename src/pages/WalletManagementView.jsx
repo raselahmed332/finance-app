@@ -2,11 +2,13 @@ import { useState, useEffect } from "react";
 import { api } from "../api.js";
 import Select from "../components/Select.jsx";
 import SwipeCard from "../components/SwipeCard.jsx";
+import Popup from "../components/Popup.jsx";
 
 const CURRENCIES = ["SAR", "BDT", "USD", "EUR", "KWD", "GBP", "AED"];
 
 function EditWalletRow({ wallet, currentUser, can, onRefresh, showAlert }) {
   const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [name, setName] = useState(wallet.WalletName);
   const [status, setStatus] = useState(wallet.Status);
 
@@ -14,9 +16,11 @@ function EditWalletRow({ wallet, currentUser, can, onRefresh, showAlert }) {
     // Send only the fields that actually changed. The backend treats a
     // non-empty status as a status change requiring MANAGE_WALLET_STATUS, so
     // always sending the current status would block EDIT_WALLET-only renames.
+    if (saving) return;
     const nameChanged = name.trim() !== wallet.WalletName;
     const statusChanged = status !== wallet.Status;
     if (!nameChanged && !statusChanged) { showAlert('কোনো পরিবর্তন হয়নি।', 'error'); return; }
+    setSaving(true);
     api.updateWallet(
       wallet.WalletID,
       nameChanged ? name.trim() : '',
@@ -25,7 +29,7 @@ function EditWalletRow({ wallet, currentUser, can, onRefresh, showAlert }) {
     ).then((res) => {
       showAlert(res.message, res.status === 'ERROR' ? 'error' : 'success');
       if (res.status === 'SUCCESS') { onRefresh(); setEditing(false); }
-    }).catch(() => showAlert('নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।', 'error'));
+    }).catch(() => showAlert('নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।', 'error')).finally(() => setSaving(false));
   };
 
   const handleDelete = () => {
@@ -69,17 +73,15 @@ function EditWalletRow({ wallet, currentUser, can, onRefresh, showAlert }) {
         </SwipeCard>
       ) : row}
 
-      {editing && (
-        <div className="bg-slate-50 dark:bg-gray-950 rounded-xl p-3 mt-2 space-y-2 border border-gray-200 dark:border-gray-800">
+      <Popup open={editing} title="Edit Wallet" onClose={saving ? undefined : () => setEditing(false)}>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Wallet Name" className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-1.5 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" />
           <Select value={status} onChange={setStatus}>
             <option value="Active">Active</option>
             <option value="Inactive">Inactive</option>
           </Select>
           <div className="text-[10px] text-gray-400 dark:text-gray-500 px-1">Currency: {wallet.Currency} (তৈরির সময় নির্ধারিত, পরিবর্তনযোগ্য নয়)</div>
-          <button onClick={handleSave} className="w-full bg-emerald-600 text-white font-bold py-1.5 rounded-lg text-xs">Save</button>
-        </div>
-      )}
+          <button onClick={handleSave} disabled={saving} className="w-full bg-emerald-600 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl text-xs">{saving ? 'Saving...' : 'Save'}</button>
+      </Popup>
     </div>
   );
 }

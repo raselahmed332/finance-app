@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Select from "./Select.jsx";
+import Popup from "./Popup.jsx";
 import {
   formatMoney, loanTypeMeta, remainingOf, totalAmountOf,
   todayStr, pickDefaultWalletId,
@@ -101,17 +102,7 @@ export default function LoanAddForm({ loan, addition, wallets, currentUser, onSa
   const previewRemaining = entered > 0 ? Math.max(0, remaining - (isEdit ? oldAmount : 0) + entered) : remaining;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center">
-      <div className="absolute inset-0 bg-black/50" onClick={submitting ? undefined : onCancel}></div>
-      <div className="relative bg-white dark:bg-gray-900 w-full max-w-[480px] rounded-t-2xl p-4 pb-8 shadow-2xl max-h-[94vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-3 border-b border-gray-100 dark:border-gray-800 pb-3">
-          <button onClick={onCancel} disabled={submitting} className="text-gray-500 dark:text-gray-400"><i className="fa-solid fa-arrow-left text-lg"></i></button>
-          <h4 className="font-bold text-sm text-emerald-600 dark:text-emerald-400">
-            {isEdit ? "অ্যাডিশন এডিট করুন" : "আরও টাকা যোগ করুন"}
-          </h4>
-          <div className="w-5"></div>
-        </div>
-
+    <Popup open title={isEdit ? "অ্যাডিশন এডিট করুন" : "আরও টাকা যোগ করুন"} onClose={submitting ? undefined : onCancel}>
         <div className="bg-slate-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-3 mb-4">
           <div className="text-center text-sm font-bold text-slate-800 dark:text-gray-100 mb-2">
             {loan?.personName} <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-500">({meta.action})</span>
@@ -201,7 +192,6 @@ export default function LoanAddForm({ loan, addition, wallets, currentUser, onSa
             <i className="fa-solid fa-floppy-disk"></i> {submitting ? "সাবমিট হচ্ছে..." : (isEdit ? "আপডেট করুন" : "টাকা যোগ করুন")}
           </button>
         </form>
-      </div>
-    </div>
+    </Popup>
   );
 }

@@ -77,17 +77,18 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
   const handleRepaymentSaved = (res) => {
     if (res && res.status === "SUCCESS") {
       if (res.loan) {
-        const refreshed = { ...loan, ...res.loan };
-        if (res.loan.payments) refreshed.payments = res.loan.payments;
-        setLoan(refreshed);
+        setLoan((prev) => prev ? { ...prev, ...res.loan } : { ...res.loan });
       }
       if (res.payment) {
-        setPayments(prev => {
+        setPayments((prev) => {
           const exists = (prev || []).some(p => p.id && String(p.id) === String(res.payment.id));
           if (exists) return prev;
           return [...(prev || []), res.payment];
         });
       }
+      // Re-fetch the full loan details (loan + payments + additions) so the
+      // summary and payment history always reflect the saved repayment.
+      setRefreshKey((k) => k + 1);
     }
     setShowRepay(false);
   };
@@ -297,7 +298,9 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
           wallets={wallets || []}
           currentUser={currentUser}
           onCancel={() => setShowRepay(false)}
-          onSave={(formData) => onRepayment(loan.id, formData).then(handleRepaymentSaved).catch(() => {})}
+          onSave={(formData) => onRepayment(loan.id, formData).then((res) => {
+            if (res && res.status === "SUCCESS") handleRepaymentSaved(res);
+          }).catch(() => {})}
         />
       )}
 

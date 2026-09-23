@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import Select from "./Select.jsx";
+import Popup from "./Popup.jsx";
 import {
   formatMoney, isValidPhone, knownPeople, loanTypeMeta, remainingOf,
   totalAmountOf, todayStr, pickDefaultWalletId,
@@ -251,7 +252,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
     const added = addResult.addition || {};
     const cur = l?.currency || currency;
     return (
-      <div className="bg-white dark:bg-gray-900 rounded-2xl p-5 border border-gray-200 dark:border-gray-800 shadow-sm space-y-4">
+      <Popup open title="আরও টাকা যোগ" onClose={onCancel}>
         <div className="text-center">
           <div className="w-16 h-16 mx-auto rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400 text-3xl">
             <i className="fa-solid fa-circle-check"></i>
@@ -280,21 +281,21 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
           </div>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-2 pt-1">
           <button onClick={() => onDone && onShow(l)} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm shadow-md">লোন দেখুন</button>
           <div className="grid grid-cols-2 gap-2">
             <button onClick={onGoHome} className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-slate-700 dark:text-gray-200 font-bold py-2.5 rounded-xl text-xs">হোমে যান</button>
             <button onClick={resetForMore} className="bg-slate-800 text-white font-bold py-2.5 rounded-xl text-xs"><i className="fa-solid fa-plus me-1"></i>আরো হাওলাত দিন</button>
           </div>
         </div>
-      </div>
+      </Popup>
     );
   }
 
   if (success) {
     const l = createdLoan;
     return (
-      <div className="bg-white dark:bg-gray-900 rounded-2xl p-5 border border-gray-200 dark:border-gray-800 shadow-sm space-y-4">
+      <Popup open title="নতুন হাওলাত" onClose={onCancel}>
         <div className="text-center">
           <div className="w-16 h-16 mx-auto rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400 text-3xl">
             <i className="fa-solid fa-circle-check"></i>
@@ -323,29 +324,20 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
           </div>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-2 pt-1">
           <button onClick={() => onDone && onShow(l)} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm shadow-md">লোন দেখুন</button>
           <div className="grid grid-cols-2 gap-2">
             <button onClick={onGoHome} className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-slate-700 dark:text-gray-200 font-bold py-2.5 rounded-xl text-xs">হোমে যান</button>
             <button onClick={resetForMore} className="bg-slate-800 text-white font-bold py-2.5 rounded-xl text-xs"><i className="fa-solid fa-plus me-1"></i>আরো হাওলাত দিন</button>
           </div>
         </div>
-      </div>
+      </Popup>
     );
   }
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow-sm border border-gray-200 dark:border-gray-800 space-y-4">
-      <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-        <button onClick={onCancel} className="text-gray-500 hover:text-slate-800 dark:text-gray-400 dark:hover:text-gray-200">
-          <i className="fa-solid fa-arrow-left text-lg"></i>
-        </button>
-        <h3 className="font-bold text-emerald-600 dark:text-emerald-400 text-base text-center flex-1">
-          {isEdit ? "হাওলাত এডিট করুন" : "নতুন হাওলাত"}
-        </h3>
-        <div className="w-5"></div>
-      </div>
-
+    <Popup open title={isEdit ? "হাওলাত এডিট করুন" : "নতুন হাওলাত"} onClose={submitting || activeCheck === "checking" ? undefined : onCancel}>
+      <div className="space-y-4">
       <StepIndicator step={step} />
 
       <form onSubmit={handleSubmit} className="space-y-3.5">
@@ -589,7 +581,8 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
           }}
         />
       )}
-    </div>
+      </div>
+    </Popup>
   );
 }
 

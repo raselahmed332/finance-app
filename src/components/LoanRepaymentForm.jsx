@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Select from "./Select.jsx";
+import Popup from "./Popup.jsx";
 import { formatMoney, loanTypeMeta, remainingOf, todayStr, pickDefaultWalletId, totalAmountOf } from "../utils/loan.js";
 
 function ErrorText({ msg }) {
@@ -16,6 +17,7 @@ export default function LoanRepaymentForm({ loan, wallets, currentUser, onSave, 
   const [note, setNote] = useState("");
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const [clientId] = useState(() => (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : "p" + Date.now() + Math.random().toString(36).slice(2)));
 
   const selectedWallet = wallets.find(w => w.WalletID === walletId);
@@ -44,26 +46,31 @@ export default function LoanRepaymentForm({ loan, wallets, currentUser, onSave, 
     ev.preventDefault();
     if (submitting) return;
     if (!validate()) return;
+    setSubmitError("");
     setSubmitting(true);
     // Clamp any sub-epsilon overpayment down to exactly what is owed so money
     // moved out of the wallet never exceeds the remaining balance.
     const payAmount = String(Math.min(Number(amount), remaining));
     onSave({
       amount: payAmount, paymentDate: date, walletId, account, currency, note, clientId, user: currentUser.username,
-    }).catch(() => {}).finally(() => setSubmitting(false));
+    })
+      .then((res) => {
+        if (res && res.status === "ERROR") {
+          setSubmitError(res.message || "ফেরত যোগ করতে ব্যর্থ হয়েছে। আবার চেষ্টা করুন।");
+        } else {
+          setSubmitError("");
+        }
+        return res;
+      })
+      .catch((err) => {
+        setSubmitError(String((err && err.message) || err || "ফেরত যোগ করতে ব্যর্থ হয়েছে। আবার চেষ্টা করুন।"));
+      })
+      .finally(() => setSubmitting(false));
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center">
-      <div className="absolute inset-0 bg-black/50" onClick={submitting ? undefined : onCancel}></div>
-      <div className="relative bg-white dark:bg-gray-900 w-full max-w-[480px] rounded-t-2xl p-4 pb-8 shadow-2xl max-h-[92vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-3 border-b border-gray-100 dark:border-gray-800 pb-3">
-          <button onClick={onCancel} disabled={submitting} className="text-gray-500 dark:text-gray-400"><i className="fa-solid fa-arrow-left text-lg"></i></button>
-          <h4 className="font-bold text-sm text-emerald-600 dark:text-emerald-400">{meta.repaymentTitle}</h4>
-          <div className="w-5"></div>
-        </div>
-
-        <div className="bg-slate-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-3 mb-4">
+    <Popup open title={meta.repaymentTitle} onClose={submitting ? undefined : onCancel}>
+      <div className="bg-slate-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-3 mb-4">
           <div className="text-center text-sm font-bold text-slate-800 dark:text-gray-100 mb-2">{loan?.personName}</div>
           <div className="grid grid-cols-3 gap-1 text-center">
             <div>
@@ -128,12 +135,17 @@ export default function LoanRepaymentForm({ loan, wallets, currentUser, onSave, 
             <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="নোট লিখুন..." className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-900 dark:text-gray-100" />
           </div>
 
+          {submitError && (
+            <div className="rounded-xl bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 px-3 py-2.5 text-[11px] font-semibold text-rose-700 dark:text-rose-300">
+              <i className="fa-solid fa-circle-exclamation me-1"></i>{submitError}
+            </div>
+          )}
+
           <button type="submit" disabled={submitting || amount && Number(amount) > remaining + 0.001}
             className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl shadow-md text-sm flex items-center justify-center gap-2 mt-1">
             <i className="fa-solid fa-floppy-disk"></i> {submitting ? "সাবমিট হচ্ছে..." : "ফেরত যোগ করুন"}
           </button>
         </form>
-      </div>
-    </div>
+    </Popup>
   );
 }
