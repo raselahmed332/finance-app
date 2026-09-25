@@ -52,8 +52,21 @@ export function startOfWeekStr(today) {
   return toDateStr(t);
 }
 
+// Normalize a user-typed phone into a storage/search value: strip spaces,
+// dashes and brackets but KEEP the leading "+" (e.g. "+88 0171 234 567").
+export function normalizePhone(p) {
+  return String(p || "").trim().replace(/[\s()-]/g, "");
+}
+
+// Loose, international-friendly check: any 6-15 digits. A leading "0"
+// is NOT required (local numbers like 182264656 are accepted) and "+"
+// country-code forms (+44, +966...) are accepted. Only clearly broken
+// input (too short/long or no digits at all) is rejected so the user
+// always gets an explicit inline error instead of a silent dead-end.
 export function isValidPhone(p) {
-  const digits = String(p || "").replace(/\D/g, "");
+  const s = String(p || "").trim();
+  if (!s) return false;
+  const digits = s.replace(/\D/g, "");
   return digits.length >= 6 && digits.length <= 15;
 }
 
@@ -143,7 +156,7 @@ export function knownPeople(loans) {
   (loans || []).forEach((l) => {
     const key = String(l.personName || "").trim().toLowerCase();
     if (!key) return;
-    if (!map.has(key)) map.set(key, { personName: l.personName, phone: l.phone || "" });
+    if (!map.has(key)) map.set(key, { personId: l.personId || "", personName: l.personName, phone: l.phone || "" });
   });
   return Array.from(map.values());
 }

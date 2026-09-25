@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import Select from "./Select.jsx";
 import Popup from "./Popup.jsx";
 import {
-  formatMoney, isValidPhone, knownPeople, loanTypeMeta, remainingOf,
+  formatMoney, isValidPhone, knownPeople, loanTypeMeta, normalizePhone, remainingOf,
   totalAmountOf, todayStr, pickDefaultWalletId,
 } from "../utils/loan.js";
 import LoanAddForm from "./LoanAddForm.jsx";
@@ -72,6 +72,11 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
   const [activeCheck, setActiveCheck] = useState("idle");
   const [serverActive, setServerActive] = useState([]);
   const [resolvedPersonId, setResolvedPersonId] = useState("");
+  const [activeCheckError, setActiveCheckError] = useState("");
+  // Known-person id sent to EXACTLY identify the person during the active-loan
+  // check (§3). It is only kept while it matches the typed name/phone — any
+  // manual edit clears it so a stale id can never check a different person.
+  const [personId, setPersonId] = useState(loan?.personId || "");
   const [clientId, setClientId] = useState(() => (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : "l" + Date.now() + Math.random().toString(36).slice(2)));
 
   const selectedWallet = wallets.find(w => w.WalletID === walletId);
@@ -107,8 +112,10 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
     const e = { ...errors };
     if (!personName.trim()) e.personName = "ব্যক্তির নাম লিখুন।";
     else delete e.personName;
-    if (!phone.trim()) e.phone = "ফোন নম্বর আবশ্যক।";
-    else if (!isValidPhone(phone)) e.phone = "সঠিক ফোন নম্বর দিন।";
+    const phoneDigits = String(phone || "").replace(/\D/g, "");
+    if (!phone) e.phone = "ফোন নম্বর আবশ্যক।";
+    else if (!isValidPhone(phone)) e.phone = "সঠিক ফোন নম্বর দিন। (দেশের কোড সহ "+" ব্যবহার করা যাবে)";
+    else if (phoneDigits.length < 6) e.phone = "সঠিক ফোন নম্বর দিন।";
     else delete e.phone;
     setErrors(e);
     return !e.personName && !e.phone;
@@ -160,7 +167,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
   // "CHECK FAILED" state with Retry — it is never treated as "no active loan".
   const runActiveCheck = () => {
     const qName = personName.trim();
-    const qPhone = phone.trim();
+    const qPhone = normalizePhone(phone);
     if (!qName || !qPhone) { setStep(1); return; }
     // The active-loan check is REQUIRED before creating a new loan. If it
     // cannot run we fail closed (NO loan is created) and only offer Retry —
@@ -169,25 +176,30 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
     setActiveCheck("checking");
     const run = () => {
       setActiveCheck("checking");
-      onCheckActive({ personName: qName, phone: qPhone }).then((res) => {
+      onCheckActive({ personName: qName, phone: qPhone, personId: personId || "" }).then((res) => {
         if (res && res.status === "SUCCESS") {
           const list = res.loans || [];
           setServerActive(list);
           setResolvedPersonId(res.personId || "");
+          setActiveCheckError("");
           setActiveCheck("done");
           if (list.length > 0) setShowActiveWarning(true);
           else doCreate();
         } else {
+          setActiveCheckError((res && res.message) || "");
           setActiveCheck("failed");
         }
-      }).catch(() => setActiveCheck("failed"));
+      }).catch((err) => {
+        setActiveCheckError(String((err && err.message) || err || ""));
+        setActiveCheck("failed");
+      });
     };
     run();
   };
 
   const doCreate = (separateConfirmed) => {
     const payload = {
-      type, personName: personName.trim(), phone: phone.trim(),
+      type, personName: personName.trim(), phone: normalizePhone(phone),
       amount, currency, walletId, walletName: selectedWallet?.WalletName,
       account, loanDate, dueDate, reminderDate, note: note.trim(),
       clientId,
@@ -242,7 +254,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
     setPersonName(""); setPhone(""); setAmount(""); setDueDate(""); setReminderDate("");
     setNote(""); setErrors({}); setSuccess(false); setCreatedLoan(null); setAddResult(null);
     setShowActiveWarning(false); setShowLoanPicker(false); setAddTarget(null);
-    setActiveCheck("idle"); setServerActive([]); setResolvedPersonId("");
+    setActiveCheck("idle"); setServerActive([]); setResolvedPersonId(""); setPersonId(""); setActiveCheckError("");
     setStep(1); setLoanDate(todayStr());
     setClientId(typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : "l" + Date.now() + Math.random().toString(36).slice(2));
   };
@@ -370,13 +382,13 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
             )}
 
             <Field label="ব্যক্তির নাম" error={errors.personName}>
-              <input type="text" value={personName} onChange={(e) => setPersonName(e.target.value)} placeholder="যেমন: রাহিম ভাই" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-900 dark:text-gray-100" />
+              <input type="text" value={personName} onChange={(e) => { setPersonName(e.target.value); setPersonId(""); }} placeholder="যেমন: রাহিম ভাই" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-900 dark:text-gray-100" />
             </Field>
 
             {suggestions.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {suggestions.map((p, i) => (
-                  <button key={i} type="button" onClick={() => { setPersonName(p.personName); setPhone(p.phone || ""); }}
+                  <button key={i} type="button" onClick={() => { setPersonName(p.personName); setPhone(p.phone || ""); setPersonId(p.personId || ""); }}
                     className="text-[10px] font-semibold bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-gray-300 px-2 py-1 rounded-full">
                     {p.personName} {p.phone && <span className="text-gray-400">• {p.phone}</span>}
                   </button>
@@ -385,7 +397,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
             )}
 
             <Field label="ফোন নম্বর (আবশ্যক)" error={errors.phone}>
-              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="যেমন: 01712345678" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-900 dark:text-gray-100" />
+              <input type="tel" value={phone} onChange={(e) => { setPhone(e.target.value); setPersonId(""); }} placeholder="যেমন: 01712345678" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-900 dark:text-gray-100" />
             </Field>
           </>
         )}
@@ -528,9 +540,9 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
                 <i className="fa-solid fa-triangle-exclamation"></i>
               </div>
               <h4 className="font-bold text-sm text-slate-800 dark:text-gray-100 mt-3">রেকর্ড যাচাই করা যায়নি</h4>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                লোনের আগের রেকর্ড যাচাই করা যায়নি। আবার চেষ্টা করুন।
-              </p>
+<p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+  {activeCheckError ? activeCheckError : "লোনের আগের রেকর্ড যাচাই করা যায়নি। আবার চেষ্টা করুন।"}
+</p>
             </div>
             <div className="space-y-2">
               <button type="button" onClick={() => { setShowActiveWarning(false); runActiveCheck(); }} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm shadow-md">
@@ -572,7 +584,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
           prefill={addTarget}
           wallets={wallets}
           currentUser={currentUser}
-          person={{ personName: personName.trim(), phone: phone.trim(), personId: resolvedPersonId }}
+          person={{ personName: personName.trim(), phone: normalizePhone(phone), personId: resolvedPersonId }}
           onCancel={() => setAddTarget(null)}
           onSave={(formData) => {
             // Goes through createLoan (mode=ADD_TO_EXISTING_LOAN) so the backend

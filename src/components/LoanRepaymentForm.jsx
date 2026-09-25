@@ -2,7 +2,7 @@ import { useState } from "react";
 import Select from "./Select.jsx";
 import Popup from "./Popup.jsx";
 import { useToast } from "./Toast.jsx";
-import { formatMoney, loanTypeMeta, remainingOf, todayStr, pickDefaultWalletId, totalAmountOf } from "../utils/loan.js";
+import { formatMoney, loanTypeMeta, remainingOf, todayStr, totalAmountOf } from "../utils/loan.js";
 
 function ErrorText({ msg }) {
   return msg ? <div className="text-[10px] text-rose-600 dark:text-rose-400 mt-1 flex items-center gap-1"><i className="fa-solid fa-circle-exclamation"></i>{msg}</div> : null;
@@ -11,7 +11,11 @@ function ErrorText({ msg }) {
 export default function LoanRepaymentForm({ loan, wallets, currentUser, onSave, onCancel }) {
   const meta = loanTypeMeta(loan?.type);
   const remaining = remainingOf(loan);
-  const [walletId, setWalletId] = useState((loan?.walletId && (wallets || []).some((w) => String(w.WalletID) === String(loan.walletId))) ? loan.walletId : pickDefaultWalletId(currentUser?.username, wallets));
+  // The repayment wallet is LOCKED to the loan's own wallet — it is shown
+  // read-only and never selectable. Only the Wallet Account may be chosen.
+  const walletId = String(loan?.walletId || "");
+  const selectedWallet = (wallets || []).find((w) => String(w.WalletID) === walletId);
+  const currency = selectedWallet?.Currency || loan?.currency || "";
   const [account, setAccount] = useState(loan?.account || "Cash");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(todayStr());
@@ -20,14 +24,6 @@ export default function LoanRepaymentForm({ loan, wallets, currentUser, onSave, 
   const [submitting, setSubmitting] = useState(false);
   const [clientId] = useState(() => (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : "p" + Date.now() + Math.random().toString(36).slice(2)));
   const toast = useToast();
-
-  const selectedWallet = wallets.find(w => w.WalletID === walletId);
-  const currency = selectedWallet?.Currency || loan?.currency || "";
-
-  const changeWallet = (id) => {
-    setWalletId(id);
-    setAccount("Cash");
-  };
 
   const validate = () => {
     const e = {};
@@ -48,11 +44,8 @@ export default function LoanRepaymentForm({ loan, wallets, currentUser, onSave, 
     if (submitting) return;
     if (!validate()) return;
     setSubmitting(true);
-    // Clamp any sub-epsilon overpayment down to exactly what is owed so money
-    // moved out of the wallet never exceeds the remaining balance.
-    const payAmount = String(Math.min(Number(amount), remaining));
     onSave({
-      amount: payAmount, paymentDate: date, walletId, account, currency, note, clientId, user: currentUser.username,
+      amount: String(Number(amount)), paymentDate: date, walletId, account, currency, note, clientId, user: currentUser.username,
     })
       .then((res) => {
         if (res && res.status === "ERROR") {
@@ -107,10 +100,10 @@ export default function LoanRepaymentForm({ loan, wallets, currentUser, onSave, 
 
           <div>
             <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Wallet</label>
-            <Select value={walletId} onChange={changeWallet}>
-              {wallets.length === 0 && <option value="">কোনো Wallet এক্সেস নেই</option>}
-              {wallets.map(w => <option key={w.WalletID} value={w.WalletID}>{w.WalletName} ({w.Currency})</option>)}
-            </Select>
+            <div className="w-full flex items-center justify-between border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-gray-50 dark:bg-gray-950 text-gray-500 dark:text-gray-400">
+              <span className="truncate">{selectedWallet ? `${selectedWallet.WalletName} (${selectedWallet.Currency})` : (loan?.walletName || walletId || "—")}</span>
+              <span className="ml-2 shrink-0 text-[9px] font-semibold uppercase tracking-wide">লক করা আছে</span>
+            </div>
             <ErrorText msg={errors.wallet} />
           </div>
 
