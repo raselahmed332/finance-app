@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import Popup from "./Popup.jsx";
 
 const TYPE_BADGES = {
   Income: { bg: "bg-emerald-100 dark:bg-emerald-900/40", text: "text-emerald-700 dark:text-emerald-400", icon: "fa-arrow-down", label: "Income" },
@@ -49,12 +50,15 @@ export default function TransactionSwipeCard({ t, userMap, canEdit, canDelete, o
   const ref = useRef(null);
   const startX = useRef(0);
   const currentX = useRef(0);
+  const swiped = useRef(false);
   const [offset, setOffset] = useState(0);
   const [swiping, setSwiping] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   const handleTouchStart = (e) => {
     startX.current = e.touches[0].clientX;
     currentX.current = 0;
+    swiped.current = false;
     setSwiping(true);
   };
 
@@ -62,6 +66,7 @@ export default function TransactionSwipeCard({ t, userMap, canEdit, canDelete, o
     if (!swiping) return;
     const diff = e.touches[0].clientX - startX.current;
     currentX.current = diff;
+    if (Math.abs(diff) > 10) swiped.current = true;
     setOffset(diff);
   };
 
@@ -75,6 +80,15 @@ export default function TransactionSwipeCard({ t, userMap, canEdit, canDelete, o
     }
     setOffset(0);
   };
+
+  const handleCardClick = () => {
+    // Ignore the tap that happens right after a swipe gesture.
+    if (swiped.current) { swiped.current = false; return; }
+    setDetailsOpen(true);
+  };
+
+  const canEditThis = canEdit && (t.Type === "Income" || t.Type === "Expense" || t.Type === "Transfer Out" || t.Type === "Transfer In");
+  const canDeleteThis = canDelete && !LOAN_TXN_TYPES.includes(t.Type);
 
   return (
     <div className="relative overflow-hidden rounded-xl">
@@ -98,7 +112,11 @@ export default function TransactionSwipeCard({ t, userMap, canEdit, canDelete, o
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        style={{ transform: `translateX(${offset}px)`, transition: swiping ? "none" : "transform 0.2s ease" }}
+        onClick={handleCardClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleCardClick(); } }}
+        style={{ transform: `translateX(${offset}px)`, transition: swiping ? "none" : "transform 0.2s ease", cursor: "pointer" }}
         className="relative bg-white dark:bg-gray-900 rounded-xl p-3 border border-gray-200 dark:border-gray-800 flex items-center justify-between shadow-2xs"
       >
         <div className="flex items-center gap-3">
@@ -134,6 +152,62 @@ export default function TransactionSwipeCard({ t, userMap, canEdit, canDelete, o
           <div className="text-[10px] font-bold text-gray-400 dark:text-gray-500">{t.Currency}</div>
         </div>
       </div>
+
+      <Popup open={detailsOpen} title="Transaction Details" onClose={() => setDetailsOpen(false)} maxWidth="max-w-lg">
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm ${badge.bg} ${badge.text}`}>
+            <i className={`fa-solid ${badge.icon}`}></i>
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="font-bold text-sm text-slate-800 dark:text-gray-100 truncate">{t.SourceCategory || t.Description || "Transaction"}</div>
+            <div className="text-[11px] text-gray-500 dark:text-gray-400">{t.WalletName ? `${t.WalletName} • ` : ""}{t.Currency}</div>
+          </div>
+          <div className={`font-bold text-sm ${isIncome ? "text-emerald-600 dark:text-emerald-400" : isExpense ? "text-rose-600 dark:text-rose-400" : "text-purple-600 dark:text-purple-400"}`}>
+            {isIncome ? "+" : "-"}{formatAmount(t.Amount)} {t.Currency}
+          </div>
+        </div>
+
+        <div className="bg-slate-50 dark:bg-gray-950 rounded-xl p-3 border border-gray-200 dark:border-gray-800 grid grid-cols-2 gap-x-4 gap-y-2.5">
+          {t.ID ? <DetailCell label="Transaction ID" value={String(t.ID)} full /> : null}
+          {t.Date ? <DetailCell label="Date" value={String(t.Date)} /> : null}
+          {t.Type ? <DetailCell label="Type" value={String(t.Type)} /> : null}
+          {t.Account ? <DetailCell label="Account" value={String(t.Account)} /> : null}
+          {t.SourceCategory ? <DetailCell label="Category" value={String(t.SourceCategory)} /> : null}
+          {t.WhereVendor ? <DetailCell label="Vendor" value={String(t.WhereVendor)} full /> : null}
+          {t.Description ? <DetailCell label="Description" value={String(t.Description)} full /> : null}
+          {t.Note ? <DetailCell label="Note" value={String(t.Note)} full /> : null}
+          {t.User ? <DetailCell label="Entry By" value={userMap ? (userMap[t.User] || t.User) : t.User} /> : null}
+          {t.Timestamp ? <DetailCell label="Entry Time" value={String(t.Timestamp)} /> : null}
+        </div>
+
+        {(canEditThis || canDeleteThis) && (
+          <div className="grid grid-cols-2 gap-2">
+            {canEditThis && (
+              <button onClick={() => { setDetailsOpen(false); onEdit(t); }} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5">
+                <i className="fa-solid fa-pen"></i> Edit
+              </button>
+            )}
+            {canDeleteThis && (
+              <button onClick={() => { setDetailsOpen(false); onDelete(t.ID, t.WalletID); }} className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5">
+                <i className="fa-solid fa-trash-can"></i> Delete
+              </button>
+            )}
+          </div>
+        )}
+      </Popup>
+    </div>
+  );
+}
+
+function formatAmount(a) {
+  return (Number.isFinite(parseFloat(a)) ? parseFloat(a) : 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function DetailCell({ label, value, full }) {
+  return (
+    <div className={full ? "col-span-2" : ""}>
+      <div className="text-[9px] uppercase tracking-wide text-gray-400 dark:text-gray-500">{label}</div>
+      <div className="text-[11px] font-semibold text-slate-700 dark:text-gray-200 mt-0.5 break-words">{value}</div>
     </div>
   );
 }

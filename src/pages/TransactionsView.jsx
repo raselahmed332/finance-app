@@ -1,7 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { downloadCsv } from "../utils/csvExport.js";
 import Select from "../components/Select.jsx";
-import { todayStr } from "../utils/loan.js";
 import TransactionSwipeCard from "../components/TransactionSwipeCard.jsx";
 
 export default function TransactionsView({ transactions, wallets, onDelete, onEdit, canEdit, canDelete, searchTerm, setSearchTerm, filterType, setFilterType, filterWallet, setFilterWallet, filterDate, setFilterDate, filterDescription, setFilterDescription, filterUser, setFilterUser, filterAccount, setFilterAccount, canViewUsers, users }) {
@@ -56,24 +54,11 @@ export default function TransactionsView({ transactions, wallets, onDelete, onEd
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
-  const handleExportCsv = () => {
-    downloadCsv(
-      `transactions_${todayStr()}.csv`,
-      ["Date", "Type", "Wallet", "Currency", "Account", "Category", "Vendor", "Description", "Amount", "Note", "User"],
-      filteredTxns.map((t) => [t.Date, t.Type, t.WalletName || t.WalletID, t.Currency, t.Account, t.SourceCategory, t.WhereVendor, t.Description, t.Amount, t.Note, t.User])
-    );
-  };
-
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="font-bold text-slate-800 dark:text-gray-100 text-base">Transactions (হিসাবের তালিকা)</h3>
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-full font-semibold">{filteredTxns.length} টি</span>
-          <button onClick={handleExportCsv} title="Export CSV" className="text-xs bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1 hover:bg-emerald-200 dark:hover:bg-emerald-900/60">
-            <i className="fa-solid fa-file-csv"></i> CSV
-          </button>
-        </div>
+        <span className="text-xs bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-full font-semibold">{filteredTxns.length} টি</span>
       </div>
 
       <div className="relative">

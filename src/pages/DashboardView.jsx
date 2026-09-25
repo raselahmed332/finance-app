@@ -1,6 +1,12 @@
 import WalletCard from "../components/WalletCard.jsx";
 
-export default function DashboardView({ wallets, walletSummaries, setActiveTab, can }) {
+export default function DashboardView({ wallets, walletSummaries, setActiveTab, setFilterWallet, can }) {
+  const openWallet = (wallet) => {
+    if (!can('VIEW_TRANSACTIONS')) return;
+    setFilterWallet(String(wallet.WalletID));
+    setActiveTab('transactions');
+  };
+
   return (
     <div className="space-y-4">
       {wallets.length === 0 && (
@@ -10,7 +16,7 @@ export default function DashboardView({ wallets, walletSummaries, setActiveTab, 
       )}
 
       {wallets.map((wallet, i) => (
-        <WalletCard key={wallet.WalletID} wallet={wallet} summary={walletSummaries[wallet.WalletID]} index={i} />
+        <WalletCard key={wallet.WalletID} wallet={wallet} summary={walletSummaries[wallet.WalletID]} index={i} onOpen={can('VIEW_TRANSACTIONS') ? () => openWallet(wallet) : undefined} />
       ))}
 
       {/* Quick Buttons */}

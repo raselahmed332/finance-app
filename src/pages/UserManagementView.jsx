@@ -2,6 +2,7 @@ import { useState, memo } from "react";
 import { api, GRANTABLE_PERMISSIONS, PERMISSION_LABELS, DEFAULT_WALLET_ACTIONS } from "../api.js";
 import Select from "../components/Select.jsx";
 import SwipeCard from "../components/SwipeCard.jsx";
+import Popup from "../components/Popup.jsx";
 import { useConfirm } from "../components/ConfirmDialog.jsx";
 
 // ---------- Role handling (friendly labels only, never raw DB keys) ----------
@@ -54,7 +55,7 @@ const PERMISSION_DESC = {
 
 const ADDITIONAL_GROUPS = [
   {
-    title: "Transactions",
+    title: "Transaction Permissions",
     bn: "লেনদেন",
     items: ["ADD_INCOME", "TRANSFER_MONEY", "MANAGE_TRANSACTIONS"],
   },
@@ -229,30 +230,48 @@ function PermissionCheckbox({ opt, checked, onToggle, sub }) {
 }
 
 function PermissionGroup({ group, selected, onToggle }) {
+  const [open, setOpen] = useState(false);
+  const selectedCount = (group.items || []).filter((item) => selected.includes(itemKey(item))).length;
   return (
-    <div>
-      <div className="text-[11px] font-bold text-slate-600 dark:text-gray-300 mb-1.5">
-        {group.title} <span className="text-[10px] text-gray-400 dark:text-gray-500 font-normal">({group.bn})</span>
-      </div>
-      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-2.5 space-y-2">
-        {group.items.map((item) => {
-          const key = itemKey(item);
-          return (
-            <PermissionCheckbox
-              key={key}
-              opt={key}
-              checked={selected.includes(key)}
-              onToggle={onToggle}
-              sub={PERMISSION_DESC[key]}
-            />
-          );
-        })}
-        {group.note && (
-          <div className="text-[10px] text-gray-400 dark:text-gray-500 leading-snug">
-            <i className="fa-solid fa-circle-info me-1"></i>{group.note}
-          </div>
-        )}
-      </div>
+    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-2.5 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+      >
+        <span className="text-[11px] font-bold text-slate-700 dark:text-gray-200">
+          {group.title} <span className="text-[10px] text-gray-400 dark:text-gray-500 font-normal">({group.bn})</span>
+        </span>
+        <span className="flex items-center gap-1.5">
+          {selectedCount > 0 && (
+            <span className="text-[9px] font-semibold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded-full min-w-[16px] text-center">
+              {selectedCount}
+            </span>
+          )}
+          <i className={`fa-solid fa-chevron-${open ? "up" : "right"} text-[10px] text-gray-400 dark:text-gray-500 transition-transform`}></i>
+        </span>
+      </button>
+      {open && (
+        <div className="px-2.5 pb-2.5 pt-1.5 space-y-2 border-t border-gray-100 dark:border-gray-800">
+          {group.items.map((item) => {
+            const key = itemKey(item);
+            return (
+              <PermissionCheckbox
+                key={key}
+                opt={key}
+                checked={selected.includes(key)}
+                onToggle={onToggle}
+                sub={PERMISSION_DESC[key]}
+              />
+            );
+          })}
+          {group.note && (
+            <div className="text-[10px] text-gray-400 dark:text-gray-500 leading-snug pt-1">
+              <i className="fa-solid fa-circle-info me-1"></i>{group.note}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -522,7 +541,7 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
 // ---------- User list row ----------
 
 const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefresh, showAlert, onUserAction }) {
-  const [expanded, setExpanded] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const confirm = useConfirm();
   const isAdmin = isAdminRole(user.Role);
   const isSelf = String(user.Username).toLowerCase() === String(currentUser.username || "").toLowerCase();
@@ -534,11 +553,18 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
   const active = (user.Status || "Active") === "Active";
   const walletCount = (user.WalletAccess || []).length;
 
+  const openDetails = (e) => {
+    if (e) e.stopPropagation();
+    setDetailsOpen(true);
+  };
+
+  const closeDetails = () => setDetailsOpen(false);
+
   const row = (
     <div className="border-b border-gray-100 dark:border-gray-800 last:border-0 bg-white dark:bg-gray-900">
       <div className="py-2.5 px-1">
         <div className="flex justify-between items-center text-xs gap-2">
-          <div className="flex items-center gap-2 min-w-0">
+          <button type="button" onClick={openDetails} className="flex items-center gap-2 min-w-0 text-left flex-1">
             <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
               <i className="fa-solid fa-user text-xs"></i>
             </div>
@@ -546,14 +572,15 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
               <div className="font-bold text-slate-800 dark:text-gray-100 truncate">{user.FullName || user.Username}</div>
               <div className="text-[10px] text-gray-400 dark:text-gray-500 truncate">@{user.Username}</div>
             </div>
-          </div>
+          </button>
           <div className="flex items-center gap-1.5 shrink-0">
             <RoleBadge role={user.Role} />
             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${active ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400" : "bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400"}`}>
               {user.Status || "Active"}
             </span>
             {canResetPin && (
-              <button onClick={() => {
+              <button onClick={(e) => {
+                e.stopPropagation();
                 const newPin = window.prompt("নতুন PIN লিখুন (min 4 character):");
                 if (!newPin || !newPin.trim()) return;
                 api.resetPin(user.Username, newPin.trim(), currentUser.username).then((res) => {
@@ -563,21 +590,19 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
                 <i className="fa-solid fa-key"></i>
               </button>
             )}
-            {canManageTarget && (
-              <button onClick={() => setExpanded(!expanded)} className="text-gray-400 dark:text-gray-500 hover:text-slate-700 dark:hover:text-gray-200">
-                <i className={`fa-solid fa-chevron-${expanded ? "up" : "down"}`}></i>
-              </button>
-            )}
+            <button onClick={openDetails} className="text-gray-400 dark:text-gray-500 hover:text-slate-700 dark:hover:text-gray-200" title="Details">
+              <i className="fa-solid fa-chevron-down"></i>
+            </button>
           </div>
         </div>
-        <div className="mt-1.5 flex items-center gap-1.5 text-[10px] pl-10">
+        <button type="button" onClick={openDetails} className="mt-1.5 flex items-center gap-1.5 text-[10px] pl-10">
           <i className="fa-solid fa-wallet text-gray-300 dark:text-gray-600 text-[9px]"></i>
           {walletCount === 0 ? (
             <span className="text-amber-600 dark:text-amber-400 font-semibold">No Wallet Access</span>
           ) : (
             <span className="text-gray-500 dark:text-gray-400">Wallet Access: {walletCount} {walletCount === 1 ? "Wallet" : "Wallets"}</span>
           )}
-        </div>
+        </button>
       </div>
     </div>
   );
@@ -585,21 +610,89 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
   return (
     <div>
       {(canManageTarget || canDel) ? (
-        <SwipeCard onSwipeRight={canManageTarget ? () => setExpanded(true) : undefined} onSwipeLeft={canDel ? async () => { const ok = await confirm({ message: "এই ইউজার মুছে ফেলবেন?" }); if (ok) onUserAction("delete", user.Username); } : undefined}>
+        <SwipeCard onSwipeRight={canManageTarget ? () => setDetailsOpen(true) : undefined} onSwipeLeft={canDel ? async () => { const ok = await confirm({ message: "এই ইউজার মুছে ফেলবেন?" }); if (ok) onUserAction("delete", user.Username); } : undefined}>
           {row}
         </SwipeCard>
       ) : row}
 
-      {expanded && (
-        <ManageUserPanel user={user} wallets={wallets} currentUser={currentUser} can={can} onRefresh={onRefresh} showAlert={showAlert} onUserAction={onUserAction} onClose={() => setExpanded(false)} />
-      )}
+      <Popup open={detailsOpen} title="User Details" onClose={closeDetails}>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+            <i className="fa-solid fa-user"></i>
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="font-bold text-sm text-slate-800 dark:text-gray-100 truncate">{user.FullName || user.Username}</div>
+            <div className="text-[11px] text-gray-400 dark:text-gray-500 truncate">@{user.Username}</div>
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            <RoleBadge role={user.Role} />
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${active ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400" : "bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400"}`}>
+              {user.Status || "Active"}
+            </span>
+          </div>
+        </div>
+
+        <div className="bg-slate-50 dark:bg-gray-950 rounded-xl p-3 border border-gray-200 dark:border-gray-800 space-y-2">
+          <div className="text-[11px] font-bold text-slate-700 dark:text-gray-200">
+            <i className="fa-solid fa-wallet me-1.5 text-emerald-600 dark:text-emerald-400 text-[10px]"></i>Wallet Access
+          </div>
+          {walletCount === 0 ? (
+            <div className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold">No Wallet Access</div>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {(user.WalletAccess || []).map((id) => {
+                const w = (wallets || []).find((x) => String(x.WalletID) === String(id));
+                return (
+                  <span key={id} className="text-[10px] font-semibold bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 px-2 py-1 rounded-full text-slate-600 dark:text-gray-300">
+                    {w ? `${w.WalletName} (${w.Currency})` : id}
+                  </span>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="bg-slate-50 dark:bg-gray-950 rounded-xl p-3 border border-gray-200 dark:border-gray-800 space-y-1.5">
+          <div className="text-[11px] font-bold text-slate-700 dark:text-gray-200">
+            <i className="fa-solid fa-list-check me-1.5 text-emerald-600 dark:text-emerald-400 text-[10px]"></i>Permissions
+          </div>
+          {(user.Permissions || []).length === 0 ? (
+            <div className="text-[11px] text-gray-400 dark:text-gray-500">কোনো অতিরিক্ত Permission নেই (Default Wallet Actions স্বয়ংক্রিয়)।</div>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {(user.Permissions || []).map((p) => (
+                <span key={p} className="text-[10px] font-semibold bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 px-2 py-1 rounded-full text-slate-600 dark:text-gray-300">
+                  {PERMISSION_LABELS[p] || p}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {canDel && (
+          <button onClick={async () => {
+            const ok = await confirm({ message: "এই ইউজার মুছে ফেলবেন?" });
+            if (ok) { closeDetails(); onUserAction("delete", user.Username); }
+          }} className="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5">
+            <i className="fa-solid fa-trash-can"></i> Delete User
+          </button>
+        )}
+
+        {canManageTarget && (
+          <ManageUserPanel user={user} wallets={wallets} currentUser={currentUser} can={can} onRefresh={onRefresh} showAlert={showAlert} onUserAction={onUserAction} onClose={closeDetails} />
+        )}
+
+        {!canManageTarget && !canDel && (
+          <button onClick={closeDetails} className="w-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-bold py-2 rounded-xl text-xs">Close</button>
+        )}
+      </Popup>
     </div>
   );
 });
 
 // ---------- Add user form ----------
 
-function AddUserCard({ wallets, currentUser, showAlert, onRefresh }) {
+function AddUserForm({ wallets, currentUser, showAlert, onRefresh, onClose }) {
   const [fullName, setFullName] = useState("");
   const [newUsername, setNewUsername] = useState("");
   const [newPin, setNewPin] = useState("");
@@ -631,25 +724,23 @@ function AddUserCard({ wallets, currentUser, showAlert, onRefresh }) {
     setAdding(true);
     api.addUser(fullName, newUsername, newPin, role, permissions, walletAccess, currentUser.username).then((res) => {
       showAlert(res.message, res.status === "ERROR" ? "error" : "success");
-      if (res.status !== "ERROR") { resetForm(); onRefresh(); }
+      if (res.status !== "ERROR") { resetForm(); onRefresh(); onClose(); }
     }).catch(() => showAlert("নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।", "error")).finally(() => setAdding(false));
   };
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-200 dark:border-gray-800 shadow-2xs space-y-3">
-      <div className="text-xs font-bold text-slate-700 dark:text-gray-200">Add User <span className="text-gray-400 dark:text-gray-500 font-normal">(নতুন ইউজার যোগ করুন)</span></div>
-      <form onSubmit={handleAddUser} className="space-y-3">
-        <div className="bg-slate-50 dark:bg-gray-950 rounded-xl p-3 border border-gray-200 dark:border-gray-800 space-y-2">
-          <div className="text-[11px] font-bold text-slate-700 dark:text-gray-200"><i className="fa-solid fa-id-card me-1.5 text-emerald-600 dark:text-emerald-400 text-[10px]"></i>1. Basic Information</div>
-          <input type="text" placeholder="Full Name" value={fullName} onChange={(e) => setFullName(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" />
-          <input type="text" placeholder="Username" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" required />
-          <input type="password" placeholder="PIN (min 4 characters)" value={newPin} onChange={(e) => setNewPin(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" required />
-          <Select value={role} onChange={setRole}>
-            <option value="User">User (সাধারণ ইউজার)</option>
-            <option value="Sub-Admin">Sub-Admin</option>
-            {actorAdmin && <option value="Admin">Admin</option>}
-          </Select>
-        </div>
+    <form onSubmit={handleAddUser} className="space-y-3">
+      <div className="bg-slate-50 dark:bg-gray-950 rounded-xl p-3 border border-gray-200 dark:border-gray-800 space-y-2">
+        <div className="text-[11px] font-bold text-slate-700 dark:text-gray-200"><i className="fa-solid fa-id-card me-1.5 text-emerald-600 dark:text-emerald-400 text-[10px]"></i>1. Basic Information</div>
+        <input type="text" placeholder="Full Name" value={fullName} onChange={(e) => setFullName(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" />
+        <input type="text" placeholder="Username" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" required />
+        <input type="password" placeholder="PIN (min 4 characters)" value={newPin} onChange={(e) => setNewPin(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" required />
+        <Select value={role} onChange={setRole}>
+          <option value="User">User (সাধারণ ইউজার)</option>
+          <option value="Sub-Admin">Sub-Admin</option>
+          {actorAdmin && <option value="Admin">Admin</option>}
+        </Select>
+      </div>
 
         {!isAdminNew && (
           <>
@@ -684,13 +775,12 @@ function AddUserCard({ wallets, currentUser, showAlert, onRefresh }) {
         )}
 
         <div className="grid grid-cols-2 gap-2">
-          <button type="button" onClick={resetForm} className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-bold py-2 rounded-xl text-xs">Cancel</button>
+          <button type="button" onClick={() => { resetForm(); onClose(); }} className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-bold py-2 rounded-xl text-xs">Cancel</button>
           <button type="submit" disabled={adding} className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5">
             {adding && <i className="fa-solid fa-spinner fa-spin"></i>} {adding ? 'Creating...' : 'Create User'}
           </button>
         </div>
       </form>
-    </div>
   );
 }
 
@@ -698,15 +788,21 @@ function AddUserCard({ wallets, currentUser, showAlert, onRefresh }) {
 
 export default function UserManagementView({ users, wallets, onRefresh, showAlert, currentUser, onUserAction, can }) {
   const actorAdmin = isAdminRole(currentUser?.role);
+  const [addOpen, setAddOpen] = useState(false);
   return (
     <div className="space-y-4">
-      <h3 className="font-bold text-slate-800 dark:text-gray-100 text-base">User Access & Management (ইউজার ম্যানেজমেন্ট)</h3>
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="font-bold text-slate-800 dark:text-gray-100 text-base">User Access & Management (ইউজার ম্যানেজমেন্ট)</h3>
+        {can("ADD_USER") && (
+          <button onClick={() => setAddOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-sm shrink-0">
+            <i className="fa-solid fa-user-plus"></i> Add User
+          </button>
+        )}
+      </div>
 
-      {can("ADD_USER") ? (
-        <AddUserCard wallets={wallets} currentUser={currentUser} showAlert={showAlert} onRefresh={onRefresh} />
-      ) : (
-        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-3 text-xs text-amber-800 dark:text-amber-300">ইউজার যোগ করার অনুমতি আপনার নেই।</div>
-      )}
+      <Popup open={addOpen} title="Add User" onClose={() => setAddOpen(false)}>
+        <AddUserForm wallets={wallets} currentUser={currentUser} showAlert={showAlert} onRefresh={onRefresh} onClose={() => setAddOpen(false)} />
+      </Popup>
 
       <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-200 dark:border-gray-800 shadow-2xs">
         <div className="text-xs font-bold text-slate-700 dark:text-gray-200 mb-1">ইউজার তালিকা <span className="text-[10px] text-gray-400 font-normal">({users.length})</span></div>

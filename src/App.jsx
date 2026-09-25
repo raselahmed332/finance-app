@@ -593,7 +593,7 @@ export default function App() {
   return (
     <div className="mobile-container flex flex-col min-h-screen bg-gray-50 dark:bg-gray-950 border-x border-gray-200 dark:border-gray-800 transition-colors">
       {/* Header */}
-      <header className="bg-gray-900 dark:bg-gray-950 text-white px-4 py-3 flex items-center justify-between sticky top-0 z-30 shadow-md">
+      <header className="bg-gray-900 dark:bg-gray-950 text-white px-4 py-4 flex items-center justify-between sticky top-0 z-30 shadow-md">
         <div className="flex items-center gap-3">
           <button
             onClick={() => setActiveTab("home")}
@@ -651,6 +651,7 @@ export default function App() {
               wallets={wallets}
               walletSummaries={walletSummaries}
               setActiveTab={setActiveTab}
+              setFilterWallet={setFilterWallet}
               can={can}
             />
           )}
@@ -909,6 +910,7 @@ export default function App() {
               currentUser={currentUser}
               can={can}
               showAlert={showAlert}
+              walletSummaries={walletSummaries}
             />
           )}
 

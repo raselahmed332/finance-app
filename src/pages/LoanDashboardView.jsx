@@ -50,6 +50,15 @@ function SummaryCard({ meta, total, remaining }) {
   );
 }
 
+// Server timestamps are stored as "dd-MMM-yyyy HH:mm" (e.g. "24-Sep-2026 14:30");
+// display them as "24 Sep 2026" using the existing design's short date style.
+function fmtUpdated(ts) {
+  if (!ts) return "—";
+  const m = /^(\d{1,2})-([A-Za-z]{3})-(\d{4})/.exec(String(ts).trim());
+  if (m) return `${m[1]} ${m[2]} ${m[3]}`;
+  return String(ts);
+}
+
 function LoanCard({ loan, onSelect }) {
   const meta = loanTypeMeta(loan.type);
   const status = statusOf(loan);
@@ -98,9 +107,20 @@ function LoanCard({ loan, onSelect }) {
           <span><i className="fa-solid fa-calendar-day me-1"></i>{fmtDate(loan.loanDate)}</span>
           {loan.dueDate && <span><i className="fa-solid fa-hourglass-half me-1"></i>{fmtDate(loan.dueDate)}</span>}
         </div>
-        <span className="text-gray-300 dark:text-gray-600">
-          <i className="fa-solid fa-chevron-right text-xs"></i>
-        </span>
+        <div className="text-right">
+          {loan.createdBy && (
+            <div className="text-[9px] text-gray-400 dark:text-gray-500">
+              <i className="fa-solid fa-user-pen me-1"></i>Created by:{" "}
+              <span className="font-semibold text-gray-500 dark:text-gray-400">{loan.createdBy}</span>
+            </div>
+          )}
+          {loan.updatedAt && (
+            <div className="text-[9px] text-gray-400 dark:text-gray-500 mt-0.5">
+              <i className="fa-solid fa-clock-rotate-left me-1"></i>Last updated:{" "}
+              <span className="font-semibold text-gray-500 dark:text-gray-400">{fmtUpdated(loan.updatedAt)}</span>
+            </div>
+          )}
+        </div>
       </div>
     </button>
   );

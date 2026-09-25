@@ -2,9 +2,29 @@ import { useState } from "react";
 import { api } from "../api.js";
 import { useToast } from "../components/Toast.jsx";
 
+const REMEMBER_KEY = "hisab_remember_login";
+
+function loadRemembered() {
+  try {
+    const raw = localStorage.getItem(REMEMBER_KEY);
+    if (!raw) return { username: "", pin: "", remember: true };
+    const parsed = JSON.parse(raw);
+    return {
+      username: parsed.username || "",
+      pin: parsed.pin || "",
+      remember: parsed.remember !== false,
+    };
+  } catch {
+    return { username: "", pin: "", remember: true };
+  }
+}
+
 export default function LoginScreen({ onLogin }) {
-  const [username, setUsername] = useState('');
-  const [pin, setPin] = useState('');
+  const remembered = loadRemembered();
+  const [username, setUsername] = useState(remembered.username);
+  const [pin, setPin] = useState(remembered.pin);
+  const [remember, setRemember] = useState(remembered.remember);
+  const [showPin, setShowPin] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const toast = useToast();
 
@@ -14,6 +34,11 @@ export default function LoginScreen({ onLogin }) {
     setSubmitting(true);
     api.login(username, pin).then((res) => {
       if (res.status === 'SUCCESS') {
+        if (remember) {
+          localStorage.setItem(REMEMBER_KEY, JSON.stringify({ username, pin, remember: true }));
+        } else {
+          localStorage.removeItem(REMEMBER_KEY);
+        }
         onLogin(res.user, res.token);
       } else {
         toast.error(res.message);
@@ -39,21 +64,47 @@ export default function LoginScreen({ onLogin }) {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
+              placeholder="ইউজারনেম লিখুন"
               className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
               required
             />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-700 mb-1">পিন (PIN)</label>
-            <input
-              type="password"
-              value={pin}
-              onChange={(e) => setPin(e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              placeholder="****"
-              required
-            />
+            <div className="relative">
+              <input
+                type={showPin ? "text" : "password"}
+                value={pin}
+                onChange={(e) => setPin(e.target.value)}
+                className="w-full border border-gray-300 rounded-xl px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                placeholder="****"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPin(!showPin)}
+                tabIndex={-1}
+                title={showPin ? "পিন লুকান" : "পিন দেখান"}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-emerald-600 px-1.5 py-1"
+              >
+                <i className={`fa-solid ${showPin ? "fa-eye-slash" : "fa-eye"} text-sm`}></i>
+              </button>
+            </div>
           </div>
+
+          <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+              className="accent-emerald-600 w-4 h-4"
+            />
+            <span>
+              <i className="fa-solid fa-bookmark me-1 text-emerald-600 text-[10px]"></i>
+              মনে রাখুন (Remember Username &amp; Password)
+            </span>
+          </label>
+
           <button
             type="submit"
             disabled={submitting}

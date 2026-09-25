@@ -14,7 +14,7 @@ const PALETTES = [
   { head: "bg-rose-800", headBadge: "bg-rose-700/80", tint: "bg-rose-50/60 dark:bg-rose-900/20", border: "border-rose-200 dark:border-rose-800", text: "text-rose-900 dark:text-rose-300", pillText: "text-rose-200", cashIcon: "text-rose-600", bankIcon: "text-rose-600" },
 ];
 
-export default memo(function WalletCard({ wallet, summary, index }) {
+export default memo(function WalletCard({ wallet, summary, index, onOpen }) {
   const p = PALETTES[index % PALETTES.length];
   const flag = CURRENCY_FLAGS[wallet.Currency] || "💰";
   const oc = parseFloat(wallet.OpeningCash) || 0;
@@ -23,7 +23,13 @@ export default memo(function WalletCard({ wallet, summary, index }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className={`${p.tint} border ${p.border} rounded-2xl p-3.5 shadow-sm transition-colors`}>
+    <div
+      onClick={onOpen}
+      role={onOpen ? "button" : undefined}
+      tabIndex={onOpen ? 0 : undefined}
+      onKeyDown={onOpen ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } } : undefined}
+      className={`${p.tint} border ${p.border} rounded-2xl p-3.5 shadow-sm transition-colors ${onOpen ? "cursor-pointer active:scale-[0.99]" : ""}`}
+    >
       <div className={`flex items-center gap-2 mb-2 ${p.text} font-bold text-sm`}>
         <span className="text-lg">{flag}</span>
         <span>{wallet.WalletName} ({wallet.Currency})</span>
@@ -55,7 +61,7 @@ export default memo(function WalletCard({ wallet, summary, index }) {
       </div>
 
       {hasOpening && (
-        <button onClick={() => setExpanded(!expanded)} className="w-full text-[10px] text-gray-400 dark:text-gray-500 text-center mb-3 flex items-center justify-center gap-1 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+        <button onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }} className="w-full text-[10px] text-gray-400 dark:text-gray-500 text-center mb-3 flex items-center justify-center gap-1 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
           <i className={`fa-solid fa-chevron-${expanded ? 'up' : 'down'}`}></i>
           শুরুর ব্যালেন্স
         </button>
