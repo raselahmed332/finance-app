@@ -782,6 +782,7 @@ export default function App() {
             <LoanDashboardView
               loans={loans}
               currentUser={currentUser}
+              users={usersList}
               can={can}
               onLoansChange={setLoans}
               onAdd={() => setActiveTab("loan-add")}

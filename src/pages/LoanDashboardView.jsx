@@ -51,7 +51,7 @@ function SummaryCard({ meta, total, remaining }) {
 }
 
 // Server timestamps are stored as "dd-MMM-yyyy HH:mm" (e.g. "24-Sep-2026 14:30");
-// display them as "24 Sep 2026" using the existing design's short date style.
+// display them like the loan date (e.g. "24 Sep 2026"), no time.
 function fmtUpdated(ts) {
   if (!ts) return "—";
   const m = /^(\d{1,2})-([A-Za-z]{3})-(\d{4})/.exec(String(ts).trim());
@@ -59,7 +59,7 @@ function fmtUpdated(ts) {
   return String(ts);
 }
 
-function LoanCard({ loan, onSelect }) {
+function LoanCard({ loan, onSelect, creatorName }) {
   const meta = loanTypeMeta(loan.type);
   const status = statusOf(loan);
   const statusMeta = STATUS_META[status];
@@ -107,18 +107,18 @@ function LoanCard({ loan, onSelect }) {
           <span><i className="fa-solid fa-calendar-day me-1"></i>{fmtDate(loan.loanDate)}</span>
           {loan.dueDate && <span><i className="fa-solid fa-hourglass-half me-1"></i>{fmtDate(loan.dueDate)}</span>}
         </div>
-        <div className="text-right">
-          {loan.createdBy && (
-            <div className="text-[9px] text-gray-400 dark:text-gray-500">
+        <div className="text-right ml-2 flex items-center justify-end gap-x-2 flex-wrap">
+          {creatorName && (
+            <span className="text-[9px] text-gray-400 dark:text-gray-500">
               <i className="fa-solid fa-user-pen me-1"></i>Created by:{" "}
-              <span className="font-semibold text-gray-500 dark:text-gray-400">{loan.createdBy}</span>
-            </div>
+              <span className="font-semibold text-gray-500 dark:text-gray-400">{creatorName}</span>
+            </span>
           )}
           {loan.updatedAt && (
-            <div className="text-[9px] text-gray-400 dark:text-gray-500 mt-0.5">
-              <i className="fa-solid fa-clock-rotate-left me-1"></i>Last updated:{" "}
+            <span className="text-[9px] text-gray-400 dark:text-gray-500">
+              <i className="fa-solid fa-clock-rotate-left me-1"></i>Updated:{" "}
               <span className="font-semibold text-gray-500 dark:text-gray-400">{fmtUpdated(loan.updatedAt)}</span>
-            </div>
+            </span>
           )}
         </div>
       </div>
@@ -210,7 +210,7 @@ function FilterSheet({ open, onClose, onApply, onReset, currencies }) {
   );
 }
 
-export default function LoanDashboardView({ currentUser, loans, onLoansChange, can, onAdd, onSelect }) {
+export default function LoanDashboardView({ currentUser, loans, onLoansChange, can, onAdd, onSelect, users }) {
   const [tab, setTab] = useState("given");
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState(null);
@@ -239,6 +239,14 @@ export default function LoanDashboardView({ currentUser, loans, onLoansChange, c
   }, [currentUser.username]);
 
   const allLoans = useMemo(() => Array.isArray(loans) ? loans : [], [loans]);
+
+  const userMap = useMemo(() => {
+    const map = {};
+    (Array.isArray(users) ? users : []).forEach((u) => {
+      map[u.Username] = u.FullName || u.Username;
+    });
+    return map;
+  }, [users]);
 
   const totalBy = (list, keyOrFn) => list.reduce((acc, l) => {
     const value = typeof keyOrFn === "function" ? Number(keyOrFn(l)) || 0 : Number(l[keyOrFn]) || 0;
@@ -372,7 +380,7 @@ export default function LoanDashboardView({ currentUser, loans, onLoansChange, c
       {!loading && filtered.length > 0 && (
         <div className="space-y-2.5">
           {filtered.map((l) => (
-            <LoanCard key={l.id} loan={l} onSelect={onSelect} />
+            <LoanCard key={l.id} loan={l} onSelect={onSelect} creatorName={userMap[l.createdBy] || l.createdBy} />
           ))}
         </div>
       )}
