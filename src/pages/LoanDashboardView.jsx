@@ -256,10 +256,14 @@ export default function LoanDashboardView({ currentUser, loans, onLoansChange, c
 
   const given = useMemo(() => allLoans.filter(l => l.type === "given"), [allLoans]);
   const taken = useMemo(() => allLoans.filter(l => l.type === "taken"), [allLoans]);
-  const givenTotal = useMemo(() => totalBy(given, totalAmountOf), [given]);
-  const givenRemain = useMemo(() => totalBy(given, remainingOf) || {}, [given]);
-  const takenTotal = useMemo(() => totalBy(taken, totalAmountOf), [taken]);
-  const takenRemain = useMemo(() => totalBy(taken, remainingOf) || {}, [taken]);
+  // Summary totals only count loans that are still outstanding — fully-paid
+  // (পরিশোধিত) loans are excluded so the dashboard reflects active commitments.
+  const givenActive = useMemo(() => given.filter(l => statusOf(l) !== "paid"), [given]);
+  const takenActive = useMemo(() => taken.filter(l => statusOf(l) !== "paid"), [taken]);
+  const givenTotal = useMemo(() => totalBy(givenActive, totalAmountOf), [givenActive]);
+  const givenRemain = useMemo(() => totalBy(givenActive, remainingOf) || {}, [givenActive]);
+  const takenTotal = useMemo(() => totalBy(takenActive, totalAmountOf), [takenActive]);
+  const takenRemain = useMemo(() => totalBy(takenActive, remainingOf) || {}, [takenActive]);
 
   const currencies = useMemo(() => [...new Set(allLoans.map(l => l.currency).filter(Boolean))], [allLoans]);
 
