@@ -6,10 +6,7 @@ import {
   formatMoney, loanTypeMeta, remainingOf, totalAmountOf,
   todayStr, pickDefaultWalletId,
 } from "../utils/loan.js";
-
-function ErrorText({ msg }) {
-  return msg ? <div className="text-[10px] text-rose-600 dark:text-rose-400 mt-1 flex items-center gap-1"><i className="fa-solid fa-circle-exclamation"></i>{msg}</div> : null;
-}
+import { ErrorText } from "./FormField.jsx";
 
 export default function LoanAddForm({ loan, addition, wallets, currentUser, onSave, onCancel, prefill, person }) {
   const isEdit = !!addition;

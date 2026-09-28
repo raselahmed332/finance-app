@@ -1,4 +1,5 @@
 ﻿import { useState, useRef, useEffect } from "react";
+import { MIN_PIN_LENGTH, MAX_PIN_LENGTH, normalizePinInput } from "../api.js";
 import { todayStr } from "../utils/loan.js";
 import Select from "../components/Select.jsx";
 import Popup from "../components/Popup.jsx";
@@ -103,10 +104,23 @@ export default function UserProfileView({ currentUser, transactions, wallets, da
   };
 
   const handlePwSave = () => {
-    if (!currentPin || !newPin || !confirmPin) { toast.error('সবগুলো PIN ক্ষেত্র পূরণ করুন!'); return; }
-    if (newPin !== confirmPin) { toast.error('নতুন PIN ও Confirm PIN মিলছে না!'); return; }
-    if (newPin.length < 4) { toast.error('PIN কমপক্ষে 4 অক্ষরের হতে হবে!'); return; }
-    onSave({ username: currentUser.username, currentPin, pin: newPin });
+    if (!currentPin || !newPin || !confirmPin) { toast.error('সব তিনটি PIN লিখুন!'); return; }
+    // Normalize all three with the same helper the Admin reset screen and the
+    // create-user form use, so this screen accepts exactly what the server
+    // accepts. currentPin matters most: a whitespace-only value is truthy, would
+    // be trimmed to "" below, and would otherwise be sent as an empty PIN and
+    // come back as a generic server error.
+    const normalizedCurrent = normalizePinInput(currentPin);
+    if (normalizedCurrent === null) { toast.error('বর্তমান PIN ' + MIN_PIN_LENGTH + '-' + MAX_PIN_LENGTH + ' অক্ষরের হতে হবে!'); return; }
+    const normalizedPin = normalizePinInput(newPin);
+    if (normalizedPin === null) { toast.error('PIN ' + MIN_PIN_LENGTH + '-' + MAX_PIN_LENGTH + ' অক্ষরের হতে হবে!'); return; }
+    // Compare what the server will actually store, not the raw text: the PIN is
+    // trimmed on the way in, so "1234 " and "1234" are the same PIN and the
+    // confirm box must say so.
+    if (normalizePinInput(confirmPin) !== normalizedPin) { toast.error('নতুন PIN ও Confirm PIN মিলছে না!'); return; }
+    // The server trims on the way in too (normalizePin_), so sending the
+    // normalized form is what it will compare against.
+    onSave({ username: currentUser.username, currentPin: normalizedCurrent, pin: normalizedPin });
     setActiveCard(null);
     setCurrentPin('');
     setNewPin('');
@@ -218,7 +232,7 @@ export default function UserProfileView({ currentUser, transactions, wallets, da
         ) : (
           <>
             <input type="password" value={currentPin} onChange={(e) => setCurrentPin(e.target.value)} placeholder="Current PIN / Password" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-900 dark:text-gray-100" />
-            <input type="password" value={newPin} onChange={(e) => setNewPin(e.target.value)} placeholder="New PIN / Password (min 4 characters)" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-900 dark:text-gray-100" />
+            <input type="password" value={newPin} onChange={(e) => setNewPin(e.target.value)} placeholder={"New PIN / Password (min " + MIN_PIN_LENGTH + ", max " + MAX_PIN_LENGTH + " characters)"} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-900 dark:text-gray-100" />
             <input type="password" value={confirmPin} onChange={(e) => setConfirmPin(e.target.value)} placeholder="Confirm New PIN / Password" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-900 dark:text-gray-100" />
             <button onClick={handlePwSave} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs shadow-md">Change Password</button>
           </>

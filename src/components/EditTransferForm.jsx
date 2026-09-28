@@ -5,6 +5,7 @@ import { useToast } from "./Toast.jsx";
 
 export default function EditTransferForm({ transaction, currentUser, onSave, onCancel }) {
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [pair, setPair] = useState(null);
   const toast = useToast();
 
@@ -15,9 +16,22 @@ export default function EditTransferForm({ transaction, currentUser, onSave, onC
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
+  // A failed load must never leave the popup spinning on data that never
+  // arrived: the amounts/date below would silently be the ones we could not
+  // read, and submitting them would write a guess over a real transfer.
+  const load = (isActive) => {
+    // Retrying from the error screen passes nothing; the mount effect passes a
+    // guard so a resolved promise can never setState on an unmounted popup.
+    const alive = typeof isActive === 'function' ? isActive : () => true;
+    setLoading(true);
+    setLoadError(null);
     api.getTransferPair(transaction.ID, transaction.WalletID, currentUser.username).then((res) => {
-      if (res.status === 'ERROR') { toast.error(res.message); setLoading(false); return; }
+      if (!alive()) return;
+      if (res.status === 'ERROR') {
+        setLoadError(res.message || 'ট্রান্সফার লোড করতে ব্যর্থ হয়েছে।');
+        setLoading(false);
+        return;
+      }
       setPair(res);
       setDate(res.date);
       setFromAmount(res.out.amount);
@@ -25,7 +39,19 @@ export default function EditTransferForm({ transaction, currentUser, onSave, onC
       setNote(res.note || '');
       setDescription(res.description || '');
       setLoading(false);
+    }).catch((err) => {
+      if (!alive()) return;
+      const message = String((err && err.message) || err || 'ট্রান্সফার লোড করতে ব্যর্থ হয়েছে।');
+      setLoadError(message);
+      toast.error(message);
+      setLoading(false);
     });
+  };
+
+  useEffect(() => {
+    let active = true;
+    load(() => active);
+    return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -37,9 +63,21 @@ export default function EditTransferForm({ transaction, currentUser, onSave, onC
       </div>
     </Popup>
   );
-  if (!pair) return (
+  if (loadError || !pair) return (
     <Popup open title="Edit Transfer" onClose={onCancel}>
-      <div className="text-center text-sm text-slate-500 dark:text-gray-400 py-4">ট্রান্সফার পাওয়া যায়নি।</div>
+      <div className="text-sm text-rose-600 dark:text-rose-400 py-4 text-center">
+        <i className="fa-solid fa-circle-exclamation me-1"></i>
+        {loadError || 'ট্রান্সফার পাওয়া যায়নি।'}
+      </div>
+      <div className="text-xs text-gray-500 dark:text-gray-400 text-center mb-4">
+        কোনো পরিবর্তন করা হয়নি।
+      </div>
+      <div className="flex gap-2">
+        <button onClick={() => load()} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs">
+          আবার চেষ্টা করুন
+        </button>
+        <button onClick={onCancel} className="flex-1 bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-200 font-bold py-2.5 rounded-xl text-xs">বন্ধ করুন</button>
+      </div>
     </Popup>
   );
 

@@ -15,6 +15,7 @@ export function ConfirmProvider({ children }) {
       resolveRef.current = resolve;
       setState({
         message: options.message != null ? options.message : "আপনি কি নিশ্চিত?",
+        detail: options.detail || "",
         title: options.title || "নিশ্চিত করুন",
         confirmLabel: options.confirmLabel || "হ্যাঁ, মুছুন",
         cancelLabel: options.cancelLabel || "বাতিল",
@@ -47,7 +48,12 @@ export function ConfirmProvider({ children }) {
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${state.danger ? "bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400" : "bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400"}`}>
                   <i className={`fa-solid ${state.danger ? "fa-triangle-exclamation" : "fa-circle-question"} text-lg`}></i>
                 </div>
-                <div className="text-[13px] font-medium text-slate-700 dark:text-gray-200 leading-relaxed whitespace-pre-line">{state.message}</div>
+                <div>
+                  <div className="text-[13px] font-medium text-slate-700 dark:text-gray-200 leading-relaxed whitespace-pre-line">{state.message}</div>
+                  {state.detail && (
+                    <div className="mt-1.5 text-[11px] font-semibold text-gray-500 dark:text-gray-400">{state.detail}</div>
+                  )}
+                </div>
               </div>
               <div className="flex gap-2.5 pt-1">
                 <button

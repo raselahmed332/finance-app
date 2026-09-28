@@ -8,20 +8,35 @@ export default function AuditLogView({ currentUser, onCancel }) {
   const [total, setTotal] = useState(0);
   const [checking, setChecking] = useState(false);
   const [checkResult, setCheckResult] = useState(null);
+  // A failed load must not read as an empty log. Showing "কোনো এন্ট্রি নেই।"
+  // and a 0 count after an error tells the reader the ledger is untouched when
+  // its audit trail was simply never fetched.
+  const [loadError, setLoadError] = useState(null);
   // Pair-integrity check is Admin-only on the backend — don't offer it as an
   // affordance that can only ever error for Sub-Admins with VIEW_AUDIT_LOG.
   const isAdmin = String(currentUser?.role) === 'Admin';
 
   const load = (p) => {
+    setLoadError(null);
     api.getAuditLog(currentUser.username, { page: p, pageSize: 20 }).then((res) => {
       if (res.status === 'SUCCESS') {
         setEntries(res.entries);
         setTotalPages(res.totalPages);
         setTotal(res.total);
       } else {
+        setLoadError((res && res.message) || 'অডিট লগ লোড করা যায়নি।');
         setEntries([]);
+        // Collapse the pager too, otherwise a failure on page 3 of 5 leaves a
+        // stale page count rendered next to an error box.
+        setTotalPages(1);
+        setTotal(0);
       }
-    }).catch(() => setEntries([]));
+    }).catch((err) => {
+      setLoadError(String((err && err.message) || err || 'অডিট লগ লোড করা যায়নি।'));
+      setEntries([]);
+      setTotalPages(1);
+      setTotal(0);
+    });
   };
 
   useEffect(() => {
@@ -52,7 +67,7 @@ export default function AuditLogView({ currentUser, onCancel }) {
           <i className="fa-solid fa-arrow-left text-lg"></i>
         </button>
         <h3 className="font-bold text-slate-800 dark:text-gray-100 text-base">Audit Log</h3>
-        <span className="text-xs bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-full font-semibold">{total} টি</span>
+        <span className="text-xs bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-full font-semibold">{loadError ? '—' : `${total} টি`}</span>
       </div>
 
       {isAdmin && (
@@ -87,8 +102,18 @@ export default function AuditLogView({ currentUser, onCancel }) {
 
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-3.5 shadow-2xs">
         {entries === null && <div className="text-center text-xs text-gray-400 dark:text-gray-500 py-8">লোড হচ্ছে...</div>}
-        {entries && entries.length === 0 && <div className="text-center text-xs text-gray-400 dark:text-gray-500 py-8">কোনো এন্ট্রি নেই।</div>}
-        {entries && entries.map((e, i) => (
+        {loadError ? (
+          <div className="text-center py-8 px-3">
+            <i className="fa-solid fa-triangle-exclamation text-amber-500 text-lg mb-2"></i>
+            <div className="text-xs text-rose-600 dark:text-rose-400">{loadError}</div>
+            <button onClick={() => load(page)}
+              className="mt-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-xl text-xs">
+              আবার চেষ্টা করুন
+            </button>
+          </div>
+        ) : null}
+        {!loadError && entries && entries.length === 0 && <div className="text-center text-xs text-gray-400 dark:text-gray-500 py-8">কোনো এন্ট্রি নেই।</div>}
+        {!loadError && entries && entries.map((e, i) => (
           <div key={i} className={`py-2.5 ${i !== entries.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''}`}>
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-slate-800 dark:text-gray-100">{e.Action}</span>

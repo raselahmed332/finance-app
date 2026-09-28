@@ -1,5 +1,5 @@
 import { useState, memo } from "react";
-import { api, GRANTABLE_PERMISSIONS, PERMISSION_LABELS, DEFAULT_WALLET_ACTIONS } from "../api.js";
+import { api, GRANTABLE_PERMISSIONS, PERMISSION_LABELS, DEFAULT_WALLET_ACTIONS, MIN_PIN_LENGTH, MAX_PIN_LENGTH, normalizePinInput } from "../api.js";
 import Select from "../components/Select.jsx";
 import SwipeCard from "../components/SwipeCard.jsx";
 import Popup from "../components/Popup.jsx";
@@ -324,10 +324,12 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
   const toggleWallet = (id) => setWalletAccess((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   const handleResetPin = () => {
-    const newPin = window.prompt("নতুন PIN লিখুন (min 4 character):");
-    if (!newPin || !newPin.trim()) return;
+    const newPin = window.prompt("নতুন PIN লিখুন (min " + MIN_PIN_LENGTH + ", max " + MAX_PIN_LENGTH + " character):");
+    if (newPin === null) return;
+    const normalized = normalizePinInput(newPin);
+    if (normalized === null) { showAlert("PIN অবৈধ। " + MIN_PIN_LENGTH + "-" + MAX_PIN_LENGTH + " অক্ষরের হতে হবে।", "error"); return; }
     setResettingPin(true);
-    api.resetPin(user.Username, newPin.trim(), currentUser.username).then((res) => {
+    api.resetPin(user.Username, normalized, currentUser.username).then((res) => {
       showAlert(res.message, res.status === "ERROR" ? "error" : "success");
     }).catch(() => showAlert("নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।", "error")).finally(() => setResettingPin(false));
   };
@@ -581,9 +583,11 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
             {canResetPin && (
               <button onClick={(e) => {
                 e.stopPropagation();
-                const newPin = window.prompt("নতুন PIN লিখুন (min 4 character):");
-                if (!newPin || !newPin.trim()) return;
-                api.resetPin(user.Username, newPin.trim(), currentUser.username).then((res) => {
+                const newPin = window.prompt("নতুন PIN লিখুন (min " + MIN_PIN_LENGTH + ", max " + MAX_PIN_LENGTH + " character):");
+                if (newPin === null) return;
+                const normalized = normalizePinInput(newPin);
+                if (normalized === null) { showAlert("PIN অবৈধ। " + MIN_PIN_LENGTH + "-" + MAX_PIN_LENGTH + " অক্ষরের হতে হবে।", "error"); return; }
+                api.resetPin(user.Username, normalized, currentUser.username).then((res) => {
                   showAlert(res.message, res.status === "ERROR" ? "error" : "success");
                 }).catch(() => showAlert("নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।", "error"));
               }} title="Reset PIN" className="text-gray-400 dark:text-gray-500 hover:text-amber-500">
@@ -671,7 +675,10 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
 
         {canDel && (
           <button onClick={async () => {
-            const ok = await confirm({ message: "এই ইউজার মুছে ফেলবেন?" });
+            // Deletion is refused by the backend while the user still has
+            // financial history, so say up front that deactivation is the way
+            // to keep the records (and who made them) intact.
+            const ok = await confirm({ message: "এই ইউজার মুছে ফেলবেন?\n\nআর্থিক ইতিহাস থাকলে মুছে ফেলা যাবে না — সেক্ষেত্রে Deactivate করুন, ইতিহাস অক্ষত থাকবে।" });
             if (ok) { closeDetails(); onUserAction("delete", user.Username); }
           }} className="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5">
             <i className="fa-solid fa-trash-can"></i> Delete User
@@ -721,8 +728,10 @@ function AddUserForm({ wallets, currentUser, showAlert, onRefresh, onClose }) {
     e.preventDefault();
     if (adding) return;
     if (!newUsername || !newPin) { showAlert("সকল তথ্য পূরণ করুন!", "error"); return; }
+    const normalizedPin = normalizePinInput(newPin);
+    if (normalizedPin === null) { showAlert("PIN অবৈধ। " + MIN_PIN_LENGTH + "-" + MAX_PIN_LENGTH + " অক্ষরের হতে হবে।", "error"); return; }
     setAdding(true);
-    api.addUser(fullName, newUsername, newPin, role, permissions, walletAccess, currentUser.username).then((res) => {
+    api.addUser(fullName, newUsername, normalizedPin, role, permissions, walletAccess, currentUser.username).then((res) => {
       showAlert(res.message, res.status === "ERROR" ? "error" : "success");
       if (res.status !== "ERROR") { resetForm(); onRefresh(); onClose(); }
     }).catch(() => showAlert("নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।", "error")).finally(() => setAdding(false));
@@ -734,7 +743,7 @@ function AddUserForm({ wallets, currentUser, showAlert, onRefresh, onClose }) {
         <div className="text-[11px] font-bold text-slate-700 dark:text-gray-200"><i className="fa-solid fa-id-card me-1.5 text-emerald-600 dark:text-emerald-400 text-[10px]"></i>1. Basic Information</div>
         <input type="text" placeholder="Full Name" value={fullName} onChange={(e) => setFullName(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" />
         <input type="text" placeholder="Username" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" required />
-        <input type="password" placeholder="PIN (min 4 characters)" value={newPin} onChange={(e) => setNewPin(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" required />
+        <input type="password" placeholder={"PIN (min " + MIN_PIN_LENGTH + ", max " + MAX_PIN_LENGTH + " characters)"} value={newPin} onChange={(e) => setNewPin(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" required />
         <Select value={role} onChange={setRole}>
           <option value="User">User (সাধারণ ইউজার)</option>
           <option value="Sub-Admin">Sub-Admin</option>

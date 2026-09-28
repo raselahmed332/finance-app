@@ -6,20 +6,7 @@ import {
   totalAmountOf, todayStr, pickDefaultWalletId,
 } from "../utils/loan.js";
 import LoanAddForm from "./LoanAddForm.jsx";
-
-function ErrorText({ msg }) {
-  return msg ? <div className="text-[10px] text-rose-600 dark:text-rose-400 mt-1 flex items-center gap-1"><i className="fa-solid fa-circle-exclamation"></i>{msg}</div> : null;
-}
-
-function Field({ label, children, error }) {
-  return (
-    <div>
-      <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">{label}</label>
-      {children}
-      <ErrorText msg={error} />
-    </div>
-  );
-}
+import { Field } from "./FormField.jsx";
 
 function StepIndicator({ step }) {
   const steps = ["তথ্য দিন", "বিস্তারিত দিন", "নিশ্চিত করুন"];

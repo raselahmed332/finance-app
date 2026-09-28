@@ -4,8 +4,34 @@ import Select from "../components/Select.jsx";
 import SwipeCard from "../components/SwipeCard.jsx";
 import Popup from "../components/Popup.jsx";
 import { useConfirm } from "../components/ConfirmDialog.jsx";
+import { DetailCell } from "../components/FormField.jsx";
+import { getActiveCurrencies } from "../utils/currency.js";
 
-const CURRENCIES = ["SAR", "BDT", "USD", "EUR", "KWD", "GBP", "AED"];
+// The currency dropdown now reads the backend Currencies sheet through the
+// registry in utils/currency.js instead of a hardcoded list here, so an Admin
+// can add a currency from Settings without a redeploy. Until the first fetch
+// resolves, the registry serves the same seven currencies the old array held, so
+// this dropdown behaves exactly as before on first paint.
+function currencyOptions() {
+  return getActiveCurrencies().map((c) => c.code);
+}
+
+// Which currency the Add-Wallet form should preselect. The registry is sorted
+// by code, so "first option" is AED - a silent behaviour change from the old
+// hardcoded list, whose first entry (and therefore the old default) was SAR.
+// This is only a *default selection*; which currencies exist still comes from
+// the registry. The first entry that is actually active wins, so retiring any of
+// them in Settings still leaves the form on a valid choice.
+const DEFAULT_CURRENCY_PREFERENCE = ["SAR", "BDT"];
+
+function defaultCurrency() {
+  const options = currencyOptions();
+  if (options.length === 0) return "BDT";
+  for (const code of DEFAULT_CURRENCY_PREFERENCE) {
+    if (options.indexOf(code) !== -1) return code;
+  }
+  return options[0];
+}
 
 // Server timestamps are stored as "dd-MMM-yyyy HH:mm" (e.g. "24-Sep-2026 14:30").
 function fmtTimestamp(ts) {
@@ -19,15 +45,6 @@ function fmtTimestamp(ts) {
 function fmtMoney(v, cur) {
   const n = Number.isFinite(parseFloat(v)) ? parseFloat(v) : 0;
   return `${cur} ${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function DetailCell({ label, value, full }) {
-  return (
-    <div className={full ? "col-span-2" : ""}>
-      <div className="text-[9px] uppercase tracking-wide text-gray-400 dark:text-gray-500">{label}</div>
-      <div className="text-[11px] font-semibold text-slate-700 dark:text-gray-200 mt-0.5 break-words">{value}</div>
-    </div>
-  );
 }
 
 function EditWalletRow({ wallet, walletSummaries, currentUser, can, onRefresh, showAlert }) {
@@ -215,14 +232,25 @@ function EditWalletRow({ wallet, walletSummaries, currentUser, can, onRefresh, s
 function AddWalletForm({ currentUser, showAlert, onRefresh, onClose }) {
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState('');
-  const [currency, setCurrency] = useState('BDT');
+  // Default to a still-active preferred currency, never to a literal 'BDT' that
+  // the registry might no longer offer.
+  const [currency, setCurrency] = useState(() => defaultCurrency());
   const [openingCash, setOpeningCash] = useState('');
   const [openingBank, setOpeningBank] = useState('');
+
+  // The registry loads asynchronously. If this form was mounted before the fetch
+  // resolved, the preselected code may not be in the list that just arrived, and
+  // the custom Select renders an empty label and would submit a blank currency.
+  const options = currencyOptions();
+  useEffect(() => {
+    if (options.length && options.indexOf(currency) === -1) setCurrency(defaultCurrency());
+  }, [options.join(","), currency]);
 
   const handleAdd = (e) => {
     e.preventDefault();
     if (adding) return;
     if (!name.trim()) { showAlert("Wallet এর নাম দিন!", "error"); return; }
+    if (!options.length || options.indexOf(currency) === -1) { showAlert("কারেন্সি নির্বাচন করুন।", "error"); return; }
     const oc = parseFloat(openingCash) || 0;
     const ob = parseFloat(openingBank) || 0;
     if (oc < 0 || ob < 0) { showAlert('Opening balance ঋণাত্মক হতে পারবে না।', 'error'); return; }
@@ -237,7 +265,7 @@ function AddWalletForm({ currentUser, showAlert, onRefresh, onClose }) {
     <form onSubmit={handleAdd} className="space-y-3">
       <input value={name} onChange={(e) => setName(e.target.value)} placeholder="যেমন: Bangladesh Bank" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" required />
       <Select value={currency} onChange={setCurrency}>
-        {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+        {options.map(c => <option key={c} value={c}>{c}</option>)}
       </Select>
       <div className="text-[10px] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg px-2.5 py-1.5">
         <i className="fa-solid fa-triangle-exclamation me-1"></i>

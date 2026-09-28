@@ -1,18 +1,9 @@
-export const CURRENCY_SYMBOLS = {
-  BDT: "৳", SAR: "SAR", USD: "$", EUR: "€", GBP: "£", KWD: "KD", AED: "AED",
-};
-
-export function currencyLabel(cur) {
-  return CURRENCY_SYMBOLS[cur] || cur || "";
-}
-
-export function formatMoney(amount, currency) {
-  const n = Number(amount) || 0;
-  const num = n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const sym = CURRENCY_SYMBOLS[currency] || currency || "";
-  if (!sym) return num;
-  return currency === "BDT" ? `${sym}${num}` : `${sym} ${num}`;
-}
+// Money formatting moved to utils/currency.js, where the symbol and decimal
+// places come from the backend Currencies sheet instead of a hardcoded map.
+// The signature is unchanged, so every existing import of formatMoney from this
+// file keeps working untouched. Re-exported here so the ~40 call sites that
+// already import it from utils/loan.js need no edits.
+export { formatMoney } from "./currency.js";
 
 export function toDateStr(d) {
   const y = d.getFullYear();
@@ -98,7 +89,7 @@ export const STATUS_META = {
 export function statusOf(loan, today) {
   const t = today || todayStr();
   const remaining = remainingOf(loan);
-  if (remaining <= 0.005) return "paid";
+  if (remaining <= 0) return "paid";
   // Overdue is derived from the due date at read time — a stored status
   // computed at the last mutation goes stale the moment the date passes.
   if (loan && loan.dueDate && String(loan.dueDate) < t) return "overdue";

@@ -9,9 +9,60 @@ const API_URL = (typeof import.meta !== "undefined" && import.meta.env && import
   || DEFAULT_API_URL;
 const TOKEN_KEY = "hisab_token";
 
+// Backend error codes that mean "this browser is no longer authenticated".
+// Mirrors AUTH_FAILURE_CODES in backend/Security.gs - keep the two in sync.
+export const AUTH_FAILURE_CODES = ["SESSION_EXPIRED", "INVALID_SESSION", "AUTH_REQUIRED"];
+
+// Notified whenever the backend reports the stored token is dead, so the app can
+// drop the session and return to the login screen from one place.
+const authFailureListeners = new Set();
+
+export function onAuthFailure(listener) {
+  authFailureListeners.add(listener);
+  return () => authFailureListeners.delete(listener);
+}
+
+function notifyAuthFailure(code) {
+  localStorage.removeItem(TOKEN_KEY);
+  authFailureListeners.forEach((fn) => {
+    try { fn(code); } catch (e) { /* a bad listener must not break the request */ }
+  });
+}
+
+class ApiError extends Error {
+  constructor(message, code) {
+    super(message);
+    this.name = "ApiError";
+    this.code = code || null;
+  }
+}
+
+// The PIN is typed into #pin on the login screen and sent once per login
+// attempt. It is never written to localStorage/sessionStorage, never appended
+// to a URL and never included in an error message.
+
+// PIN POLICY - mirror of backend/Users.gs normalizePin_(). The server stays
+// authoritative (every path re-checks with the same helper); this only stops
+// the three screens from accepting something the server will refuse. Keep the
+// bounds in step with MIN_PIN_LENGTH / MAX_PIN_LENGTH in Database.gs.
+export const MIN_PIN_LENGTH = 4;
+export const MAX_PIN_LENGTH = 20;
+
+// Returns the PIN the server would actually store, or null when it would be
+// refused. The trim is the important part: the server trims too, so "  1234"
+// typed on the Admin reset screen and on the self-service form have to produce
+// the same credential.
+export function normalizePinInput(pin) {
+  if (typeof pin !== "string") return null;
+  if (/[\u0000-\u001f\u007f]/.test(pin)) return null;
+  const trimmed = pin.trim();
+  if (trimmed.length < MIN_PIN_LENGTH || trimmed.length > MAX_PIN_LENGTH) return null;
+  return trimmed;
+}
+
 async function callApi(action, params = []) {
   if (!API_URL) {
-    throw new Error("Apps Script API URL সেট করা নেই! অনুগ্রহ করে src/api.js ফাইলে আপনার Google Apps Script Web App URL পেস্ট করুন।");
+    throw new ApiError("Apps Script API URL সেট করা নেই! অনুগ্রহ করে src/api.js ফাইলে আপনার Google Apps Script Web App URL পেস্ট করুন।");
   }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 25000);
@@ -24,18 +75,26 @@ async function callApi(action, params = []) {
       signal: controller.signal,
       body: JSON.stringify({ action, params, token: localStorage.getItem(TOKEN_KEY) || "" }),
     });
-    if (!res.ok) throw new Error("Network error: " + res.status);
+    if (!res.ok) throw new ApiError("Network error: " + res.status);
+    let data;
     try {
-      return await res.json();
+      data = await res.json();
     } catch (parseError) {
       // Apps Script occasionally returns HTTP 200 with an HTML body
       // (login redirect / error page); surface a friendly error, not a raw
       // SyntaxError, so login screens don't print "Unexpected token...".
-      throw new Error("সার্ভার থেকে অজানা প্রতিক্রিয়া পেয়েছি। কিছুক্ষণ পর আবার চেষ্টা করুন।");
+      throw new ApiError("সার্ভার থেকে অজানা প্রতিক্রিয়া পেয়েছি। কিছুক্ষণ পর আবার চেষ্টা করুন।");
     }
+    // A dead session must not be left in localStorage, and every caller gets a
+    // typed error carrying the code so it can react without string matching.
+    if (data && data.status === "ERROR" && AUTH_FAILURE_CODES.includes(data.code)) {
+      if (action !== "login") notifyAuthFailure(data.code);
+      throw new ApiError(data.message || "সেশন শেষ হয়েছে। আবার লগইন করুন।", data.code);
+    }
+    return data;
   } catch (err) {
     if (err && err.name === "AbortError") {
-      throw new Error("সার্ভারে উত্তর দিতে অনেক সময় লাগছে। ইন্টারনেট সংযোগ ঠিক আছে কিনা দেখে আবার চেষ্টা করুন।");
+      throw new ApiError("সার্ভারে উত্তর দিতে অনেক সময় লাগছে। ইন্টারনেট সংযোগ ঠিক আছে কিনা দেখে আবার চেষ্টা করুন।");
     }
     throw err;
   } finally {
@@ -46,6 +105,9 @@ async function callApi(action, params = []) {
 export const api = {
   // Auth
   login: (username, pin) => callApi("login", [username, pin]),
+  // Startup handshake: re-checks the stored token against the backend and
+  // returns the authoritative user/permission payload.
+  validateSession: () => callApi("validateSession", []),
   getInitialData: (username) => callApi("getInitialData", [username]),
 
   // Transactions
@@ -74,10 +136,21 @@ export const api = {
   getPersonActiveLoans: (username, identity) => callApi("getPersonActiveLoans", [username, identity]),
   addLoan: (data) => callApi("addLoan", [data]),
   updateLoan: (data, adminUsername) => callApi("updateLoan", [data, adminUsername]),
+  deleteLoan: (loanId, adminUsername) => callApi("deleteLoan", [loanId, adminUsername]),
   addLoanRepayment: (data) => callApi("addLoanRepayment", [data]),
+  // Both require MANAGE_LOAN_TRANSACTIONS on the server. The repayment wallet is
+  // locked to the wallet it was recorded in, so only amount/date/account may change.
+  updateLoanRepayment: (data, adminUsername) => callApi("updateLoanPayment", [data, adminUsername]),
+  deleteLoanRepayment: (paymentId, adminUsername) => callApi("deleteLoanPayment", [paymentId, adminUsername]),
   addLoanAddition: (data) => callApi("addLoanAddition", [data]),
   editLoanAddition: (data, adminUsername) => callApi("editLoanAddition", [data, adminUsername]),
   deleteLoanAddition: (additionId, adminUsername) => callApi("deleteLoanAddition", [additionId, adminUsername]),
+
+  // Currencies
+  getCurrencies: (username) => callApi("getCurrencies", [username]),
+  addCurrency: (data, adminUsername) => callApi("addCurrency", [data, adminUsername]),
+  updateCurrency: (code, data, adminUsername) => callApi("updateCurrency", [code, data, adminUsername]),
+  deleteCurrency: (code, adminUsername) => callApi("deleteCurrency", [code, adminUsername]),
 
   // Users
   addUser: (fullName, username, pin, role, permissions, walletAccess, adminUsername) =>
@@ -110,6 +183,7 @@ export const session = {
   save: (token) => localStorage.setItem(TOKEN_KEY, token),
   clear: () => localStorage.removeItem(TOKEN_KEY),
   exists: () => !!localStorage.getItem(TOKEN_KEY),
+  get: () => localStorage.getItem(TOKEN_KEY),
 };
 
 // Actions automatically granted to any user who has access to at least one
@@ -130,8 +204,11 @@ export const ADDITIONAL_PERMISSIONS = [
 ];
 
 // Reserved for the Admin role — never grantable to non-Admins.
+// MANAGE_CURRENCIES is here, not in ADDITIONAL_PERMISSIONS: a currency row
+// decides what an entire wallet can hold, so it stays Admin-only. Mirrors
+// ADMIN_ONLY_ACTIONS in backend/Database.gs.
 export const ADMIN_ONLY_ACTIONS = [
-  "CHANGE_USER_ROLE", "CHANGE_USER_PASSWORD", "CREATE_ADMIN",
+  "CHANGE_USER_ROLE", "CHANGE_USER_PASSWORD", "CREATE_ADMIN", "MANAGE_CURRENCIES",
 ];
 
 export const GRANTABLE_PERMISSIONS = ADDITIONAL_PERMISSIONS;
@@ -169,6 +246,7 @@ export const PERMISSION_LABELS = {
   BACKUP_RESTORE: "ব্যাকআপ / রিস্টোর করা",
   VIEW_AUDIT_LOG: "Audit Log দেখা",
   MANAGE_CATEGORIES: "ক্যাটাগরি ম্যানেজ করা",
+  MANAGE_CURRENCIES: "কারেন্সি ম্যানেজ করা",
   // Admin-only
   CHANGE_USER_ROLE: "ইউজার Role পরিবর্তন",
   CHANGE_USER_PASSWORD: "ইউজার PIN রিসেট",

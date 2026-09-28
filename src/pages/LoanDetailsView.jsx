@@ -17,16 +17,21 @@ function DetailRow({ label, value, bold }) {
   );
 }
 
-export default function LoanDetailsView({ loan: initialLoan, wallets, currentUser, can, showAlert, onBack, onGoHome, onEdit, onRepayment, onAddAddition, onEditAddition, onDeleteAddition }) {
+export default function LoanDetailsView({ loan: initialLoan, wallets, currentUser, can, showAlert, onBack, onGoHome, onEdit, onRepayment, onAddAddition, onEditAddition, onDeleteAddition, onEditRepayment, onDeleteRepayment, onCancelLoan }) {
   const meta = loanTypeMeta(initialLoan?.type);
 
   const [loan, setLoan] = useState(initialLoan);
   const [payments, setPayments] = useState(initialLoan?.payments || []);
   const [additions, setAdditions] = useState(initialLoan?.additions || []);
   const [loading, setLoading] = useState(true);
+  // A failed fetch must be visibly different from a loan that genuinely has no
+  // payments — otherwise a network/server error reads as "কোনো লেনদেন নেই।"
+  // and the user is shown a wrong (empty) financial history.
+  const [loadError, setLoadError] = useState(null);
   const [showRepay, setShowRepay] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [editingAddition, setEditingAddition] = useState(null);
+  const [editingPayment, setEditingPayment] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const confirm = useConfirm();
 
@@ -39,14 +44,29 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
   // Editing needs MANAGE_LOANS (never auto-granted) — hide the affordance from
   // viewers so they don't hit a dead-end edit screen.
   const canEditLoan = can && can("MANAGE_LOANS");
+  // Repayment add/edit/delete is a separate permission from loan editing
+  // (MANAGE_LOAN_TRANSACTIONS) — the backend enforces it, so the affordances are
+  // hidden for anyone who lacks it.
+  const canManageLoanTxns = can && can("MANAGE_LOAN_TRANSACTIONS");
   // "টাকা যোগ করুন" uses the same issuing action the original loan used.
   const canAddExtra = can && can(String(loan?.type) === "given" ? "LOAN_GIVE" : "LOAN_TAKE");
-  const actionCols = 1 + (canEditLoan ? 1 : 0) + (canAddExtra ? 1 : 0);
+  // A CANCELLED loan is already soft-deleted: its wallet effects are reversed and
+  // the server refuses any further repayment/addition mutation, so hide the
+  // mutating actions instead of offering buttons that can only fail.
+  // Read the STORED status, not `status` — statusOf() is derived and has no
+  // CANCELLED entry, so it would report "active"/"partial" for a cancelled loan.
+  const isCancelled = String(loan?.status || "").toUpperCase() === "CANCELLED";
+  // Count what is actually rendered, so the grid never leaves an empty cell.
+  const showAddExtra = !!canAddExtra && !isCancelled;
+  const showEditLoan = !!canEditLoan && !isCancelled;
+  const showCancelLoan = !!canEditLoan;
+  const actionCount = 1 + (showAddExtra ? 1 : 0) + (showEditLoan ? 1 : 0) + (showCancelLoan ? 1 : 0);
 
   useEffect(() => {
     let active = true;
     if (!initialLoan?.id) { setLoading(false); return () => { active = false; }; }
     setLoading(true);
+    setLoadError(null);
     api.getLoanDetails(currentUser.username, initialLoan.id).then((res) => {
       if (!active) return;
       if (res && res.status === "SUCCESS" && res.loan) {
@@ -54,10 +74,19 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
         setPayments(res.loan.payments || []);
         setAdditions(res.loan.additions || []);
       } else if (res && res.status === "ERROR") {
-        showAlert(res.message, "error");
+        setLoadError(res.message || "লোনের বিবরণ লোড করা যায়নি।");
+        showAlert(res.message || "লোনের বিবরণ লোড করা যায়নি।", "error");
+      } else {
+        setLoadError("লোনের বিবরণ পাওয়া যায়নি।");
       }
       setLoading(false);
-    }).catch(() => { if (active) setLoading(false); });
+    }).catch((err) => {
+      if (!active) return;
+      const message = String((err && err.message) || err || "লোনের বিবরণ লোড করা যায়নি।");
+      setLoadError(message);
+      showAlert(message, "error");
+      setLoading(false);
+    });
     return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialLoan?.id, refreshKey]);
@@ -71,29 +100,13 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
       items.push({ key: ad.id || "a" + i, date: ad.date, title: meta.additionLabel, amount: ad.amount, walletName: ad.walletName, account: ad.account, currency: ad.currency || loan?.currency, initial: false, addition: true });
     });
     (payments || []).slice().sort((a, b) => String(a.date).localeCompare(String(b.date))).forEach((p, i) => {
-      items.push({ key: p.id || "p" + i, date: p.date, title: p.title || meta.repaymentTitle, amount: p.amount, walletName: p.walletName, account: p.account, currency: p.currency || loan?.currency, initial: false });
+      // `payment` lets the row render edit/delete for repayments. Additions keep
+      // their own controls in the "হাওলাতের বিস্তারিত" card above, so this
+      // timeline row stays read-only for them.
+      items.push({ key: p.id || "p" + i, date: p.date, title: p.title || meta.repaymentTitle, amount: p.amount, walletName: p.walletName, account: p.account, currency: p.currency || loan?.currency, initial: false, payment: p });
     });
     return items.sort((a, b) => String(a.date).localeCompare(String(b.date)));
   }, [loan, payments, additions, meta]);
-
-  const handleRepaymentSaved = (res) => {
-    if (res && res.status === "SUCCESS") {
-      if (res.loan) {
-        setLoan((prev) => prev ? { ...prev, ...res.loan } : { ...res.loan });
-      }
-      if (res.payment) {
-        setPayments((prev) => {
-          const exists = (prev || []).some(p => p.id && String(p.id) === String(res.payment.id));
-          if (exists) return prev;
-          return [...(prev || []), res.payment];
-        });
-      }
-      // Re-fetch the full loan details (loan + payments + additions) so the
-      // summary and payment history always reflect the saved repayment.
-      setRefreshKey((k) => k + 1);
-    }
-    setShowRepay(false);
-  };
 
   // After any addition add/edit/delete the derived totals change, so re-fetch
   // the full loan details (additions + payments + loan) for a consistent view.
@@ -101,6 +114,41 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
     if (res && res.status === "SUCCESS") setRefreshKey((k) => k + 1);
     setShowAdd(false);
     setEditingAddition(null);
+  };
+
+  // A repayment edit changes the loan total/repaid/remaining, so the whole loan
+  // is re-fetched exactly like the add flow.
+  const handlePaymentSaved = (res) => {
+    if (res && res.status === "SUCCESS") setRefreshKey((k) => k + 1);
+    setShowRepay(false);
+    setEditingPayment(null);
+  };
+
+  const handleDeletePayment = async (p) => {
+    const ok = await confirm({
+      message: "এই ফেরতের হিসাবটি মুছে ফেলবেন? (Wallet ব্যালেন্স থেকেও টাকার প্রভাব ফেরত নেওয়া হবে)",
+      detail: `${formatMoney(Number(p.amount) || 0, p.currency || loan?.currency)} • ${fmtDate(p.date || p.paymentDate)}`,
+    });
+    if (!ok) return;
+    onDeleteRepayment(p.id).then(handlePaymentSaved).catch(() => {});
+  };
+
+  // Cancelling keeps the loan row (status CANCELLED) and reverses every wallet
+  // effect it created, so it is not reversible from this screen.
+  const handleCancel = async () => {
+    const ok = await confirm({
+      message: "এই হাওলাট স্থায়ীভাবে বাতিল করবেন?",
+      detail: "লোনটি CANCELLED হবে এবং Wallet ব্যালেন্স থেকে এই লোনের সব টাকার প্রভাব ফেরত নেওয়া হবে। এটি আর ফেরানো যাবে না।",
+      confirmLabel: "বাতিল করুন",
+      danger: true,
+    });
+    if (!ok) return;
+    onCancelLoan(loan.id).then((res) => {
+      if (res && res.status === "SUCCESS") {
+        setRefreshKey((k) => k + 1);
+        showAlert(res.message, "success");
+      }
+    }).catch(() => {});
   };
 
   const handleDeleteAddition = async (ad) => {
@@ -174,7 +222,9 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
 
       <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 shadow-sm">
         <div className="text-xs font-bold text-slate-700 dark:text-gray-200 mb-1">বিস্তারিত</div>
-        <DetailRow label="স্ট্যাটাস" value={statusMeta.label} />
+        {/* statusMeta is the derived status, which reports a cancelled loan as
+            Active/Partial. Say so explicitly instead. */}
+        <DetailRow label="স্ট্যাটাস" value={isCancelled ? "বাতিল (Cancelled)" : statusMeta.label} />
         <DetailRow label="প্রথম হাওলাতের তারিখ" value={fmtDate(loan.loanDate)} />
         <DetailRow label="ডিউ তারিখ" value={loan.dueDate ? fmtDate(loan.dueDate) : "—"} />
         <DetailRow label="কারেন্সি" value={loan.currency} />
@@ -186,7 +236,7 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
       <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 shadow-sm">
         <div className="flex items-center justify-between mb-3">
           <div className="text-xs font-bold text-slate-700 dark:text-gray-200">হাওলাতের বিস্তারিত</div>
-          {canAddExtra && (
+          {canAddExtra && !isCancelled && (
             <button onClick={() => { setEditingAddition(null); setShowAdd(true); }} className="text-[10px] font-bold bg-sky-600 hover:bg-sky-700 text-white px-2.5 py-1.5 rounded-lg flex items-center gap-1">
               <i className="fa-solid fa-plus"></i> টাকা যোগ করুন
             </button>
@@ -213,7 +263,7 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
               </div>
               <div className="text-right flex items-center gap-2 flex-shrink-0">
                 <span className="text-xs font-bold text-amber-600 dark:text-amber-400">+{formatMoney(ad.amount, ad.currency || loan.currency)}</span>
-                {canEditLoan && (
+                {canEditLoan && !isCancelled && (
                   <span className="flex items-center gap-1">
                     <button onClick={() => setEditingAddition(ad)} className="text-xs text-gray-400 hover:text-emerald-600"><i className="fa-solid fa-pen"></i></button>
                     <button onClick={() => handleDeleteAddition(ad)} className="text-xs text-gray-400 hover:text-rose-600"><i className="fa-solid fa-trash"></i></button>
@@ -231,30 +281,36 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
         </div>
       </div>
 
-      <div className={`grid gap-2 ${actionCols === 3 ? "grid-cols-3" : actionCols === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
-        <button onClick={() => setShowRepay(true)} disabled={remaining <= 0.005}
+      <div className={`grid gap-2 ${actionCount === 4 ? "grid-cols-2" : actionCount === 3 ? "grid-cols-3" : actionCount === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
+        <button onClick={() => { setEditingPayment(null); setShowRepay(true); }} disabled={remaining <= 0 || isCancelled}
           className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold py-3 rounded-xl text-sm shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-transform">
           <i className="fa-solid fa-plus"></i> ফেরত যোগ করুন
         </button>
-        {canAddExtra && (
+        {showAddExtra && (
           <button onClick={() => { setEditingAddition(null); setShowAdd(true); }} className="bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 rounded-xl text-sm shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-transform">
             <i className="fa-solid fa-circle-plus"></i> টাকা যোগ করুন
           </button>
         )}
-        {canEditLoan && (
+        {showEditLoan && (
           <button onClick={onEdit} className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-slate-700 dark:text-gray-200 font-bold py-3 rounded-xl text-sm shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-transform">
             <i className="fa-solid fa-pen"></i> এডিট করুন
           </button>
         )}
+        {showCancelLoan && (
+          <button onClick={handleCancel} disabled={isCancelled}
+            className="border border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 font-bold py-3 rounded-xl text-sm shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-transform disabled:opacity-40">
+            <i className="fa-solid fa-ban"></i> {isCancelled ? "বাতিল হয়েছে" : "হাওলাট বাতিল করুন"}
+          </button>
+        )}
       </div>
 
-      {remaining <= 0.005 && (
+      {remaining <= 0 && (
         <div className="text-center text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 rounded-xl p-2.5">
           <i className="fa-solid fa-circle-check me-1"></i> এই হাওলাত সম্পূর্ণ ফেরত হয়েছে।
         </div>
       )}
 
-      {remaining > 0 && initialLoan.dueDate && initialLoan.dueDate < todayStr() && (
+      {remaining > 0 && loan.dueDate && loan.dueDate < todayStr() && (
         <div className="text-center text-[11px] text-rose-600 dark:text-rose-400 font-semibold bg-rose-50 dark:bg-rose-900/20 border border-rose-100 dark:border-rose-800 rounded-xl p-2.5">
           <i className="fa-solid fa-triangle-exclamation me-1"></i> ডিউ তারিখ অতিক্রান্ত — হাওলাত ওভারডিউ।
         </div>
@@ -266,6 +322,16 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
           <div className="text-center py-6">
             <div className="w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
             <div className="text-xs text-gray-400 dark:text-gray-500 mt-2">লোড হচ্ছে...</div>
+          </div>
+        ) : loadError ? (
+          <div className="text-center py-6">
+            <i className="fa-solid fa-triangle-exclamation text-amber-500 text-lg mb-2"></i>
+            <div className="text-xs text-rose-600 dark:text-rose-400">{loadError}</div>
+            <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">দেখানো তথ্য পুরোনো হতে পারে — অনুগ্রহ করে আবার চেষ্টা করুন।</div>
+            <button onClick={() => setRefreshKey((k) => k + 1)}
+              className="mt-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-xl text-xs">
+              আবার চেষ্টা করুন
+            </button>
           </div>
         ) : timeline.length === 0 ? (
           <div className="text-center py-6 text-xs text-gray-400 dark:text-gray-500">কোনো লেনদেন নেই।</div>
@@ -288,6 +354,19 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
                   <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
                     Wallet: <span className="font-semibold">{item.walletName || "—"}</span> • Account: <span className="font-semibold">{item.account || "—"}</span>
                   </div>
+                  {item.payment?.note && (
+                    <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 truncate">{item.payment.note}</div>
+                  )}
+                  {item.payment && canManageLoanTxns && !isCancelled && (
+                    <div className="flex items-center gap-3 mt-1.5">
+                      <button onClick={() => { setEditingPayment(item.payment); setShowRepay(false); }} className="text-[10px] font-semibold text-gray-400 hover:text-emerald-600 flex items-center gap-1">
+                        <i className="fa-solid fa-pen"></i> এডিট
+                      </button>
+                      <button onClick={() => handleDeletePayment(item.payment)} className="text-[10px] font-semibold text-gray-400 hover:text-rose-600 flex items-center gap-1">
+                        <i className="fa-solid fa-trash"></i> মুছে ফেলুন
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -295,15 +374,19 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
         )}
       </div>
 
-      {showRepay && (
+      {(showRepay || editingPayment) && (
         <LoanRepaymentForm
           loan={loan}
+          payment={editingPayment || null}
           wallets={wallets || []}
           currentUser={currentUser}
-          onCancel={() => setShowRepay(false)}
-          onSave={(formData) => onRepayment(loan.id, formData).then((res) => {
-            if (res && res.status === "SUCCESS") handleRepaymentSaved(res);
-          }).catch(() => {})}
+          onCancel={() => { setShowRepay(false); setEditingPayment(null); }}
+          onSave={(formData) => {
+            const action = editingPayment
+              ? onEditRepayment(formData)
+              : onRepayment(loan.id, formData);
+            return action.then(handlePaymentSaved).catch(() => {});
+          }}
         />
       )}
 

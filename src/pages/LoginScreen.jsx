@@ -4,25 +4,40 @@ import { useToast } from "../components/Toast.jsx";
 
 const REMEMBER_KEY = "hisab_remember_login";
 
+// "Remember me" stores the USERNAME only. The PIN is never written to
+// localStorage/sessionStorage: anything persisted there is readable by any
+// script on the page and survives on a shared machine.
 function loadRemembered() {
+  const fallback = { username: "", remember: true };
   try {
     const raw = localStorage.getItem(REMEMBER_KEY);
-    if (!raw) return { username: "", pin: "", remember: true };
-    const parsed = JSON.parse(raw);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw) || {};
+    // Drop any PIN written by an older build of the app. Deleting the key from
+    // the parsed object is not enough - that object is a throwaway copy, so the
+    // PIN would stay on disk until the next successful login. Write the
+    // sanitised record back out, and remove the key outright if it held a PIN,
+    // since a remembered PIN alone has no use.
+    if (parsed.pin !== undefined) {
+      if (parsed.username) {
+        localStorage.setItem(REMEMBER_KEY, JSON.stringify({ username: parsed.username, remember: parsed.remember !== false }));
+      } else {
+        localStorage.removeItem(REMEMBER_KEY);
+      }
+    }
     return {
-      username: parsed.username || "",
-      pin: parsed.pin || "",
+      username: typeof parsed.username === "string" ? parsed.username : "",
       remember: parsed.remember !== false,
     };
   } catch {
-    return { username: "", pin: "", remember: true };
+    return fallback;
   }
 }
 
 export default function LoginScreen({ onLogin }) {
   const remembered = loadRemembered();
   const [username, setUsername] = useState(remembered.username);
-  const [pin, setPin] = useState(remembered.pin);
+  const [pin, setPin] = useState("");
   const [remember, setRemember] = useState(remembered.remember);
   const [showPin, setShowPin] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -35,7 +50,7 @@ export default function LoginScreen({ onLogin }) {
     api.login(username, pin).then((res) => {
       if (res.status === 'SUCCESS') {
         if (remember) {
-          localStorage.setItem(REMEMBER_KEY, JSON.stringify({ username, pin, remember: true }));
+          localStorage.setItem(REMEMBER_KEY, JSON.stringify({ username, remember: true }));
         } else {
           localStorage.removeItem(REMEMBER_KEY);
         }
@@ -101,7 +116,7 @@ export default function LoginScreen({ onLogin }) {
             />
             <span>
               <i className="fa-solid fa-bookmark me-1 text-emerald-600 text-[10px]"></i>
-              মনে রাখুন (Remember Username &amp; Password)
+              মনে রাখুন (Remember Username)
             </span>
           </label>
 

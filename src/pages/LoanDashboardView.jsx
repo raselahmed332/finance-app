@@ -216,10 +216,16 @@ export default function LoanDashboardView({ currentUser, loans, onLoansChange, c
   const [filters, setFilters] = useState(null);
   const [showFilter, setShowFilter] = useState(false);
   const [loading, setLoading] = useState(true);
+  // A failed load must never be rendered as "no loans". getLoans answers a
+  // permission/session failure with status:"ERROR", and swallowing that here
+  // reported outstanding commitments as zero on every summary card.
+  const [loadError, setLoadError] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     let active = true;
     setLoading(true);
+    setLoadError(null);
     Promise.all([
       api.getLoans(currentUser.username, "given", {}),
       api.getLoans(currentUser.username, "taken", {}),
@@ -229,14 +235,21 @@ export default function LoanDashboardView({ currentUser, loans, onLoansChange, c
       const takenOk = takenRes && (takenRes.status === "SUCCESS" || Array.isArray(takenRes.loans));
       if (givenOk && takenOk) {
         onLoansChange([...(givenRes.loans || []), ...(takenRes.loans || [])]);
-        setLoading(false);
       } else {
-        setLoading(false);
+        const msg = (givenRes && givenRes.status === "ERROR" && givenRes.message)
+          || (takenRes && takenRes.status === "ERROR" && takenRes.message)
+          || "";
+        setLoadError(msg || "হাওলাত লোড করা যায়নি।");
       }
-    }).catch(() => { if (active) setLoading(false); });
+      setLoading(false);
+    }).catch((err) => {
+      if (!active) return;
+      setLoadError(String((err && err.message) || err || "হাওলাত লোড করা যায়নি।"));
+      setLoading(false);
+    });
     return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser.username]);
+  }, [currentUser.username, refreshKey]);
 
   const allLoans = useMemo(() => Array.isArray(loans) ? loans : [], [loans]);
 
@@ -283,8 +296,8 @@ export default function LoanDashboardView({ currentUser, loans, onLoansChange, c
       if (!dateInRange(l.loanDate, filters.dateOption ? { option: filters.dateOption, from: filters.from, to: filters.to } : null)) return false;
       if (filters.currency !== "all" && l.currency !== filters.currency) return false;
       const remaining = remainingOf(l);
-      if (filters.remaining === "due" && remaining <= 0.005) return false;
-      if (filters.remaining === "done" && remaining > 0.005) return false;
+      if (filters.remaining === "due" && remaining <= 0) return false;
+      if (filters.remaining === "done" && remaining > 0) return false;
       return true;
     });
   }, [list, search, filters]);
@@ -355,7 +368,19 @@ export default function LoanDashboardView({ currentUser, loans, onLoansChange, c
         </div>
       )}
 
-      {!loading && !hasAnyLoan && (
+      {!loading && loadError && (
+        <div className="text-center py-8 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 px-4">
+          <i className="fa-solid fa-triangle-exclamation text-amber-500 text-lg mb-2"></i>
+          <div className="text-xs text-rose-600 dark:text-rose-400">{loadError}</div>
+          <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">দেখানো তথ্য পুরোনো হতে পারে — অনুগ্রহ করে আবার চেষ্টা করুন।</div>
+          <button onClick={() => setRefreshKey((k) => k + 1)}
+            className="mt-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-xl text-xs">
+            আবার চেষ্টা করুন
+          </button>
+        </div>
+      )}
+
+      {!loading && !loadError && !hasAnyLoan && (
         <div className="text-center py-12 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800">
           <div className="text-5xl mb-3">📒</div>
           <div className="text-sm font-semibold text-gray-500 dark:text-gray-400">এখনো কোনো হাওলাতের হিসাব নেই</div>
@@ -389,7 +414,7 @@ export default function LoanDashboardView({ currentUser, loans, onLoansChange, c
         </div>
       )}
 
-      {!loading && !hasAnyLoan && !can('MANAGE_LOANS') && (
+      {!loading && !loadError && !hasAnyLoan && !can('MANAGE_LOANS') && (
         <div className="text-center py-6 text-xs text-gray-400 dark:text-gray-500">
           নতুন হাওলাত যোগ করতে প্রশাসকের সাথে যোগাযোগ করুন।
         </div>

@@ -7,9 +7,10 @@ import {
   lazy,
   Suspense,
 } from "react";
-import { api, session } from "./api.js";
+import { api, session, onAuthFailure, AUTH_FAILURE_CODES } from "./api.js";
 import { useToast } from "./components/Toast.jsx";
 import { useConfirm } from "./components/ConfirmDialog.jsx";
+import { loadCurrencies } from "./utils/currency.js";
 
 const LoginScreen = lazy(() => import("./pages/LoginScreen.jsx"));
 const DashboardView = lazy(() => import("./pages/DashboardView.jsx"));
@@ -49,18 +50,13 @@ function PageFallback() {
 }
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState(() => {
-    const saved = localStorage.getItem("hisab_user");
-    if (!saved) return null;
-    try {
-      return JSON.parse(saved);
-    } catch {
-      // Corrupted/truncated stored session — don't white-screen the app.
-      localStorage.removeItem("hisab_user");
-      session.clear();
-      return null;
-    }
-  });
+  // Startup never trusts localStorage. The session token is the only
+  // credential: it is re-validated against the backend (validateSession) before
+  // any user is shown, and the signed-in user comes from that response. The old
+  // "hisab_user" cache is not read (or written) any more - nothing in this app
+  // may use a locally stored object as proof of identity.
+  const [currentUser, setCurrentUser] = useState(null);
+  const [checkingAuth, setCheckingAuth] = useState(() => session.exists());
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem("hisab_dark");
     if (saved !== null) return saved === "true";
@@ -130,7 +126,78 @@ export default function App() {
 
   const showAlert = useCallback((msg, type = "success") => toast(msg, type), [toast]);
 
+  // Clear every user-scoped list and search/filter state so a freshly
+  // logged-in user never sees the previous user's data or a stale filter
+  // that silently hides rows.
+  const resetUiState = useCallback(() => {
+    setTransactions([]);
+    setUsersList([]);
+    setWallets([]);
+    setCategories([]);
+    setLoans([]);
+    setSearchTerm("");
+    setFilterType("All");
+    setFilterWallet("All");
+    setFilterDate("");
+    setFilterDescription("");
+    setFilterUser("All");
+    setFilterAccount("All");
+    setActiveTab("home");
+  }, []);
+
+  // Hard logout: drops the token and every user-scoped list. Used both for an
+  // explicit sign-out and whenever the backend reports the session is no longer
+  // valid.
+  const forceLogout = useCallback(() => {
+    sessionEpoch.current += 1;
+    resetUiState();
+    setCurrentUser(null);
+    session.clear();
+  }, [resetUiState]);
+
+  // Startup handshake. The stored token is the only credential; the signed-in
+  // user is whatever the backend says it belongs to.
+  useEffect(() => {
+    // Scrub the identity cache written by older builds. It is no longer read,
+    // but a leftover copy of the signed-in user object is data we should not
+    // leave sitting in storage.
+    localStorage.removeItem("hisab_user");
+    if (!session.exists()) {
+      setCheckingAuth(false);
+      return;
+    }
+    let cancelled = false;
+    api
+      .validateSession()
+      .then((res) => {
+        if (cancelled) return;
+        if (res.status === "SUCCESS" && res.user) {
+          setCurrentUser(res.user);
+          // Fetch the currency registry once the user is proven. Non-blocking and
+          // failure-tolerant: the registry keeps its bundled fallback list, so a
+          // slow or failed call never delays or breaks the bootstrap.
+          loadCurrencies(res.user.username);
+        } else session.clear();
+      })
+      .catch(() => {
+        // Any failure (dead session, network, malformed response) means we
+        // cannot prove this browser is authenticated, so start at the login
+        // screen rather than showing anything cached.
+        if (cancelled) return;
+        session.clear();
+      })
+      .finally(() => {
+        if (!cancelled) setCheckingAuth(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Any request that comes back SESSION_EXPIRED / INVALID_SESSION / AUTH_REQUIRED
+  // signs the user out immediately, from anywhere in the app.
+  useEffect(() => onAuthFailure(() => forceLogout()), [forceLogout]);
+
   const loadData = useCallback(() => {
+    if (!currentUser) return;
     setLoading(true);
     const epoch = sessionEpoch.current;
     api
@@ -139,11 +206,7 @@ export default function App() {
         if (sessionEpoch.current !== epoch) return;
         if (res.status === "ERROR") {
           showAlert(res.message, "error");
-          if (/session|login/i.test(res.message || "")) {
-            setCurrentUser(null);
-            session.clear();
-            localStorage.removeItem("hisab_user");
-          }
+          if (AUTH_FAILURE_CODES.includes(res.code)) forceLogout();
           setLoading(false);
           return;
         }
@@ -161,20 +224,22 @@ export default function App() {
         // logged in while this getInitialData was in flight, do NOT resurrect
         // that session here.
         if (sessionEpoch.current !== epoch) return;
-        // Keep permissions in sync in case Admin changed them elsewhere.
-        if (res.permissions) {
-          const updated = { ...currentUser, permissions: res.permissions };
-          setCurrentUser(updated);
-          localStorage.setItem("hisab_user", JSON.stringify(updated));
-        }
+        // Re-derive the user from the authoritative payload the backend
+        // returned - an Admin may have changed its permissions or name.
+        const authoritative = res.user || currentUser;
+        const updated = { ...authoritative, permissions: res.permissions || authoritative.permissions };
+        setCurrentUser(updated);
         setLoading(false);
       })
       .catch((err) => {
         if (sessionEpoch.current !== epoch) return;
+        // api.js already cleared the token for a dead session; the listener
+        // above performs the actual sign-out.
+        if (err && AUTH_FAILURE_CODES.includes(err.code)) return;
         showAlert("ডেটা লোড করতে ব্যর্থ হয়েছে: " + err, "error");
         setLoading(false);
       });
-  }, [currentUser?.username, showAlert]);
+  }, [currentUser, showAlert, forceLogout]);
 
   // Load data on mount or when user changes
   useEffect(() => {
@@ -183,33 +248,11 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.username]);
 
-  // Clear every user-scoped list and search/filter state so a freshly
-  // logged-in user never sees the previous user's data or a stale filter
-  // that silently hides rows.
-  const resetUiState = () => {
-    setTransactions([]);
-    setUsersList([]);
-    setWallets([]);
-    setCategories([]);
-    setLoans([]);
-    setSearchTerm("");
-    setFilterType("All");
-    setFilterWallet("All");
-    setFilterDate("");
-    setFilterDescription("");
-    setFilterUser("All");
-    setFilterAccount("All");
-    setActiveTab("home");
-  };
-
   const handleLogout = useCallback(() => {
-    sessionEpoch.current += 1;
-    resetUiState();
+    // Fire-and-forget: the local session is dropped regardless of the response.
     api.logout().catch(() => {});
-    setCurrentUser(null);
-    session.clear();
-    localStorage.removeItem("hisab_user");
-  }, []);
+    forceLogout();
+  }, [forceLogout]);
 
   // Per-wallet summary, computed from already-authorized transactions.
   // Single pass over all transactions rather than re-filtering the whole
@@ -439,6 +482,71 @@ export default function App() {
       });
   };
 
+  // Cancelling a loan is a SOFT delete: the row stays with status CANCELLED and
+  // every wallet effect row it created is reversed. loadData() re-pulls
+  // transactions/wallets so no balance card still shows the removed money.
+  const handleCancelLoan = (loanId) => {
+    setLoading(true);
+    return api
+      .deleteLoan(loanId, currentUser.username)
+      .then((res) => {
+        showAlert(res.message, res.status === "ERROR" ? "error" : "success");
+        if (res.status === "SUCCESS") {
+          if (res.loan) setLoans((prev) => upsertLoans(prev, [res.loan]));
+          loadData();
+        }
+        setLoading(false);
+        return res;
+      })
+      .catch((err) => {
+        showAlert("ত্রুটি: " + err, "error");
+        setLoading(false);
+        throw err;
+      });
+  };
+
+  const handleEditLoanRepayment = (formData) => {
+    setLoading(true);
+    return api
+      .updateLoanRepayment({ ...formData, user: currentUser.username }, currentUser.username)
+      .then((res) => {
+        showAlert(res.message, res.status === "ERROR" ? "error" : "success");
+        if (res.status === "SUCCESS") {
+          if (res.loan) setLoans((prev) => upsertLoans(prev, [res.loan]));
+          if (res.transactions?.length) setTransactions((prev) => upsertTxns(prev, res.transactions));
+          else if (res.loan) loadData();
+        }
+        setLoading(false);
+        return res;
+      })
+      .catch((err) => {
+        showAlert("ত্রুটি: " + err, "error");
+        setLoading(false);
+        throw err;
+      });
+  };
+
+  const handleDeleteLoanRepayment = (paymentId) => {
+    setLoading(true);
+    return api
+      .deleteLoanRepayment(paymentId, currentUser.username)
+      .then((res) => {
+        showAlert(res.message, res.status === "ERROR" ? "error" : "success");
+        if (res.status === "SUCCESS") {
+          if (res.loan) setLoans((prev) => upsertLoans(prev, [res.loan]));
+          if (res.transactions?.length) setTransactions((prev) => upsertTxns(prev, res.transactions));
+          else if (res.loan) loadData();
+        }
+        setLoading(false);
+        return res;
+      })
+      .catch((err) => {
+        showAlert("ত্রুটি: " + err, "error");
+        setLoading(false);
+        throw err;
+      });
+  };
+
   const handleAddLoanAddition = (loanId, formData) => {
     setLoading(true);
     return api
@@ -535,6 +643,14 @@ export default function App() {
       .then((res) => {
         showAlert(res.message, res.status === "ERROR" ? "error" : "success");
         if (res.status === "SUCCESS") {
+          // Changing your own PIN invalidates every session for the account on
+          // the server, including this one. Sign out locally right away instead
+          // of waiting for the next request to fail.
+          if (res.sessionInvalidated) {
+            api.logout().catch(() => {});
+            forceLogout();
+            return;
+          }
           const { currentPin, pin, ...safeData } = data;
           const updatedUser = {
             ...currentUser,
@@ -542,11 +658,13 @@ export default function App() {
             username: res.username || currentUser.username,
           };
           setCurrentUser(updatedUser);
-          localStorage.setItem("hisab_user", JSON.stringify(updatedUser));
         }
         setLoading(false);
       })
       .catch((err) => {
+        // The token was already cleared by api.js for a dead session; the
+        // auth-failure listener performs the sign-out.
+        if (err && AUTH_FAILURE_CODES.includes(err.code)) return;
         showAlert("ত্রুটি: " + err, "error");
         setLoading(false);
       });
@@ -576,6 +694,14 @@ export default function App() {
     setTimeout(() => setPullRefreshing(false), 1000);
   }, []);
 
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
   if (!currentUser) {
     return (
       <LoginScreen
@@ -583,8 +709,10 @@ export default function App() {
           sessionEpoch.current += 1;
           resetUiState();
           session.save(token);
-          localStorage.setItem("hisab_user", JSON.stringify(user));
           setCurrentUser(user);
+          // Currency registry for dropdowns and money formatting. Fire-and-forget
+          // for the same reason as the session-restore path above.
+          loadCurrencies(user.username);
         }}
       />
     );
@@ -828,6 +956,9 @@ export default function App() {
                   onAddAddition={handleAddLoanAddition}
                   onEditAddition={handleEditLoanAddition}
                   onDeleteAddition={handleDeleteLoanAddition}
+                  onEditRepayment={handleEditLoanRepayment}
+                  onDeleteRepayment={handleDeleteLoanRepayment}
+                  onCancelLoan={handleCancelLoan}
                 />
               );
             })()}

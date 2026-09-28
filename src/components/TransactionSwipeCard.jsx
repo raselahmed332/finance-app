@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import Popup from "./Popup.jsx";
+import { DetailCell } from "./FormField.jsx";
 
 const TYPE_BADGES = {
   Income: { bg: "bg-emerald-100 dark:bg-emerald-900/40", text: "text-emerald-700 dark:text-emerald-400", icon: "fa-arrow-down", label: "Income" },
@@ -201,13 +202,4 @@ export default function TransactionSwipeCard({ t, userMap, canEdit, canDelete, o
 
 function formatAmount(a) {
   return (Number.isFinite(parseFloat(a)) ? parseFloat(a) : 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function DetailCell({ label, value, full }) {
-  return (
-    <div className={full ? "col-span-2" : ""}>
-      <div className="text-[9px] uppercase tracking-wide text-gray-400 dark:text-gray-500">{label}</div>
-      <div className="text-[11px] font-semibold text-slate-700 dark:text-gray-200 mt-0.5 break-words">{value}</div>
-    </div>
-  );
 }
