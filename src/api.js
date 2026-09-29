@@ -172,6 +172,7 @@ export const api = {
   // Categories
   getCategories: (username) => callApi("getCategories", [username]),
   addCategory: (name, type, adminUsername) => callApi("addCategory", [name, type, adminUsername]),
+  updateCategory: (categoryId, data, adminUsername) => callApi("updateCategory", [categoryId, data, adminUsername]),
   deleteCategory: (categoryId, adminUsername) => callApi("deleteCategory", [categoryId, adminUsername]),
 
   // Audit log

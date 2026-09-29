@@ -1,4 +1,5 @@
 import { memo, useState } from "react";
+import { useBalanceReveal, BalanceRevealToggle, MASK } from "../utils/balanceReveal.jsx";
 
 const CURRENCY_FLAGS = {
   SAR: "🇸🇦", BDT: "🇧🇩", USD: "🇺🇸", EUR: "🇪🇺",
@@ -22,6 +23,13 @@ export default memo(function WalletCard({ wallet, summary, index, onOpen }) {
   const hasOpening = oc > 0 || ob > 0;
   const [expanded, setExpanded] = useState(false);
 
+  // The balance figures are masked until the user reveals them, and re-mask
+  // themselves BALANCE_REVEAL_SECONDS later. Income/expense totals stay
+  // visible - they are flow figures, not the current standing balance.
+  const balance = useBalanceReveal(summary);
+  const revealed = balance.revealed;
+  const amount = (v) => (revealed ? v.toLocaleString("en-US", { minimumFractionDigits: 2 }) : MASK);
+
   return (
     <div
       onClick={onOpen}
@@ -32,15 +40,23 @@ export default memo(function WalletCard({ wallet, summary, index, onOpen }) {
     >
       <div className={`flex items-center gap-2 mb-2 ${p.text} font-bold text-sm`}>
         <span className="text-lg">{flag}</span>
-        <span>{wallet.WalletName} ({wallet.Currency})</span>
+        <span className="truncate">{wallet.WalletName} ({wallet.Currency})</span>
       </div>
 
-      <div className={`${p.head} text-white rounded-xl p-3.5 flex justify-between items-center shadow-md mb-3`}>
-        <div>
-          <div className={`text-xs ${p.pillText} font-medium`}>মোট ব্যালেন্স</div>
-          <div className="text-2xl font-bold tracking-wide">{wallet.Currency} {summary.totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+      <div className={`${p.head} text-white rounded-xl p-3.5 flex justify-between items-start gap-2 shadow-md mb-3`}>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className={`text-xs ${p.pillText} font-medium`}>মোট ব্যালেন্স</span>
+            <BalanceRevealToggle
+              revealed={balance.revealed}
+              secondsLeft={balance.secondsLeft}
+              onToggle={balance.toggle}
+              tone="onDark"
+            />
+          </div>
+          <div className="text-2xl font-bold tracking-wide tabular-nums break-all">{wallet.Currency} {amount(summary.totalBalance)}</div>
         </div>
-        <div className={`${p.headBadge} p-2.5 rounded-lg text-white text-xl`}>
+        <div className={`${p.headBadge} p-2.5 rounded-lg text-white text-xl shrink-0`}>
           <i className="fa-solid fa-wallet"></i>
         </div>
       </div>
@@ -50,13 +66,13 @@ export default memo(function WalletCard({ wallet, summary, index, onOpen }) {
           <div className="text-[10px] text-gray-500 dark:text-gray-400 flex items-center justify-center gap-1 font-semibold">
             <i className={`fa-solid fa-money-bill-wave ${p.cashIcon}`}></i> Cash
           </div>
-          <div className="text-xs font-bold text-slate-800 dark:text-gray-100 mt-1">{wallet.Currency} {summary.cash.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+          <div className="text-xs font-bold text-slate-800 dark:text-gray-100 mt-1 tabular-nums">{wallet.Currency} {amount(summary.cash)}</div>
         </div>
         <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl p-2 text-center shadow-2xs">
           <div className="text-[10px] text-gray-500 dark:text-gray-400 flex items-center justify-center gap-1 font-semibold">
             <i className={`fa-solid fa-building-columns ${p.bankIcon}`}></i> Bank
           </div>
-          <div className="text-xs font-bold text-slate-800 dark:text-gray-100 mt-1">{wallet.Currency} {summary.bank.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+          <div className="text-xs font-bold text-slate-800 dark:text-gray-100 mt-1 tabular-nums">{wallet.Currency} {amount(summary.bank)}</div>
         </div>
       </div>
 
@@ -69,22 +85,24 @@ export default memo(function WalletCard({ wallet, summary, index, onOpen }) {
 
       {hasOpening && expanded && (
         <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl p-2.5 mb-3 text-center text-[11px] text-gray-500 dark:text-gray-400 space-y-1">
-          <div>Cash: {wallet.Currency} {oc.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
-          <div>Bank: {wallet.Currency} {ob.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+          <div>Cash: {wallet.Currency} {amount(oc)}</div>
+          <div>Bank: {wallet.Currency} {amount(ob)}</div>
         </div>
       )}
 
+      {/* Income/expense are the current calendar month; the balance figures
+          above stay lifetime because that is the wallet's real standing. */}
       <div className="grid grid-cols-2 gap-2">
         <div className="bg-white dark:bg-gray-900 border border-emerald-100 dark:border-emerald-800 rounded-xl p-2 px-3">
-          <div className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">মোট আয়</div>
-          <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
-            <i className="fa-solid fa-arrow-up text-xs me-1"></i>{wallet.Currency} {summary.income.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+          <div className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">এ মাসের আয়</div>
+          <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 tabular-nums">
+            <i className="fa-solid fa-arrow-up text-xs me-1"></i>{wallet.Currency} {summary.income.toLocaleString("en-US", { minimumFractionDigits: 2 })}
           </div>
         </div>
         <div className="bg-white dark:bg-gray-900 border border-red-100 dark:border-red-800 rounded-xl p-2 px-3">
-          <div className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">মোট খরচ</div>
-          <div className="text-sm font-bold text-rose-600 dark:text-rose-400 mt-0.5">
-            <i className="fa-solid fa-arrow-down text-xs me-1"></i>{wallet.Currency} {summary.expense.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+          <div className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">এ মাসের খরচ</div>
+          <div className="text-sm font-bold text-rose-600 dark:text-rose-400 mt-0.5 tabular-nums">
+            <i className="fa-solid fa-arrow-down text-xs me-1"></i>{wallet.Currency} {summary.expense.toLocaleString("en-US", { minimumFractionDigits: 2 })}
           </div>
         </div>
       </div>

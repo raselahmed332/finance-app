@@ -11,6 +11,7 @@ import { api, session, onAuthFailure, AUTH_FAILURE_CODES } from "./api.js";
 import { useToast } from "./components/Toast.jsx";
 import { useConfirm } from "./components/ConfirmDialog.jsx";
 import { loadCurrencies } from "./utils/currency.js";
+import { todayStr } from "./utils/loan.js";
 
 const LoginScreen = lazy(() => import("./pages/LoginScreen.jsx"));
 const DashboardView = lazy(() => import("./pages/DashboardView.jsx"));
@@ -88,8 +89,6 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("All");
   const [filterWallet, setFilterWallet] = useState("All");
-  const [filterDate, setFilterDate] = useState("");
-  const [filterDescription, setFilterDescription] = useState("");
   const [filterUser, setFilterUser] = useState("All");
   const [filterAccount, setFilterAccount] = useState("All");
 
@@ -138,8 +137,6 @@ export default function App() {
     setSearchTerm("");
     setFilterType("All");
     setFilterWallet("All");
-    setFilterDate("");
-    setFilterDescription("");
     setFilterUser("All");
     setFilterAccount("All");
     setActiveTab("home");
@@ -257,6 +254,14 @@ export default function App() {
   // Per-wallet summary, computed from already-authorized transactions.
   // Single pass over all transactions rather than re-filtering the whole
   // array once per wallet — matters once there are more than a couple wallets.
+  //
+  // The cash/bank/totalBalance figures are LIFETIME: they are the wallet's
+  // current standing balance and must include every historical movement.
+  // income/expense are the current CALENDAR MONTH only — a lifetime "total
+  // income" grows without bound and stops being useful as a spending signal.
+  // Transaction Date is "YYYY-MM-DD" (see backend/Reports.gs), so the month
+  // test is a plain string prefix, same shape the server uses for its ranges.
+  const currentMonth = todayStr().slice(0, 7);
   const walletSummaries = useMemo(() => {
     const summaries = Object.fromEntries(
       wallets.map((w) => [
@@ -275,13 +280,16 @@ export default function App() {
       const summary = summaries[t.WalletID];
       if (!summary) return;
       const amt = parseFloat(t.Amount) || 0;
+      // A row with no parseable date is not "this month", so it contributes to
+      // the balance but never to the monthly income/expense figures.
+      const inCurrentMonth = typeof t.Date === "string" && t.Date.slice(0, 7) === currentMonth;
       if (
         t.Type === "Income" ||
         t.Type === "Transfer In" ||
         t.Type === "Loan In" ||
         t.Type === "Loan Repaid"
       ) {
-        if (t.Type === "Income") summary.income += amt;
+        if (t.Type === "Income" && inCurrentMonth) summary.income += amt;
         if (t.Account === "Cash") summary.cash += amt;
         if (t.Account === "Bank") summary.bank += amt;
       } else if (
@@ -290,7 +298,7 @@ export default function App() {
         t.Type === "Loan Out" ||
         t.Type === "Loan Payment"
       ) {
-        if (t.Type === "Expense") summary.expense += amt;
+        if (t.Type === "Expense" && inCurrentMonth) summary.expense += amt;
         if (t.Account === "Cash") summary.cash -= amt;
         if (t.Account === "Bank") summary.bank -= amt;
       }
@@ -299,7 +307,10 @@ export default function App() {
       summary.totalBalance = summary.cash + summary.bank;
     });
     return summaries;
-  }, [wallets, transactions]);
+    // currentMonth is in the deps so an app left open across a month boundary
+    // recomputes the monthly figures on the next render instead of showing
+    // last month's numbers.
+  }, [wallets, transactions, currentMonth]);
 
   // Merge one or two returned transaction rows into local state directly —
   // replacing a matching ID if it already exists, appending if it's new —
@@ -366,7 +377,7 @@ export default function App() {
             res.transactions || (res.transaction ? [res.transaction] : []);
           if (updated.length)
             setTransactions((prev) => upsertTxns(prev, updated));
-          // A user who came from the profile swipe-edit may not have
+          // A user who came from the profile edit form may not have
           // VIEW_TRANSACTIONS; don't dump them on a gated-off blank tab.
           setActiveTab(can("VIEW_TRANSACTIONS") ? "transactions" : "home");
         }
@@ -836,10 +847,6 @@ export default function App() {
               setFilterType={setFilterType}
               filterWallet={filterWallet}
               setFilterWallet={setFilterWallet}
-              filterDate={filterDate}
-              setFilterDate={setFilterDate}
-              filterDescription={filterDescription}
-              setFilterDescription={setFilterDescription}
               filterUser={filterUser}
               setFilterUser={setFilterUser}
               filterAccount={filterAccount}
@@ -1043,6 +1050,7 @@ export default function App() {
               can={can}
               showAlert={showAlert}
               walletSummaries={walletSummaries}
+              users={usersList}
             />
           )}
 

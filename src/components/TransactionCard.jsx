@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import Popup from "./Popup.jsx";
 import { DetailCell } from "./FormField.jsx";
 
@@ -44,107 +44,51 @@ function getBadge(t) {
 
 const LOAN_TXN_TYPES = ["Loan Out", "Loan In", "Loan Payment", "Loan Repaid"];
 
-export default function TransactionSwipeCard({ t, userMap, canEdit, canDelete, onEdit, onDelete }) {
+// Loan-linked rows are never free-form editable, and they are not deletable on
+// their own — they are the other side of a loan record.
+const EDITABLE_TYPES = ["Income", "Expense", "Transfer Out", "Transfer In"];
+
+export default function TransactionCard({ t, userMap, canEdit, canDelete, onEdit, onDelete }) {
   const badge = getBadge(t);
   const isIncome = t.Type === "Income" || t.Type === "Transfer In" || t.Type === "Loan In" || t.Type === "Loan Repaid" || t.Type === "Bank Deposit";
   const isExpense = t.Type === "Expense" || t.Type === "Transfer Out" || t.Type === "Loan Out" || t.Type === "Loan Payment" || t.Type === "Bank Withdraw";
-  const ref = useRef(null);
-  const startX = useRef(0);
-  const currentX = useRef(0);
-  const swiped = useRef(false);
-  const [offset, setOffset] = useState(0);
-  const [swiping, setSwiping] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
 
-  const handleTouchStart = (e) => {
-    startX.current = e.touches[0].clientX;
-    currentX.current = 0;
-    swiped.current = false;
-    setSwiping(true);
-  };
-
-  const handleTouchMove = (e) => {
-    if (!swiping) return;
-    const diff = e.touches[0].clientX - startX.current;
-    currentX.current = diff;
-    if (Math.abs(diff) > 10) swiped.current = true;
-    setOffset(diff);
-  };
-
-  const handleTouchEnd = () => {
-    setSwiping(false);
-    const deletable = !LOAN_TXN_TYPES.includes(t.Type);
-    if (currentX.current < -80 && canDelete && deletable) {
-      onDelete(t.ID, t.WalletID);
-    } else if (currentX.current > 80 && canEdit && (t.Type === "Income" || t.Type === "Expense" || t.Type === "Transfer Out" || t.Type === "Transfer In")) {
-      onEdit(t);
-    }
-    setOffset(0);
-  };
-
-  const handleCardClick = () => {
-    // Ignore the tap that happens right after a swipe gesture.
-    if (swiped.current) { swiped.current = false; return; }
-    setDetailsOpen(true);
-  };
-
-  const canEditThis = canEdit && (t.Type === "Income" || t.Type === "Expense" || t.Type === "Transfer Out" || t.Type === "Transfer In");
+  const canEditThis = canEdit && EDITABLE_TYPES.includes(t.Type);
   const canDeleteThis = canDelete && !LOAN_TXN_TYPES.includes(t.Type);
 
   return (
-    <div className="relative overflow-hidden rounded-xl">
-      {/* Background actions revealed on swipe */}
-      <div className="absolute inset-0 flex">
-        <div className="w-1/2 bg-blue-500 flex items-center justify-end pr-4 text-white text-xs font-semibold">
-          <i className="fa-solid fa-pen me-1"></i> Edit
-        </div>
-        {canDelete && !LOAN_TXN_TYPES.includes(t.Type) ? (
-          <div className="w-1/2 bg-red-500 flex items-center justify-start pl-4 text-white text-xs font-semibold">
-            Delete <i className="fa-solid fa-trash-can ms-1"></i>
-          </div>
-        ) : (
-          <div className="w-1/2"></div>
-        )}
-      </div>
-
-      {/* Card */}
-      <div
-        ref={ref}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onClick={handleCardClick}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleCardClick(); } }}
-        style={{ transform: `translateX(${offset}px)`, transition: swiping ? "none" : "transform 0.2s ease", cursor: "pointer" }}
-        className="relative bg-white dark:bg-gray-900 rounded-xl p-3 border border-gray-200 dark:border-gray-800 flex items-center justify-between shadow-2xs"
+    <div className="bg-white dark:bg-gray-900 rounded-xl p-3 border border-gray-200 dark:border-gray-800 flex items-center justify-between gap-2 shadow-2xs">
+      <button
+        type="button"
+        onClick={() => setDetailsOpen(true)}
+        className="flex items-center gap-3 min-w-0 text-left"
       >
-        <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm ${badge.bg} ${badge.text}`}>
-            <i className={`fa-solid ${badge.icon}`}></i>
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm shrink-0 ${badge.bg} ${badge.text}`}>
+          <i className={`fa-solid ${badge.icon}`}></i>
+        </div>
+        <div className="min-w-0">
+          <div className="font-bold text-xs text-slate-800 dark:text-gray-100 flex items-center gap-1.5">
+            <span className="truncate">{t.SourceCategory || t.Description || "Transaction"}</span>
+            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${badge.bg} ${badge.text}`}>
+              {badge.label}
+            </span>
           </div>
-          <div>
-            <div className="font-bold text-xs text-slate-800 dark:text-gray-100 flex items-center gap-1.5">
-              {t.SourceCategory || t.Description || "Transaction"}
-              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${badge.bg} ${badge.text}`}>
-                {badge.label}
-              </span>
-            </div>
-            <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
-              {t.Type === "Transfer In" || t.Type === "Transfer Out"
-                ? (t.Type === "Transfer Out"
-                    ? `${t.WalletName} → ${t.WhereVendor}`
-                    : `${t.WhereVendor} → ${t.WalletName}`)
-                : (t.WalletName ? t.WalletName + " • " : "") + (t.Account || "")}
-            </div>
-            <div className="text-[10px] text-slate-400 dark:text-gray-500 mt-0.5">
-              {userMap ? <><i className="fa-solid fa-user me-1"></i>{userMap[t.User] || t.User || "Unknown"} • </> : null}
-              {t.Date}
-            </div>
+          <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 truncate">
+            {t.Type === "Transfer In" || t.Type === "Transfer Out"
+              ? (t.Type === "Transfer Out"
+                  ? `${t.WalletName} → ${t.WhereVendor}`
+                  : `${t.WhereVendor} → ${t.WalletName}`)
+              : (t.WalletName ? t.WalletName + " • " : "") + (t.Account || "")}
+          </div>
+          <div className="text-[10px] text-slate-400 dark:text-gray-500 mt-0.5">
+            {userMap ? <><i className="fa-solid fa-user me-1"></i>{userMap[t.User] || t.User || "Unknown"} • </> : null}
+            {t.Date}
           </div>
         </div>
+      </button>
 
+      <div className="flex items-center gap-1.5 shrink-0">
         <div className="text-right">
           <div className={`font-bold text-xs ${isIncome ? "text-emerald-600 dark:text-emerald-400" : isExpense ? "text-rose-600 dark:text-rose-400" : "text-purple-600 dark:text-purple-400"}`}>
             {isIncome ? "+" : "-"}
@@ -156,7 +100,7 @@ export default function TransactionSwipeCard({ t, userMap, canEdit, canDelete, o
 
       <Popup open={detailsOpen} title="Transaction Details" onClose={() => setDetailsOpen(false)} maxWidth="max-w-lg">
         <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm ${badge.bg} ${badge.text}`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm shrink-0 ${badge.bg} ${badge.text}`}>
             <i className={`fa-solid ${badge.icon}`}></i>
           </div>
           <div className="min-w-0 flex-1">

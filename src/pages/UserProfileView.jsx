@@ -1,10 +1,12 @@
 ﻿import { useState, useRef, useEffect } from "react";
 import { MIN_PIN_LENGTH, MAX_PIN_LENGTH, normalizePinInput } from "../api.js";
 import { todayStr } from "../utils/loan.js";
+import { formatMoney } from "../utils/currency.js";
 import Select from "../components/Select.jsx";
 import Popup from "../components/Popup.jsx";
 import { useToast } from "../components/Toast.jsx";
-import TransactionSwipeCard from "../components/TransactionSwipeCard.jsx";
+import TransactionCard from "../components/TransactionCard.jsx";
+import { compareNewestFirst } from "../utils/sortTransactions.js";
 
 const DEFAULT_WALLET_KEY = "hisab_default_wallet";
 
@@ -49,6 +51,12 @@ export default function UserProfileView({ currentUser, transactions, wallets, da
     return wallets.length === 1 ? String(wallets[0].WalletID) : "";
   });
   const [page, setPage] = useState(1);
+  // Which wallet the "আমার Access" pills are currently showing. There is
+  // deliberately no "all wallets" option — the screen always scopes to exactly
+  // one wallet, defaulting to the user's default so the first thing they see
+  // is the wallet they actually use. Empty string means "not yet resolved",
+  // which only happens before the effect below picks a real wallet.
+  const [walletFilter, setWalletFilter] = useState("");
   const [profilePic, setProfilePic] = useState(currentUser.profilePic || null);
   const [menuOpen, setMenuOpen] = useState(false);
   const fileInputRef = useRef(null);
@@ -64,24 +72,61 @@ export default function UserProfileView({ currentUser, transactions, wallets, da
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const ownTransactions = transactions.filter(t => t.User === currentUser.username).sort((a, b) => new Date(b.Date) - new Date(a.Date));
-  const thisMonth = todayStr().slice(0, 7);
-  const lastMonthDate = new Date(); lastMonthDate.setDate(1); lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
-  const lastMonth = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, "0")}`;
-  const thisMonthCount = ownTransactions.filter(t => (t.Date || '').startsWith(thisMonth)).length;
+  const ownTransactions = transactions.filter(t => t.User === currentUser.username).sort(compareNewestFirst);
 
-  const sumFor = (monthStr, type) => ownTransactions.filter(t => (t.Date || '').startsWith(monthStr) && t.Type === type).reduce((s, t) => s + parseFloat(t.Amount || 0), 0);
-  const incThis = sumFor(thisMonth, 'Income'), incLast = sumFor(lastMonth, 'Income');
-  const expThis = sumFor(thisMonth, 'Expense'), expLast = sumFor(lastMonth, 'Expense');
-  const incChange = incLast ? Math.round(((incThis - incLast) / incLast) * 100) : (incThis > 0 ? 100 : 0);
-  const expChange = expLast ? Math.round(((expThis - expLast) / expLast) * 100) : (expThis > 0 ? 100 : 0);
+  // Resolve the wallet to display: the active filter if it still exists, else
+  // the user's default, else the first accessible wallet. This means revoking a
+  // user's access to the filtered wallet silently falls back to something valid
+  // rather than showing a permanently empty, unclickable screen.
+  const walletList = wallets || [];
+  const resolvedWalletId = (() => {
+    const stillValid = walletList.some(w => String(w.WalletID) === walletFilter);
+    if (walletFilter && stillValid) return walletFilter;
+    const defaultValid = walletList.some(w => String(w.WalletID) === defaultWallet);
+    if (defaultValid) return defaultWallet;
+    return walletList.length ? String(walletList[0].WalletID) : "";
+  })();
+  const selectedWallet = walletList.find(w => String(w.WalletID) === resolvedWalletId) || null;
+
+  // Scopes the entire screen. WalletID is compared as a string on both sides:
+  // the pill carries the stringified id while t.WalletID can arrive from the
+  // sheet as a number for rows written before ids were normalised.
+  const scopedTransactions = resolvedWalletId
+    ? ownTransactions.filter(t => String(t.WalletID) === resolvedWalletId)
+    : [];
+
+  const thisMonth = todayStr().slice(0, 7);
+  const thisMonthCount = scopedTransactions.filter(t => (t.Date || '').startsWith(thisMonth)).length;
+
+  // Lifetime totals for the selected wallet: every Income/Expense row the user
+  // recorded there, with no date window. Transfers and loan rows are excluded,
+  // matching the dashboard card and the reports sheet, so the same three screens
+  // never disagree about what counts as income or expense.
+  const lifetimeOf = (type) =>
+    scopedTransactions
+      .filter(t => t.Type === type)
+      .reduce((s, t) => s + (parseFloat(t.Amount) || 0), 0);
+  const lifetimeIncome = lifetimeOf('Income');
+  const lifetimeExpense = lifetimeOf('Expense');
+  const lifetimeNet = lifetimeIncome - lifetimeExpense;
 
   const fullName = currentUser.fullName || currentUser.username;
   const canEdit = currentUser?.role === 'Admin' || can?.('MANAGE_TRANSACTIONS');
   const canDelete = currentUser?.role === 'Admin' || can?.('MANAGE_TRANSACTIONS');
 
-  const totalPages = Math.max(1, Math.ceil(ownTransactions.length / PER_PAGE));
-  const pageItems = ownTransactions.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  const totalPages = Math.max(1, Math.ceil(scopedTransactions.length / PER_PAGE));
+  const pageItems = scopedTransactions.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
+  // Picking a wallet must return the reader to page 1, otherwise they stay on
+  // (say) page 4 of a now one-page result and see an empty list. The clamp
+  // effect below only fixes out-of-range pages after the fact, which would show
+  // a blank page for a moment; resetting up front avoids the flash.
+  // There is no "off" state — clicking the already-selected wallet is a no-op,
+  // so the screen is never left in a state with nothing selected.
+  const selectWallet = (id) => {
+    setWalletFilter(id);
+    setPage(1);
+  };
 
   // Keep the page inside the valid range after a transaction is deleted.
   useEffect(() => {
@@ -131,6 +176,10 @@ export default function UserProfileView({ currentUser, transactions, wallets, da
     const name = editName.trim();
     if (!name) { toast.error('Full Name খালি রাখা যাবে না!'); return; }
     localStorage.setItem(`${DEFAULT_WALLET_KEY}_${currentUser.username}`, defaultWallet);
+    // The profile is scoped to one wallet, and the default is what the screen
+    // opens on. If the user changes their default here, immediately show that
+    // wallet's data rather than continuing to display the previous selection.
+    if (defaultWallet) selectWallet(String(defaultWallet));
     onSave({ username: currentUser.username, fullName: name });
     setActiveCard(null);
   };
@@ -273,8 +322,8 @@ export default function UserProfileView({ currentUser, transactions, wallets, da
             <i className="fa-solid fa-receipt"></i>
           </div>
           <div>
-            <div className="text-sm font-bold text-slate-800 dark:text-gray-100 leading-tight">{ownTransactions.length}</div>
-            <div className="text-[10px] text-gray-500 dark:text-gray-400">মোট লেনদেন</div>
+            <div className="text-sm font-bold text-slate-800 dark:text-gray-100 leading-tight">{scopedTransactions.length}</div>
+            <div className="text-[10px] text-gray-500 dark:text-gray-400">{selectedWallet ? `${selectedWallet.WalletName} লেনদেন` : 'মোট লেনদেন'}</div>
           </div>
         </div>
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3 flex items-center gap-2.5 shadow-2xs">
@@ -288,47 +337,91 @@ export default function UserProfileView({ currentUser, transactions, wallets, da
         </div>
       </div>
 
-      {/* Month vs last month */}
+      {/* Lifetime income/expense for the selected wallet. */}
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3.5 shadow-2xs">
-        <div className="text-xs font-bold text-slate-700 dark:text-gray-200 mb-2">এই মাস বনাম গত মাস</div>
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <div className="text-xs font-bold text-slate-700 dark:text-gray-200">মোট আয় ও খরচ</div>
+          <div className="text-[10px] text-gray-400 dark:text-gray-500">
+            {selectedWallet ? `${selectedWallet.WalletName} · সর্বমোট` : 'সর্বমোট'}
+          </div>
+        </div>
         <div className="grid grid-cols-2 gap-2">
-          <div className={`rounded-lg p-2.5 text-center ${incChange >= 0 ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-rose-50 dark:bg-rose-900/20'}`}>
-            <div className={`text-sm font-bold ${incChange >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{incChange >= 0 ? '+' : ''}{incChange}%</div>
-            <div className={`text-[10px] mt-0.5 ${incChange >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}><i className={`fa-solid fa-arrow-${incChange >= 0 ? 'up' : 'down'}`}></i> আয় {incChange >= 0 ? 'বেড়েছে' : 'কমেছে'}</div>
+          <div className="rounded-lg p-2.5 bg-emerald-50 dark:bg-emerald-900/20">
+            <div className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium">
+              <i className="fa-solid fa-arrow-up text-[9px] me-1"></i>মোট আয়
+            </div>
+            <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 break-all tabular-nums">
+              {formatMoney(lifetimeIncome, selectedWallet?.Currency)}
+            </div>
           </div>
-          <div className={`rounded-lg p-2.5 text-center ${expChange <= 0 ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-rose-50 dark:bg-rose-900/20'}`}>
-            <div className={`text-sm font-bold ${expChange <= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{expChange >= 0 ? '+' : ''}{expChange}%</div>
-            <div className={`text-[10px] mt-0.5 ${expChange <= 0 ? 'text-emerald-600' : 'text-rose-600'}`}><i className={`fa-solid fa-arrow-${expChange >= 0 ? 'up' : 'down'}`}></i> খরচ {expChange <= 0 ? 'কমেছে' : 'বেড়েছে'}</div>
+          <div className="rounded-lg p-2.5 bg-rose-50 dark:bg-rose-900/20">
+            <div className="text-[10px] text-rose-700 dark:text-rose-400 font-medium">
+              <i className="fa-solid fa-arrow-down text-[9px] me-1"></i>মোট খরচ
+            </div>
+            <div className="text-sm font-bold text-rose-600 dark:text-rose-400 mt-0.5 break-all tabular-nums">
+              {formatMoney(lifetimeExpense, selectedWallet?.Currency)}
+            </div>
           </div>
+        </div>
+        <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+          <span className="text-[10px] text-gray-500 dark:text-gray-400">নিট (আয় − খরচ)</span>
+          <span className={`text-xs font-bold tabular-nums ${lifetimeNet >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+            {formatMoney(lifetimeNet, selectedWallet?.Currency)}
+          </span>
         </div>
       </div>
 
-      {/* Access Summary */}
+      {/* Access Summary — doubles as the wallet filter for everything below. */}
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3.5 shadow-2xs">
-        <div className="text-xs font-bold text-slate-700 dark:text-gray-200 mb-2">আমার Access</div>
-        <div className="flex flex-wrap gap-1.5">
-          {(wallets || []).length === 0 && <span className="text-[11px] text-gray-400 dark:text-gray-500">কোনো Wallet এক্সেস নেই</span>}
-          {(wallets || []).map(w => (
-            <span key={w.WalletID} className={`text-[10px] font-semibold px-2 py-1 rounded-full ${String(w.WalletID) === defaultWallet ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400' : 'bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-gray-300'}`}>
-              {w.WalletName} ({w.Currency}){String(w.WalletID) === defaultWallet ? ' • Default' : ''}
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <div className="text-xs font-bold text-slate-700 dark:text-gray-200">আমার Access</div>
+          {walletList.length > 0 && (
+            <span className="text-[10px] text-gray-400 dark:text-gray-500">
+              {selectedWallet ? `${selectedWallet.WalletName} দেখানো হচ্ছে` : ''}
             </span>
-          ))}
+          )}
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {walletList.length === 0 && <span className="text-[11px] text-gray-400 dark:text-gray-500">কোনো Wallet এক্সেস নেই</span>}
+          {walletList.map(w => {
+            const id = String(w.WalletID);
+            const active = resolvedWalletId === id;
+            const isDefault = id === defaultWallet;
+            // Count only this user's own transactions in that wallet, so the
+            // badge reflects what the list will actually show.
+            const count = ownTransactions.filter(t => String(t.WalletID) === id).length;
+            return (
+              <button
+                key={w.WalletID}
+                type="button"
+                onClick={() => selectWallet(id)}
+                aria-pressed={active}
+                className={`text-[10px] font-semibold px-2 py-1 rounded-full transition-colors ${
+                  active
+                    ? "bg-emerald-600 text-white shadow-sm"
+                    : isDefault
+                    ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/60"
+                    : "bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-gray-700"
+                }`}
+              >
+                {w.WalletName} ({w.Currency}){isDefault ? ' • Default' : ''} · {count}
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {/* Transaction History */}
       <div>
         <div className="text-xs font-bold text-slate-700 dark:text-gray-200 mb-2">লেনদেন ইতিহাস</div>
-        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-3.5 shadow-2xs">
+        <div className="space-y-2">
           {pageItems.length === 0 ? (
-            <div className="text-center py-8 text-gray-400 dark:text-gray-500 text-xs">কোনো লেনদেন নেই।</div>
-          ) : pageItems.map((t, i) => {
-            const canSwipeEdit = canEdit && (t.Type === 'Income' || t.Type === 'Expense' || t.Type === 'Transfer Out' || t.Type === 'Transfer In');
-            const canSwipeDel = canDelete;
-            return (
-              <TransactionSwipeCard key={t.ID} t={t} canEdit={canSwipeEdit} canDelete={canSwipeDel} onEdit={onEditTxn} onDelete={onDeleteTxn} />
-            );
-          })}
+            <div className="text-center py-8 text-gray-400 dark:text-gray-500 text-xs">
+              {selectedWallet ? `${selectedWallet.WalletName}-এ কোনো লেনদেন নেই।` : 'কোনো লেনদেন নেই।'}
+            </div>
+          ) : pageItems.map((t) => (
+            <TransactionCard key={t.ID} t={t} canEdit={canEdit} canDelete={canDelete} onEdit={onEditTxn} onDelete={onDeleteTxn} />
+          ))}
         </div>
 
         {totalPages > 1 && (

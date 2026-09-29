@@ -1,11 +1,11 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { api } from "../api.js";
 import Select from "../components/Select.jsx";
-import SwipeCard from "../components/SwipeCard.jsx";
 import Popup from "../components/Popup.jsx";
 import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { DetailCell } from "../components/FormField.jsx";
 import { getActiveCurrencies } from "../utils/currency.js";
+import { useBalanceReveal, BalanceRevealToggle, MASK } from "../utils/balanceReveal.jsx";
 
 // The currency dropdown now reads the backend Currencies sheet through the
 // registry in utils/currency.js instead of a hardcoded list here, so an Admin
@@ -47,7 +47,7 @@ function fmtMoney(v, cur) {
   return `${cur} ${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-function EditWalletRow({ wallet, walletSummaries, currentUser, can, onRefresh, showAlert }) {
+function EditWalletRow({ wallet, walletSummaries, currentUser, can, onRefresh, showAlert, users }) {
   const [editing, setEditing] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const confirm = useConfirm();
@@ -55,25 +55,13 @@ function EditWalletRow({ wallet, walletSummaries, currentUser, can, onRefresh, s
   const [name, setName] = useState(wallet.WalletName);
   const [status, setStatus] = useState(wallet.Status);
 
-  // Swipe detection — a swipe ends with a click we must not treat as "open details".
-  const startX = useRef(0);
-  const swiped = useRef(false);
-  const handleTouchStart = (e) => {
-    if (!e.touches || !e.touches[0]) return;
-    startX.current = e.touches[0].clientX;
-    swiped.current = false;
-  };
-  const handleTouchMove = (e) => {
-    if (!e.touches || !e.touches[0]) return;
-    if (Math.abs(e.touches[0].clientX - startX.current) > 10) swiped.current = true;
-  };
-  const handleTouchEnd = () => {
-    // keep swiped.current true until the click arrives
-  };
-  const handleRowClick = () => {
-    if (swiped.current) { swiped.current = false; return; }
-    setDetailsOpen(true);
-  };
+  // Masked until revealed, and re-masked BALANCE_REVEAL_SECONDS later. Closing
+  // the popup or switching wallet resets it so nothing stays visible.
+  const balance = useBalanceReveal(detailsOpen ? wallet.WalletID : null);
+  const revealed = balance.revealed;
+  const money = (v) => (revealed ? fmtMoney(v, wallet.Currency) : MASK);
+
+  const handleRowClick = () => setDetailsOpen(true);
 
   const handleSave = () => {
     // Send only the fields that actually changed. The backend treats a
@@ -95,6 +83,34 @@ function EditWalletRow({ wallet, walletSummaries, currentUser, can, onRefresh, s
     }).catch(() => showAlert('নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।', 'error')).finally(() => setSaving(false));
   };
 
+  // Flips Active <-> Inactive straight from the card's status badge. The
+  // backend takes a status-only update (empty name) and authorises it against
+  // MANAGE_WALLET_STATUS, which is a different permission from EDIT_WALLET -
+  // so this path is gated separately below.
+  //
+  // Deactivating is reversible and preserves the wallet and all its history;
+  // it only blocks new transactions. That is why it needs a confirm step
+  // rather than happening on a single tap: an accidental tap here would
+  // silently stop the user recording anything in that wallet.
+  const handleToggleStatus = async (e) => {
+    if (e) e.stopPropagation();
+    if (saving) return;
+    const next = wallet.Status === 'Active' ? 'Inactive' : 'Active';
+    const msg = next === 'Inactive'
+      ? `"${wallet.WalletName}" নিষ্ক্রিয় করবেন?\n\nWallet ও তার সব লেনদেন অক্ষত থাকবে, কেবল নতুন লেনদেন যোগ করা যাবে না।`
+      : `"${wallet.WalletName}" আবার সক্রিয় করবেন?`;
+    const ok = await confirm({ message: msg, confirmLabel: next === 'Inactive' ? 'হ্যাঁ, নিষ্ক্রিয় করুন' : 'হ্যাঁ, সক্রিয় করুন' });
+    if (!ok) return;
+    setSaving(true);
+    api.updateWallet(wallet.WalletID, '', next, currentUser.username)
+      .then((res) => {
+        showAlert(res.message, res.status === 'ERROR' ? 'error' : 'success');
+        if (res.status === 'SUCCESS') onRefresh();
+      })
+      .catch(() => showAlert('নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।', 'error'))
+      .finally(() => setSaving(false));
+  };
+
   const handleDelete = () => {
     api.checkWalletHasTransactions(wallet.WalletID, currentUser.username).then(async (res) => {
       const msg = res.hasTransactions
@@ -114,20 +130,34 @@ function EditWalletRow({ wallet, walletSummaries, currentUser, can, onRefresh, s
   const canAccess = String(currentUser?.role) === 'Admin' || (currentUser?.walletAccess || []).includes(String(wallet.WalletID));
   const canEdit = canAccess && can('EDIT_WALLET');
   const canDel = canAccess && can('MANAGE_WALLET_STATUS') && wallet.Status === 'Active';
+  // Status toggling is gated on MANAGE_WALLET_STATUS alone - it is not an
+  // EDIT_WALLET operation, so a user who may rename a wallet cannot flip it.
+  const canToggleStatus = canAccess && can('MANAGE_WALLET_STATUS');
 
   const summary = (walletSummaries || {})[wallet.WalletID];
   const active = wallet.Status === 'Active';
 
+  // Users holding access to THIS wallet. Only FullName is shown, per the
+  // request. The backend already masks out wallet ids the viewer cannot reach
+  // (see buildUserListForViewer_ in Users.gs), so a user missing from this list
+  // is either not granted access or is out of the viewer's scope - which is
+  // exactly the disclosure boundary the rest of the app enforces.
+  const walletUsers = (users || []).filter(u =>
+    (u.WalletAccess || []).some(id => String(id) === String(wallet.WalletID))
+  );
+
+  // Each wallet is its own bordered card with a gap to the next one, so the
+  // list reads as separate items rather than divider-separated rows inside one
+  // continuous block. The previous border-b/last:border-0 approach left the
+  // rows looking like a single table.
   const row = (
     <div
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
       onClick={handleRowClick}
-      className="border-b border-gray-100 dark:border-gray-800 last:border-0 py-2.5 bg-white dark:bg-gray-900"
+      className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-2.5 py-2.5 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-800"
+      role="button" tabIndex={0}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleRowClick(); } }}
     >
-      <div className="flex justify-between items-center text-xs px-1 cursor-pointer" role="button" tabIndex={0}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleRowClick(); } }}>
+      <div className="flex justify-between items-center text-xs">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
             <i className="fa-solid fa-vault text-xs"></i>
@@ -138,22 +168,32 @@ function EditWalletRow({ wallet, walletSummaries, currentUser, can, onRefresh, s
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${active ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400' : 'bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}>{wallet.Status}</span>
-          <i className="fa-solid fa-chevron-right text-gray-300 dark:text-gray-600 text-[10px]"></i>
+          {canToggleStatus ? (
+            <button
+              type="button"
+              onClick={handleToggleStatus}
+              disabled={saving}
+              title={active ? 'নিষ্ক্রিয় করতে ক্লিক করুন' : 'সক্রিয় করতে ক্লিক করুন'}
+              aria-label={active ? 'নিষ্ক্রিয় করুন' : 'সক্রিয় করুন'}
+              className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors disabled:opacity-50 ${
+                active
+                  ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/60'
+                  : 'bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-gray-700'
+              }`}
+            >
+              {wallet.Status}
+            </button>
+          ) : (
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${active ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400' : 'bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}>{wallet.Status}</span>
+          )}
         </div>
       </div>
     </div>
   );
 
-  const effectiveRow = (canEdit || canDel) ? (
-    <SwipeCard onSwipeRight={canEdit ? () => { setEditing(true); setName(wallet.WalletName); setStatus(wallet.Status); } : undefined} onSwipeLeft={canDel ? handleDelete : undefined}>
-      {row}
-    </SwipeCard>
-  ) : row;
-
   return (
     <div>
-      {effectiveRow}
+      {row}
 
       <Popup open={detailsOpen} title="Wallet Details" onClose={() => setDetailsOpen(false)}>
         <div className="flex items-center gap-3">
@@ -174,30 +214,58 @@ function EditWalletRow({ wallet, walletSummaries, currentUser, can, onRefresh, s
           <DetailCell label="Last Updated" value={fmtTimestamp(wallet.UpdatedAt)} />
         </div>
 
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500">Balance</div>
+          <BalanceRevealToggle
+            revealed={balance.revealed}
+            secondsLeft={balance.secondsLeft}
+            onToggle={balance.toggle}
+          />
+        </div>
+
         <div className="grid grid-cols-2 gap-2">
           <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-2.5">
             <div className="text-[10px] text-gray-500 dark:text-gray-400 font-semibold flex items-center gap-1">
               <i className="fa-solid fa-money-bill-wave text-emerald-600"></i> Current Cash
             </div>
-            <div className="text-sm font-bold text-slate-800 dark:text-gray-100 mt-1">
-              {summary ? fmtMoney(summary.cash, wallet.Currency) : "—"}
+            <div className="text-sm font-bold text-slate-800 dark:text-gray-100 mt-1 tabular-nums">
+              {summary ? money(summary.cash) : "—"}
             </div>
           </div>
           <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-2.5">
             <div className="text-[10px] text-gray-500 dark:text-gray-400 font-semibold flex items-center gap-1">
               <i className="fa-solid fa-building-columns text-emerald-600"></i> Current Bank
             </div>
-            <div className="text-sm font-bold text-slate-800 dark:text-gray-100 mt-1">
-              {summary ? fmtMoney(summary.bank, wallet.Currency) : "—"}
+            <div className="text-sm font-bold text-slate-800 dark:text-gray-100 mt-1 tabular-nums">
+              {summary ? money(summary.bank) : "—"}
             </div>
           </div>
         </div>
 
         <div className="bg-slate-50 dark:bg-gray-950 rounded-xl p-3 border border-gray-200 dark:border-gray-800 grid grid-cols-2 gap-x-4 gap-y-2.5">
-          <DetailCell label="Total Balance" value={summary ? fmtMoney(summary.totalBalance, wallet.Currency) : "—"} />
-          <DetailCell label="Opening Cash" value={fmtMoney(wallet.OpeningCash, wallet.Currency)} />
-          <DetailCell label="Opening Bank" value={fmtMoney(wallet.OpeningBank, wallet.Currency)} />
+          <DetailCell label="Total Balance" value={summary ? money(summary.totalBalance) : "—"} />
+          <DetailCell label="Opening Cash" value={money(wallet.OpeningCash)} />
+          <DetailCell label="Opening Bank" value={money(wallet.OpeningBank)} />
           <DetailCell label="Wallet ID" value={String(wallet.WalletID)} />
+        </div>
+
+        <div className="bg-slate-50 dark:bg-gray-950 rounded-xl p-3 border border-gray-200 dark:border-gray-800">
+          <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-2">
+            <i className="fa-solid fa-users me-1.5 text-emerald-600 dark:text-emerald-400"></i>
+            যাদের এই Wallet-এ অ্যাক্সেস আছে
+            <span className="text-gray-400 dark:text-gray-500 font-normal">({walletUsers.length})</span>
+          </div>
+          {walletUsers.length === 0 ? (
+            <div className="text-[11px] text-gray-400 dark:text-gray-500">কোনো ইউজারের অ্যাক্সেস নেই</div>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {walletUsers.map(u => (
+                <span key={u.Username} className="text-[10px] font-semibold bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 px-2 py-1 rounded-full text-slate-600 dark:text-gray-300">
+                  {u.FullName || u.Username}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         {(canEdit || canDel) && (
@@ -295,7 +363,7 @@ function AddWalletForm({ currentUser, showAlert, onRefresh, onClose }) {
   );
 }
 
-export default function WalletManagementView({ currentUser, can, showAlert, walletSummaries }) {
+export default function WalletManagementView({ currentUser, can, showAlert, walletSummaries, users }) {
   const [allWallets, setAllWallets] = useState(null);
   const [addOpen, setAddOpen] = useState(false);
 
@@ -323,17 +391,18 @@ export default function WalletManagementView({ currentUser, can, showAlert, wall
         <AddWalletForm currentUser={currentUser} showAlert={showAlert} onRefresh={load} onClose={() => setAddOpen(false)} />
       </Popup>
 
-      <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-200 dark:border-gray-800 shadow-2xs">
-        <div className="text-xs font-bold text-slate-700 dark:text-gray-200 mb-1">সব Wallet</div>
-        {(can('EDIT_WALLET') || can('MANAGE_WALLET_STATUS')) && (
-          <div className="text-[10px] text-gray-400 dark:text-gray-500 mb-2 flex items-center gap-1">
-            <i className="fa-solid fa-hand-pointer"></i> Swipe right to edit, left to delete
+      <div>
+        <div className="text-xs font-bold text-slate-700 dark:text-gray-200 mb-2">সব Wallet <span className="text-[10px] text-gray-400 font-normal">({allWallets ? allWallets.length : 0})</span></div>
+        {allWallets === null && <div className="text-center text-xs text-gray-400 dark:text-gray-500 py-4">লোড হচ্ছে...</div>}
+        {/* space-y separates the per-wallet cards, so each row supplies its own
+            border rather than relying on a divider inside a shared container. */}
+        {allWallets && (
+          <div className="space-y-2">
+            {allWallets.map(w => (
+              <EditWalletRow key={w.WalletID} wallet={w} walletSummaries={walletSummaries} currentUser={currentUser} can={can} onRefresh={load} showAlert={showAlert} users={users} />
+            ))}
           </div>
         )}
-        {allWallets === null && <div className="text-center text-xs text-gray-400 dark:text-gray-500 py-4">লোড হচ্ছে...</div>}
-        {allWallets && allWallets.map(w => (
-          <EditWalletRow key={w.WalletID} wallet={w} walletSummaries={walletSummaries} currentUser={currentUser} can={can} onRefresh={load} showAlert={showAlert} />
-        ))}
       </div>
     </div>
   );

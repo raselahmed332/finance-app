@@ -1,7 +1,6 @@
 import { useState, memo } from "react";
 import { api, GRANTABLE_PERMISSIONS, PERMISSION_LABELS, DEFAULT_WALLET_ACTIONS, MIN_PIN_LENGTH, MAX_PIN_LENGTH, normalizePinInput } from "../api.js";
 import Select from "../components/Select.jsx";
-import SwipeCard from "../components/SwipeCard.jsx";
 import Popup from "../components/Popup.jsx";
 import { useConfirm } from "../components/ConfirmDialog.jsx";
 
@@ -158,6 +157,37 @@ function DefaultPermissionsList({ active }) {
   );
 }
 
+// Edit / Manage / Delete, always on a single row. The number of columns is
+// computed from how many of the three the viewer may actually use, so the
+// buttons never wrap to a second line and never sit in a half-empty grid.
+function ActionRow({ canEditUser, canManageTarget, canDel, onEdit, onManage, onDelete }) {
+  const visible = [canEditUser && "edit", canManageTarget && "manage", canDel && "delete"].filter(Boolean);
+  if (visible.length === 0) return null;
+  const cols = { 1: "grid-cols-1", 2: "grid-cols-2", 3: "grid-cols-3" }[visible.length];
+
+  const outline = "font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-slate-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors";
+
+  return (
+    <div className={`grid ${cols} gap-2`}>
+      {canEditUser && (
+        <button onClick={onEdit} className={outline}>
+          <i className="fa-solid fa-pen"></i> Edit
+        </button>
+      )}
+      {canManageTarget && (
+        <button onClick={onManage} className={outline}>
+          <i className="fa-solid fa-user-gear"></i> Manage
+        </button>
+      )}
+      {canDel && (
+        <button onClick={onDelete} className="bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors">
+          <i className="fa-solid fa-trash-can"></i> Delete
+        </button>
+      )}
+    </div>
+  );
+}
+
 function AdminFullAccessCard() {
   const items = [
     "All Wallets", "All Default Actions", "All Additional Actions",
@@ -283,7 +313,14 @@ function AnyAdditionalGranted({ selected }) {
 
 // ---------- Manage / Edit single user ----------
 
-const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUser, can, onRefresh, showAlert, onUserAction, onClose }) {
+// section: "edit"   -> identity only (full name, role)
+//          "manage" -> access & security (wallet access, permissions, PIN, status)
+//
+// The two are split so the common case (fix a typo in someone's name) does not
+// require scrolling past the whole permissions editor, and so that "Save" in
+// one section can never silently write changes belonging to the other. Each
+// section only submits the fields it owns - see saveAll below.
+const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUser, can, onRefresh, showAlert, onUserAction, onClose, section = "manage" }) {
   const isAdmin = isAdminRole(user.Role);
   const isSelf = String(user.Username).toLowerCase() === String(currentUser.username || "").toLowerCase();
   const knownIds = new Set(wallets.map((w) => String(w.WalletID)));
@@ -297,7 +334,6 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
   const [permissions, setPermissions] = useState(() => (user.Permissions || []).filter((p) => GRANTABLE_PERMISSIONS.includes(p)));
   const [walletAccess, setWalletAccess] = useState(() => targetAccess.filter((id) => knownIds.has(id)));
   const [saving, setSaving] = useState(false);
-  const [resettingPin, setResettingPin] = useState(false);
 
   const hasWallet = walletAccess.length > 0;
   const actorAdmin = isAdminRole(currentUser?.role);
@@ -307,9 +343,6 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
   // backend rejects a Sub-Admin editing their OWN perms/wallets — hide the
   // controls so they can't surface an error that can never succeed.
   const canManagePerms = can("MANAGE_USER_PERMISSIONS") && (actorAdmin || !isSelf);
-  const canResetPin = can("CHANGE_USER_PASSWORD") && !isSelf;
-  // User status changes are Admin-only on the backend (EDIT_USER alone is not enough).
-  const canToggleStatus = actorAdmin && canEditName;
   const active = (user.Status || "Active") === "Active";
 
   // A Sub-Admin may only grant permissions they hold and wallets they can see.
@@ -323,30 +356,23 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
   const togglePerm = (p) => setPermissions((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]));
   const toggleWallet = (id) => setWalletAccess((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
-  const handleResetPin = () => {
-    const newPin = window.prompt("নতুন PIN লিখুন (min " + MIN_PIN_LENGTH + ", max " + MAX_PIN_LENGTH + " character):");
-    if (newPin === null) return;
-    const normalized = normalizePinInput(newPin);
-    if (normalized === null) { showAlert("PIN অবৈধ। " + MIN_PIN_LENGTH + "-" + MAX_PIN_LENGTH + " অক্ষরের হতে হবে।", "error"); return; }
-    setResettingPin(true);
-    api.resetPin(user.Username, normalized, currentUser.username).then((res) => {
-      showAlert(res.message, res.status === "ERROR" ? "error" : "success");
-    }).catch(() => showAlert("নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।", "error")).finally(() => setResettingPin(false));
-  };
-
-  const handleToggleStatus = () => {
-    onUserAction("status", user.Username, active ? "Inactive" : "Active");
-    onClose();
-  };
+  // Reset PIN and the status toggle used to live in this panel. Both now live on
+  // the user card (the key icon and the status badge respectively), so the
+  // handlers are gone from here and there is a single entry point for each.
 
   const saveAll = () => {
     if (saving) return;
     const storedAccess = targetAccess.filter((id) => knownIds.has(id));
-    const nameChanged = canEditName && fullName !== (user.FullName || "");
-    const roleChanged = canEditRole && role !== normRole(user.Role);
-    const permChanged = canManagePerms && !permLocked &&
+    // Each change is gated on the section that owns it, so saving from the
+    // Edit panel can never write permissions and vice versa. The permission
+    // booleans are still checked on top: a user who cannot edit a field must
+    // not have it submitted even if they somehow mutated the local state.
+    const editing = section === "edit";
+    const nameChanged = editing && canEditName && fullName !== (user.FullName || "");
+    const roleChanged = editing && canEditRole && role !== normRole(user.Role);
+    const permChanged = !editing && canManagePerms && !permLocked &&
       JSON.stringify([...permissions].sort()) !== JSON.stringify([...storedGrantables].sort());
-    const walletChanged = canManagePerms && !walletLocked &&
+    const walletChanged = !editing && canManagePerms && !walletLocked &&
       JSON.stringify([...walletAccess].sort()) !== JSON.stringify([...storedAccess].sort());
 
     const calls = [];
@@ -370,31 +396,67 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
     }).catch(() => showAlert("নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।", "error")).finally(() => setSaving(false));
   };
 
+  const isEditSection = section === "edit";
+
   return (
     <div className="bg-slate-50 dark:bg-gray-950 rounded-xl p-3 mb-3 space-y-3 border border-gray-200 dark:border-gray-800">
       <div className="flex items-center justify-between">
         <div className="text-[11px] font-bold text-slate-700 dark:text-gray-200">
-          Manage User <span className="text-gray-400 dark:text-gray-500 font-normal">— {user.FullName || user.Username}</span>
+          {isEditSection ? "Edit User" : "Manage User"} <span className="text-gray-400 dark:text-gray-500 font-normal">— {user.FullName || user.Username}</span>
         </div>
-        <button onClick={onClose} className="text-gray-400 dark:text-gray-500 hover:text-slate-700 dark:hover:text-gray-200"><i className="fa-solid fa-xmark"></i></button>
+        {/* This closes the editor back to the details view, so it is a back
+            arrow rather than an X - an X implies dismissing the whole modal. */}
+        <button onClick={onClose} className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 hover:text-slate-700 dark:hover:text-gray-200 flex items-center gap-1">
+          <i className="fa-solid fa-arrow-left text-[10px]"></i> Back
+        </button>
       </div>
 
-      {isAdmin ? (
+      {isEditSection ? (
+        /* ---------- Edit: identity only ---------- */
+        <>
+        <SectionCard icon="fa-id-card" title="Basic Information" hint="নাম ও ভূমিকা">
+          <div className="space-y-2">
+            {canEditName ? (
+              <div>
+                <div className="text-[10px] font-bold text-slate-600 dark:text-gray-300 mb-1">Full Name</div>
+                <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder={user.Username}
+                  className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-2.5 py-1.5 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" />
+              </div>
+            ) : (
+              <div>
+                <div className="text-[10px] font-bold text-gray-400 dark:text-gray-500 mb-1">Full Name (read-only)</div>
+                <div className="text-xs text-slate-700 dark:text-gray-200">{user.FullName || user.Username}</div>
+              </div>
+            )}
+            <div>
+              <div className="text-[10px] font-bold text-slate-600 dark:text-gray-300 mb-1">Username</div>
+              <div className="text-xs text-slate-700 dark:text-gray-200">@{user.Username}</div>
+            </div>
+            {canEditRole ? (
+              <div>
+                <div className="text-[10px] font-bold text-slate-600 dark:text-gray-300 mb-1">Role <span className="text-amber-600 dark:text-amber-400">(Admin Only)</span></div>
+                <Select value={role} onChange={setRole}>
+                  <option value="User">User</option>
+                  <option value="Sub-Admin">Sub-Admin</option>
+                  {actorAdmin && <option value="Admin">Admin</option>}
+                </Select>
+              </div>
+            ) : (
+                <div>
+                  <div className="text-[10px] font-bold text-gray-400 dark:text-gray-500 mb-1">Role (read-only)</div>
+                  <div className="flex items-center gap-1.5"><RoleBadge role={user.Role} /></div>
+                </div>
+              )}
+            </div>
+          </SectionCard>
+
+          <button onClick={saveAll} disabled={saving} className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold py-2 rounded-xl text-xs shadow-sm flex items-center justify-center gap-1.5">
+            {saving && <i className="fa-solid fa-spinner fa-spin"></i>} {saving ? 'Saving...' : 'Save Changes'}
+          </button>
+        </>
+      ) : isAdmin ? (
         <>
           <AdminFullAccessCard />
-          {canResetPin && (
-            <SectionCard icon="fa-shield-halved" title="Security" hint="Admin ইউজারের নিরাপত্তা">
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <div className="text-[11px] font-bold text-slate-600 dark:text-gray-300">PIN</div>
-                  <div className="text-[10px] text-gray-400 dark:text-gray-500 tracking-widest">•••••••••</div>
-                </div>
-                <button onClick={handleResetPin} disabled={resettingPin} className="bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg">
-                  {resettingPin ? <i className="fa-solid fa-spinner fa-spin"></i> : <><i className="fa-solid fa-key me-1"></i>Reset PIN</>}
-                </button>
-              </div>
-            </SectionCard>
-          )}
           <SectionCard icon="fa-circle-dot" title="Account Status">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
@@ -407,42 +469,6 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
         </>
       ) : (
         <>
-          <SectionCard icon="fa-id-card" title="Basic Information" hint="মৌলিক তথ্য">
-            <div className="space-y-2">
-              {canEditName ? (
-                <div>
-                  <div className="text-[10px] font-bold text-slate-600 dark:text-gray-300 mb-1">Full Name</div>
-                  <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder={user.Username}
-                    className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-2.5 py-1.5 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" />
-                </div>
-              ) : (
-                <div>
-                  <div className="text-[10px] font-bold text-gray-400 dark:text-gray-500 mb-1">Full Name (read-only)</div>
-                  <div className="text-xs text-slate-700 dark:text-gray-200">{user.FullName || user.Username}</div>
-                </div>
-              )}
-              <div>
-                <div className="text-[10px] font-bold text-slate-600 dark:text-gray-300 mb-1">Username</div>
-                <div className="text-xs text-slate-700 dark:text-gray-200">@{user.Username}</div>
-              </div>
-              {canEditRole ? (
-                <div>
-                  <div className="text-[10px] font-bold text-slate-600 dark:text-gray-300 mb-1">Role <span className="text-amber-600 dark:text-amber-400">(Admin Only)</span></div>
-                  <Select value={role} onChange={setRole}>
-                    <option value="User">User</option>
-                    <option value="Sub-Admin">Sub-Admin</option>
-                    {actorAdmin && <option value="Admin">Admin</option>}
-                  </Select>
-                </div>
-              ) : (
-                <div>
-                  <div className="text-[10px] font-bold text-gray-400 dark:text-gray-500 mb-1">Role (read-only)</div>
-                  <div className="flex items-center gap-1.5"><RoleBadge role={user.Role} /></div>
-                </div>
-              )}
-            </div>
-          </SectionCard>
-
           {canManagePerms && (
             <SectionCard icon="fa-wallet" title="Wallet Access" hint="কোন ওয়ালেটে ইউজার এক্সেস পাবে তা নির্বাচন করুন। Permissions শুধু অ্যাক্সেসযোগ্য ওয়ালেটের ভেতরেই কাজ করে।">
               {walletLocked && !actorAdmin ? (
@@ -473,12 +499,8 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
             </SectionCard>
           )}
 
-          <SectionCard icon="fa-list-check" title="Default Wallet Permissions" hint="Wallet Access থাকলে এই অ্যাকশনগুলো স্বয়ংক্রিয়ভাবে সক্রিয় হয়।">
-            <DefaultPermissionsList active={hasWallet} />
-          </SectionCard>
-
           {canManagePerms && (
-            <SectionCard icon="fa-user-shield" title="Additional Permissions" hint="এই Permissions Admin কে স্পষ্টভাবে দিতে হয়। এগুলো ইউজারের অ্যাক্সেসযোগ্য সব ওয়ালেটে প্রযোজ্য।">
+            <SectionCard icon="fa-user-shield" title="Additional Permissions" hint="এই Permissions Admin কে স্পষ্টভাবে দিতে হয়। এগুলো ইউজারের অ্যাক্সেসযোগ্য সব ওয়ালেটে প্রযোজ্য। Wallet Access থাকলে Default Wallet Actions স্বয়ংক্রিয়ভাবে প্রযোজ্য হয়।">
               {permLocked ? (
                 <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-2.5 text-[10px] text-amber-700 dark:text-amber-400 leading-snug">
                   <i className="fa-solid fa-triangle-exclamation me-1"></i>
@@ -502,37 +524,13 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
             </SectionCard>
           )}
 
-          {canResetPin && (
-            <SectionCard icon="fa-shield-halved" title="Security" hint="অন্য ইউজারের PIN ম্যানেজ করুন">
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <div className="text-[11px] font-bold text-slate-600 dark:text-gray-300">PIN</div>
-                  <div className="text-[10px] text-gray-400 dark:text-gray-500 tracking-widest">•••••••••</div>
-                </div>
-                <button onClick={handleResetPin} disabled={resettingPin} className="bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg">
-                  {resettingPin ? <i className="fa-solid fa-spinner fa-spin"></i> : <><i className="fa-solid fa-key me-1"></i>Reset PIN</>}
-                </button>
-              </div>
-              <div className="text-[10px] text-gray-400 dark:text-gray-500"><i className="fa-solid fa-circle-info me-1"></i>PIN/password কখনো প্লেইন টেক্সটে দেখানো হয় না।</div>
-            </SectionCard>
-          )}
-
-          <SectionCard icon="fa-circle-dot" title="Account Status">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <i className={`fa-solid fa-circle text-[9px] ${active ? "text-emerald-500" : "text-gray-400"}`}></i>
-                <span className={`text-xs font-bold ${active ? "text-emerald-600 dark:text-emerald-400" : "text-gray-500 dark:text-gray-400"}`}>{active ? "Active" : "Inactive"}</span>
-              </div>
-              {canToggleStatus && (
-                <button onClick={handleToggleStatus} className={`text-[11px] font-bold px-3 py-1.5 rounded-lg ${active ? "bg-red-500/90 hover:bg-red-600 text-white" : "bg-emerald-600 hover:bg-emerald-700 text-white"}`}>
-                  {active ? "Deactivate User" : "Activate User"}
-                </button>
-              )}
-            </div>
-          </SectionCard>
+          {/* Security (Reset PIN) and Account Status used to live here. Both are
+              now on the user card itself: the key icon resets the PIN and the
+              status badge toggles Active/Inactive. Keeping them in one place
+              avoids two entry points for the same action. */}
 
           <button onClick={saveAll} disabled={saving} className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold py-2 rounded-xl text-xs shadow-sm flex items-center justify-center gap-1.5">
-            {saving && <i className="fa-solid fa-spinner fa-spin"></i>} {saving ? 'Saving...' : 'Save Changes'}
+            {saving && <i className="fa-solid fa-spinner fa-spin"></i>} {saving ? 'Saving...' : isEditSection ? 'Save Changes' : 'Save Access & Permissions'}
           </button>
         </>
       )}
@@ -544,6 +542,10 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
 
 const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefresh, showAlert, onUserAction }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
+  // Which editor modal is open: null | "edit" | "manage". Separate from
+  // detailsOpen because the editor is its own modal stacked over the details
+  // popup, not an inline section of it.
+  const [editorOpen, setEditorOpen] = useState(null);
   const confirm = useConfirm();
   const isAdmin = isAdminRole(user.Role);
   const isSelf = String(user.Username).toLowerCase() === String(currentUser.username || "").toLowerCase();
@@ -552,6 +554,11 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
   // Delete is Admin-only on the backend — DELETE_USER alone never succeeds for a Sub-Admin.
   const canDel = actorAdmin && can("DELETE_USER") && !isAdmin;
   const canManageTarget = isAdmin || can("EDIT_USER") || can("CHANGE_USER_ROLE") || can("MANAGE_USER_PERMISSIONS") || canResetPin;
+  // The Edit button only appears for identity changes the viewer can actually
+  // make: EDIT_USER for the name, CHANGE_USER_ROLE for the role, and Admin-only
+  // on either field. canManageTarget is broader than that (it also covers
+  // permissions and PIN), so it cannot stand in for this check.
+  const canEditUser = (actorAdmin && (can("EDIT_USER") || can("CHANGE_USER_ROLE"))) || can("EDIT_USER");
   const active = (user.Status || "Active") === "Active";
   const walletCount = (user.WalletAccess || []).length;
 
@@ -560,11 +567,22 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
     setDetailsOpen(true);
   };
 
-  const closeDetails = () => setDetailsOpen(false);
+  const closeDetails = () => {
+    setDetailsOpen(false);
+    // Opening an editor leaves the details popup underneath it, so closing the
+    // details sheet must not leave a hidden editor stranded on screen.
+    setEditorOpen(null);
+  };
 
+  const openEditor = (section) => setEditorOpen(section);
+  const closeEditor = () => setEditorOpen(null);
+
+  // Each user is its own bordered card with a gap to the next one, so the list
+  // reads as separate items rather than divider-separated rows inside one
+  // continuous block.
   const row = (
-    <div className="border-b border-gray-100 dark:border-gray-800 last:border-0 bg-white dark:bg-gray-900">
-      <div className="py-2.5 px-1">
+    <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-2.5 py-2.5">
+      <div>
         <div className="flex justify-between items-center text-xs gap-2">
           <button type="button" onClick={openDetails} className="flex items-center gap-2 min-w-0 text-left flex-1">
             <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
@@ -577,49 +595,84 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
           </button>
           <div className="flex items-center gap-1.5 shrink-0">
             <RoleBadge role={user.Role} />
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${active ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400" : "bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400"}`}>
-              {user.Status || "Active"}
-            </span>
-            {canResetPin && (
-              <button onClick={(e) => {
-                e.stopPropagation();
-                const newPin = window.prompt("নতুন PIN লিখুন (min " + MIN_PIN_LENGTH + ", max " + MAX_PIN_LENGTH + " character):");
-                if (newPin === null) return;
-                const normalized = normalizePinInput(newPin);
-                if (normalized === null) { showAlert("PIN অবৈধ। " + MIN_PIN_LENGTH + "-" + MAX_PIN_LENGTH + " অক্ষরের হতে হবে।", "error"); return; }
-                api.resetPin(user.Username, normalized, currentUser.username).then((res) => {
-                  showAlert(res.message, res.status === "ERROR" ? "error" : "success");
-                }).catch(() => showAlert("নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।", "error"));
-              }} title="Reset PIN" className="text-gray-400 dark:text-gray-500 hover:text-amber-500">
-                <i className="fa-solid fa-key"></i>
+            {/* Status is the toggle entry point, replacing the Account Status
+                card that used to live in the Manage popup. Gated on the same
+                Admin-only rule the backend enforces for status changes. */}
+            {actorAdmin && can("EDIT_USER") ? (
+              <button
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  const next = active ? "Inactive" : "Active";
+                  const msg = next === "Inactive"
+                    ? `${user.FullName || user.Username} নিষ্ক্রিয় করবেন?\n\nইউজার লগইন করতে পারবে না, তবে তার লেনদেন ও ইতিহাস অক্ষত থাকবে।`
+                    : `${user.FullName || user.Username} আবার সক্রিয় করবেন?`;
+                  const ok = await confirm({ message: msg, confirmLabel: next === "Inactive" ? "হ্যাঁ, নিষ্ক্রিয় করুন" : "হ্যাঁ, সক্রিয় করুন" });
+                  if (!ok) return;
+                  onUserAction("status", user.Username, next);
+                }}
+                title={active ? "নিষ্ক্রিয় করতে ক্লিক করুন" : "সক্রিয় করতে ক্লিক করুন"}
+                aria-label={active ? "নিষ্ক্রিয় করুন" : "সক্রিয় করুন"}
+                className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
+                  active
+                    ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/60"
+                    : "bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-gray-700"
+                }`}
+              >
+                {user.Status || "Active"}
               </button>
+            ) : (
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${active ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400" : "bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400"}`}>
+                {user.Status || "Active"}
+              </span>
             )}
-            <button onClick={openDetails} className="text-gray-400 dark:text-gray-500 hover:text-slate-700 dark:hover:text-gray-200" title="Details">
-              <i className="fa-solid fa-chevron-down"></i>
-            </button>
           </div>
         </div>
-        <button type="button" onClick={openDetails} className="mt-1.5 flex items-center gap-1.5 text-[10px] pl-10">
-          <i className="fa-solid fa-wallet text-gray-300 dark:text-gray-600 text-[9px]"></i>
-          {walletCount === 0 ? (
-            <span className="text-amber-600 dark:text-amber-400 font-semibold">No Wallet Access</span>
-          ) : (
-            <span className="text-gray-500 dark:text-gray-400">Wallet Access: {walletCount} {walletCount === 1 ? "Wallet" : "Wallets"}</span>
+        <div className="mt-1.5 flex items-center justify-between gap-2">
+          <button type="button" onClick={openDetails} className="flex items-center gap-1.5 text-[10px] pl-10 min-w-0 text-left">
+            <i className="fa-solid fa-wallet text-gray-300 dark:text-gray-600 text-[9px]"></i>
+            {/* Admins reach every wallet by role, so their stored WalletAccess is
+                usually empty - showing "No Wallet Access" in amber would be a lie. */}
+            {isAdmin ? (
+              <span className="text-emerald-600 dark:text-emerald-400 font-semibold">All Wallets — Full System Access</span>
+            ) : walletCount === 0 ? (
+              <span className="text-amber-600 dark:text-amber-400 font-semibold">No Wallet Access</span>
+            ) : (
+              <span className="text-gray-500 dark:text-gray-400">Wallet Access: {walletCount} {walletCount === 1 ? "Wallet" : "Wallets"}</span>
+            )}
+          </button>
+          {/* Reset PIN sits on this second line rather than stacked under the
+              status pill. A three-line right column against a two-line name
+              made the row taller than needed and pushed the role badge up. */}
+          {canResetPin && (
+            <button onClick={(e) => {
+              e.stopPropagation();
+              const newPin = window.prompt("নতুন PIN লিখুন (min " + MIN_PIN_LENGTH + ", max " + MAX_PIN_LENGTH + " character):");
+              if (newPin === null) return;
+              const normalized = normalizePinInput(newPin);
+              if (normalized === null) { showAlert("PIN অবৈধ। " + MIN_PIN_LENGTH + "-" + MAX_PIN_LENGTH + " অক্ষরের হতে হবে।", "error"); return; }
+              api.resetPin(user.Username, normalized, currentUser.username).then((res) => {
+                showAlert(res.message, res.status === "ERROR" ? "error" : "success");
+              }).catch(() => showAlert("নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।", "error"));
+            }} title="Reset PIN" aria-label="Reset PIN" className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors flex items-center gap-1">
+              <i className="fa-solid fa-key text-[9px]"></i> PIN
+            </button>
           )}
-        </button>
+        </div>
       </div>
     </div>
   );
 
   return (
     <div>
-      {(canManageTarget || canDel) ? (
-        <SwipeCard onSwipeRight={canManageTarget ? () => setDetailsOpen(true) : undefined} onSwipeLeft={canDel ? async () => { const ok = await confirm({ message: "এই ইউজার মুছে ফেলবেন?" }); if (ok) onUserAction("delete", user.Username); } : undefined}>
-          {row}
-        </SwipeCard>
-      ) : row}
+      {row}
 
-      <Popup open={detailsOpen} title="User Details" onClose={closeDetails}>
+      <Popup
+        open={detailsOpen || !!editorOpen}
+        title={editorOpen === "edit" ? "Edit User" : editorOpen === "manage" ? "Manage User" : "User Details"}
+        onClose={editorOpen ? closeEditor : closeDetails}
+      >
+        {!editorOpen ? (
+          <>
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
             <i className="fa-solid fa-user"></i>
@@ -636,62 +689,99 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
           </div>
         </div>
 
-        <div className="bg-slate-50 dark:bg-gray-950 rounded-xl p-3 border border-gray-200 dark:border-gray-800 space-y-2">
-          <div className="text-[11px] font-bold text-slate-700 dark:text-gray-200">
-            <i className="fa-solid fa-wallet me-1.5 text-emerald-600 dark:text-emerald-400 text-[10px]"></i>Wallet Access
-          </div>
-          {walletCount === 0 ? (
-            <div className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold">No Wallet Access</div>
-          ) : (
-            <div className="flex flex-wrap gap-1.5">
-              {(user.WalletAccess || []).map((id) => {
-                const w = (wallets || []).find((x) => String(x.WalletID) === String(id));
-                return (
-                  <span key={id} className="text-[10px] font-semibold bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 px-2 py-1 rounded-full text-slate-600 dark:text-gray-300">
-                    {w ? `${w.WalletName} (${w.Currency})` : id}
-                  </span>
-                );
-              })}
+        {/* An Admin's stored WalletAccess/Permissions are ignored - the backend
+            grants full system access by role (see isAdminRecord_ in Database.gs).
+            Listing the stored values would be misleading: it would look like the
+            Admin is restricted to those wallets when they can reach every one.
+            So Admins get the single summary line instead, matching the Manage
+            panel. Everyone else sees their real, scoped values. */}
+        {isAdmin ? (
+          <AdminFullAccessCard />
+        ) : (
+          <>
+            <div className="bg-slate-50 dark:bg-gray-950 rounded-xl p-3 border border-gray-200 dark:border-gray-800 space-y-2">
+              <div className="text-[11px] font-bold text-slate-700 dark:text-gray-200">
+                <i className="fa-solid fa-wallet me-1.5 text-emerald-600 dark:text-emerald-400 text-[10px]"></i>Wallet Access
+              </div>
+              {walletCount === 0 ? (
+                <div className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold">No Wallet Access</div>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {(user.WalletAccess || []).map((id) => {
+                    const w = (wallets || []).find((x) => String(x.WalletID) === String(id));
+                    return (
+                      <span key={id} className="text-[10px] font-semibold bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 px-2 py-1 rounded-full text-slate-600 dark:text-gray-300">
+                        {w ? `${w.WalletName} (${w.Currency})` : id}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        <div className="bg-slate-50 dark:bg-gray-950 rounded-xl p-3 border border-gray-200 dark:border-gray-800 space-y-1.5">
-          <div className="text-[11px] font-bold text-slate-700 dark:text-gray-200">
-            <i className="fa-solid fa-list-check me-1.5 text-emerald-600 dark:text-emerald-400 text-[10px]"></i>Permissions
-          </div>
-          {(user.Permissions || []).length === 0 ? (
-            <div className="text-[11px] text-gray-400 dark:text-gray-500">কোনো অতিরিক্ত Permission নেই (Default Wallet Actions স্বয়ংক্রিয়)।</div>
-          ) : (
-            <div className="flex flex-wrap gap-1.5">
-              {(user.Permissions || []).map((p) => (
-                <span key={p} className="text-[10px] font-semibold bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 px-2 py-1 rounded-full text-slate-600 dark:text-gray-300">
-                  {PERMISSION_LABELS[p] || p}
-                </span>
-              ))}
+            <div className="bg-slate-50 dark:bg-gray-950 rounded-xl p-3 border border-gray-200 dark:border-gray-800 space-y-1.5">
+              <div className="text-[11px] font-bold text-slate-700 dark:text-gray-200">
+                <i className="fa-solid fa-list-check me-1.5 text-emerald-600 dark:text-emerald-400 text-[10px]"></i>Permissions
+              </div>
+              {(user.Permissions || []).length === 0 ? (
+                <div className="text-[11px] text-gray-400 dark:text-gray-500">কোনো অতিরিক্ত Permission নেই (Default Wallet Actions স্বয়ংক্রিয়)।</div>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {(user.Permissions || []).map((p) => (
+                    <span key={p} className="text-[10px] font-semibold bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 px-2 py-1 rounded-full text-slate-600 dark:text-gray-300">
+                      {PERMISSION_LABELS[p] || p}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </>
+        )}
 
-        {canDel && (
-          <button onClick={async () => {
+        {/* Edit / Manage / Delete as one row. Only the actions the viewer is
+            actually allowed to perform are rendered, so an unauthorised viewer
+            never sees a control that would only fail server-side. The column
+            count is derived from how many buttons actually render - a fixed
+            grid-cols-2 pushed Delete onto a second line once all three were
+            present. Delete stays the destructive outlier on the right. */}
+        <ActionRow
+          canEditUser={canEditUser}
+          canManageTarget={canManageTarget}
+          canDel={canDel}
+          onEdit={() => openEditor("edit")}
+          onManage={() => openEditor("manage")}
+          onDelete={async () => {
             // Deletion is refused by the backend while the user still has
             // financial history, so say up front that deactivation is the way
             // to keep the records (and who made them) intact.
             const ok = await confirm({ message: "এই ইউজার মুছে ফেলবেন?\n\nআর্থিক ইতিহাস থাকলে মুছে ফেলা যাবে না — সেক্ষেত্রে Deactivate করুন, ইতিহাস অক্ষত থাকবে।" });
             if (ok) { closeDetails(); onUserAction("delete", user.Username); }
-          }} className="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5">
-            <i className="fa-solid fa-trash-can"></i> Delete User
-          </button>
-        )}
-
-        {canManageTarget && (
-          <ManageUserPanel user={user} wallets={wallets} currentUser={currentUser} can={can} onRefresh={onRefresh} showAlert={showAlert} onUserAction={onUserAction} onClose={closeDetails} />
-        )}
+          }}
+        />
 
         {!canManageTarget && !canDel && (
           <button onClick={closeDetails} className="w-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-bold py-2 rounded-xl text-xs">Close</button>
         )}
+        </>
+      ) : (
+        /* Edit and Manage REPLACE the details content inside the same modal
+            rather than opening a second one on top. Two stacked modals both
+            render at z-[60], so the editor appeared embedded in the details
+            sheet with a second overlay behind it. Swapping the content keeps
+            one scrollable surface and one title bar; the back arrow below
+            returns to the details view. */
+        <ManageUserPanel
+          user={user}
+          wallets={wallets}
+          currentUser={currentUser}
+          can={can}
+          onRefresh={onRefresh}
+          showAlert={showAlert}
+          onUserAction={onUserAction}
+          onClose={closeEditor}
+          section={editorOpen}
+        />
+      )}
       </Popup>
     </div>
   );
@@ -796,7 +886,6 @@ function AddUserForm({ wallets, currentUser, showAlert, onRefresh, onClose }) {
 // ---------- Main view ----------
 
 export default function UserManagementView({ users, wallets, onRefresh, showAlert, currentUser, onUserAction, can }) {
-  const actorAdmin = isAdminRole(currentUser?.role);
   const [addOpen, setAddOpen] = useState(false);
   return (
     <div className="space-y-4">
@@ -813,16 +902,15 @@ export default function UserManagementView({ users, wallets, onRefresh, showAler
         <AddUserForm wallets={wallets} currentUser={currentUser} showAlert={showAlert} onRefresh={onRefresh} onClose={() => setAddOpen(false)} />
       </Popup>
 
-      <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-200 dark:border-gray-800 shadow-2xs">
-        <div className="text-xs font-bold text-slate-700 dark:text-gray-200 mb-1">ইউজার তালিকা <span className="text-[10px] text-gray-400 font-normal">({users.length})</span></div>
-        {(can("DELETE_USER") && actorAdmin) || can("MANAGE_USER_PERMISSIONS") || can("EDIT_USER") ? (
-          <div className="text-[10px] text-gray-400 dark:text-gray-500 mb-2 flex items-center gap-1">
-            <i className="fa-solid fa-hand-pointer"></i> Swipe right to manage, left to delete
-          </div>
-        ) : null}
-        {users.map((u, i) => (
-          <UserRow key={u.Username || i} user={u} wallets={wallets} currentUser={currentUser} can={can} onRefresh={onRefresh} showAlert={showAlert} onUserAction={onUserAction} />
-        ))}
+      <div>
+        <div className="text-xs font-bold text-slate-700 dark:text-gray-200 mb-2">ইউজার তালিকা <span className="text-[10px] text-gray-400 font-normal">({users.length})</span></div>
+        {/* space-y separates the per-user cards, so each row supplies its own
+            border rather than relying on a divider inside a shared container. */}
+        <div className="space-y-2">
+          {users.map((u, i) => (
+            <UserRow key={u.Username || i} user={u} wallets={wallets} currentUser={currentUser} can={can} onRefresh={onRefresh} showAlert={showAlert} onUserAction={onUserAction} />
+          ))}
+        </div>
       </div>
     </div>
   );
