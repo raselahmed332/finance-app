@@ -28,7 +28,10 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: npm install
+        # npm ci installs strictly from package-lock.json and fails when the
+        # lockfile is out of sync with package.json, so a deploy can never
+        # silently pick up a newer transitive dependency than was reviewed.
+        run: npm ci
 
       - name: Build
         run: npm run build

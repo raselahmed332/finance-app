@@ -385,6 +385,10 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
             const action = editingPayment
               ? onEditRepayment(formData)
               : onRepayment(loan.id, formData);
+            // App.jsx already shows the failure via showAlert() for BOTH the
+            // server-error and the network path, then rethrows. Letting the
+            // rejection reach LoanRepaymentForm's own catch would show the same
+            // error a second time, so it is absorbed here on purpose.
             return action.then(handlePaymentSaved).catch(() => {});
           }}
         />
@@ -395,10 +399,11 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
           loan={loan}
           addition={editingAddition || null}
           wallets={wallets || []}
-          currentUser={currentUser}
           onCancel={() => { setShowAdd(false); setEditingAddition(null); }}
           onSave={(formData) => {
             const action = editingAddition ? onEditAddition(formData) : onAddAddition(loan.id, formData);
+            // See the note above: App.jsx has already displayed the error, so
+            // propagating it would only duplicate the message.
             return action.then(handleAdditionSaved).catch(() => {});
           }}
         />

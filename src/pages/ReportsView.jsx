@@ -151,13 +151,21 @@ export default function ReportsView({ wallets, currentUser }) {
           </div>
 
           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl p-3 text-center">
-            <div className="text-[11px] font-bold text-blue-800 dark:text-blue-300">Net Balance (অবশিষ্ট)</div>
+            {/* This figure is Income - Expense for the selected period, NOT a
+                balance: transfers and loan movements are deliberately excluded
+                from it. Labelling it "Net Balance" showed a number that
+                disagreed with the per-account figure right below it. */}
+            <div className="text-[11px] font-bold text-blue-800 dark:text-blue-300">Income − Expense (এই সময়ে)</div>
             <div className="text-lg font-extrabold text-blue-700 dark:text-blue-400 mt-0.5">{selectedWallet?.Currency} {report.netChange.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             <div className="text-[10px] text-blue-600 dark:text-blue-400 mt-1">{report.transactionCount} টি লেনদেন</div>
           </div>
 
           <div className="bg-white dark:bg-gray-900 rounded-xl p-3 border border-gray-200 dark:border-gray-800">
-            <div className="text-xs font-bold text-slate-800 dark:text-gray-100 mb-2">Balance by Account</div>
+            {/* Per-account net MOVEMENT over the period (inflows minus outflows,
+                including transfers and loan effects) — not the account's
+                current balance, which also depends on opening balances and
+                every other period. */}
+            <div className="text-xs font-bold text-slate-800 dark:text-gray-100 mb-2">Net Movement by Account (এই সময়ে)</div>
             <div className="grid grid-cols-2 gap-2">
               {Object.entries(report.accountBreakdown || {}).map(([acc, bal]) => (
                 <div key={acc} className="bg-slate-50 dark:bg-gray-950 rounded-lg p-2 text-center">

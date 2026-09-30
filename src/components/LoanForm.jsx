@@ -570,12 +570,13 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
           loan={addTarget.loan}
           prefill={addTarget}
           wallets={wallets}
-          currentUser={currentUser}
           person={{ personName: personName.trim(), phone: normalizePhone(phone), personId: resolvedPersonId }}
           onCancel={() => setAddTarget(null)}
           onSave={(formData) => {
             // Goes through createLoan (mode=ADD_TO_EXISTING_LOAN) so the backend
-            // re-validates the person/type/paid state authoritatively.
+            // re-validates the person/type/paid state authoritatively. App.jsx
+            // already shows the failure via showAlert() and rethrows, so the
+            // rejection is absorbed here to avoid showing it twice.
             return onSave(formData).then(handleAddToLoanSaved).catch(() => {});
           }}
         />
