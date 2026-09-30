@@ -205,7 +205,7 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
         </div>
 
         <div className="grid grid-cols-3 gap-2 mt-4">
-          <div className="bg-slate-50 dark:bg-gray-950 rounded-xl p-2.5 text-center border border-gray-100 dark:border-gray-800">
+          <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-2.5 text-center border border-gray-100 dark:border-gray-800">
             <div className="text-[9px] text-gray-500 dark:text-gray-400 font-medium">মোট হাওলাত</div>
             <div className="text-sm font-bold text-slate-800 dark:text-gray-100 mt-0.5">{formatMoney(loanTotal, loan.currency)}</div>
           </div>
@@ -213,7 +213,7 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
             <div className="text-[9px] text-emerald-700 dark:text-emerald-400 font-medium">{meta.repaidLabel}</div>
             <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">{formatMoney(loan.repaid, loan.currency)}</div>
           </div>
-          <div className={`rounded-xl p-2.5 text-center border ${remaining > 0 ? "bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-800" : "bg-slate-50 dark:bg-gray-950 border-gray-100 dark:border-gray-800"}`}>
+          <div className={`rounded-xl p-2.5 text-center border ${remaining > 0 ? "bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-800" : "bg-slate-50 dark:bg-slate-900 border-gray-100 dark:border-gray-800"}`}>
             <div className="text-[9px] text-amber-700 dark:text-amber-400 font-medium">বাকি</div>
             <div className={`text-sm font-bold mt-0.5 ${remaining > 0 ? "text-amber-600 dark:text-amber-400" : "text-slate-500 dark:text-gray-400"}`}>{formatMoney(remaining, loan.currency)}</div>
           </div>
@@ -237,7 +237,7 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
         <div className="flex items-center justify-between mb-3">
           <div className="text-xs font-bold text-slate-700 dark:text-gray-200">হাওলাতের বিস্তারিত</div>
           {canAddExtra && !isCancelled && (
-            <button onClick={() => { setEditingAddition(null); setShowAdd(true); }} className="text-[10px] font-bold bg-sky-600 hover:bg-sky-700 text-white px-2.5 py-1.5 rounded-lg flex items-center gap-1">
+            <button onClick={() => { setEditingAddition(null); setShowAdd(true); }} disabled={remaining <= 0} className="text-[10px] font-bold bg-sky-600 hover:bg-sky-700 disabled:opacity-40 text-white px-2.5 py-1.5 rounded-lg flex items-center gap-1">
               <i className="fa-solid fa-plus"></i> টাকা যোগ করুন
             </button>
           )}
@@ -263,7 +263,7 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
               </div>
               <div className="text-right flex items-center gap-2 flex-shrink-0">
                 <span className="text-xs font-bold text-amber-600 dark:text-amber-400">+{formatMoney(ad.amount, ad.currency || loan.currency)}</span>
-                {canEditLoan && !isCancelled && (
+                {canEditLoan && !isCancelled && remaining > 0 && (
                   <span className="flex items-center gap-1">
                     <button onClick={() => setEditingAddition(ad)} className="text-xs text-gray-400 hover:text-emerald-600"><i className="fa-solid fa-pen"></i></button>
                     <button onClick={() => handleDeleteAddition(ad)} className="text-xs text-gray-400 hover:text-rose-600"><i className="fa-solid fa-trash"></i></button>
@@ -287,17 +287,19 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
           <i className="fa-solid fa-plus"></i> ফেরত যোগ করুন
         </button>
         {showAddExtra && (
-          <button onClick={() => { setEditingAddition(null); setShowAdd(true); }} className="bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 rounded-xl text-sm shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-transform">
+          <button onClick={() => { setEditingAddition(null); setShowAdd(true); }} disabled={remaining <= 0}
+            className="bg-sky-600 hover:bg-sky-700 disabled:opacity-40 text-white font-bold py-3 rounded-xl text-sm shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-transform">
             <i className="fa-solid fa-circle-plus"></i> টাকা যোগ করুন
           </button>
         )}
         {showEditLoan && (
-          <button onClick={onEdit} className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-slate-700 dark:text-gray-200 font-bold py-3 rounded-xl text-sm shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-transform">
+          <button onClick={onEdit} disabled={remaining <= 0}
+            className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 disabled:opacity-40 text-slate-700 dark:text-gray-200 font-bold py-3 rounded-xl text-sm shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-transform">
             <i className="fa-solid fa-pen"></i> এডিট করুন
           </button>
         )}
         {showCancelLoan && (
-          <button onClick={handleCancel} disabled={isCancelled}
+          <button onClick={handleCancel} disabled={remaining <= 0 || isCancelled}
             className="border border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 font-bold py-3 rounded-xl text-sm shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-transform disabled:opacity-40">
             <i className="fa-solid fa-ban"></i> {isCancelled ? "বাতিল হয়েছে" : "হাওলাট বাতিল করুন"}
           </button>

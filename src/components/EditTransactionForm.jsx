@@ -32,7 +32,7 @@ export default function EditTransactionForm({ transaction, onSave, onCancel }) {
 
   return (
     <Popup open title="Edit Transaction" onClose={submitting ? undefined : onCancel}>
-      <div className="bg-slate-50 dark:bg-gray-950 rounded-xl px-3 py-2 text-xs text-slate-500 dark:text-gray-400 flex items-center gap-2">
+      <div className="bg-slate-50 dark:bg-slate-900 rounded-xl px-3 py-2 text-xs text-slate-500 dark:text-gray-400 flex items-center gap-2">
         <i className="fa-solid fa-vault"></i> Wallet: <span className="font-semibold text-slate-700 dark:text-gray-200">{transaction.WalletName || transaction.WalletID}</span>
       </div>
       <form onSubmit={handleSubmit} className="space-y-3">

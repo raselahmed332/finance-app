@@ -31,26 +31,46 @@ export default function BankOperationForm({ wallets, currentUser, onSave, onCanc
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow-sm border border-gray-200 dark:border-gray-800 space-y-4">
-      <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+      <div className="flex items-center justify-between pb-3">
         <button onClick={onCancel} className="text-gray-500 dark:text-gray-400"><i className="fa-solid fa-arrow-left text-lg"></i></button>
         <h3 className="font-bold text-blue-600 dark:text-blue-400">Bank Operation</h3>
         <div className="w-5"></div>
       </div>
-      <form onSubmit={submit} className="space-y-3">
-        <Select value={type} onChange={setType}>
-          <option value="Bank Withdraw">Withdraw from Bank to Cash</option>
-          <option value="Bank Deposit">Deposit Cash to Bank</option>
-        </Select>
-        <Select value={walletId} onChange={changeWallet}>
-          {wallets.map(w => <option key={w.WalletID} value={w.WalletID}>{w.WalletName} ({w.Currency})</option>)}
-        </Select>
-        <div className="relative flex items-center">
-          <input type="number" step="any" min="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl pl-3 pr-14 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" />
-          <span className="absolute right-3 text-xs font-bold text-gray-400 dark:text-gray-500">{selectedWallet?.Currency}</span>
+      <form onSubmit={submit} className="space-y-3.5">
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Operation (কার্যক্রম)</label>
+            <Select value={type} onChange={setType}>
+              <option value="Bank Withdraw">Withdraw</option>
+              <option value="Bank Deposit">Deposit</option>
+            </Select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Wallet (কোন হিসাবে)</label>
+            <Select value={walletId} onChange={changeWallet}>
+              {wallets.map(w => <option key={w.WalletID} value={w.WalletID}>{w.WalletName} ({w.Currency})</option>)}
+            </Select>
+          </div>
         </div>
-        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" required />
-        <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" />
-        <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note" rows="2" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl p-3 text-sm resize-none bg-white dark:bg-gray-900 dark:text-gray-100"></textarea>
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Amount</label>
+          <div className="relative flex items-center">
+            <input type="number" step="any" min="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl pl-3 pr-14 py-2 text-sm font-semibold bg-white dark:bg-gray-900 dark:text-gray-100" required />
+            <span className="absolute right-3 text-xs font-bold text-gray-400 dark:text-gray-500">{selectedWallet?.Currency}</span>
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Date</label>
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" required />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Description (বিবরণ)</label>
+          <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="যেমন: ATM Withdraw" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Note (নোট)</label>
+          <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="নোট লিখুন..." rows="2" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl p-3 text-sm resize-none bg-white dark:bg-gray-900 dark:text-gray-100"></textarea>
+        </div>
         <button disabled={submitting} className="w-full bg-blue-600 disabled:opacity-50 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2">{submitting ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-building-columns"></i>} {submitting ? 'Saving...' : 'Save Operation'}</button>
       </form>
     </div>

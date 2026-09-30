@@ -46,7 +46,7 @@ export default function TransferForm({ wallets, currentUser, onSave, onCancel })
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow-sm border border-gray-200 dark:border-gray-800 space-y-4">
-      <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+      <div className="flex items-center justify-between pb-3">
         <button onClick={onCancel} className="text-gray-500 hover:text-slate-800 dark:text-gray-400 dark:hover:text-gray-200">
           <i className="fa-solid fa-arrow-left text-lg"></i>
         </button>
@@ -57,20 +57,22 @@ export default function TransferForm({ wallets, currentUser, onSave, onCancel })
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="bg-slate-50 dark:bg-gray-950 border border-slate-200 dark:border-gray-700 rounded-xl p-3 space-y-2">
+        <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-gray-700 rounded-xl p-3 space-y-2">
           <div className="text-xs font-bold text-slate-700 dark:text-gray-200 uppercase tracking-wider">From (কোথা থেকে)</div>
-          <div>
-            <label className="block text-[11px] text-gray-500 dark:text-gray-400 font-medium mb-1">Wallet</label>
-            <Select value={fromWalletId} onChange={changeFromWallet}>
-              {wallets.map(w => <option key={w.WalletID} value={w.WalletID}>{w.WalletName} ({w.Currency})</option>)}
-            </Select>
-          </div>
-          <div>
-            <label className="block text-[11px] text-gray-500 dark:text-gray-400 font-medium mb-1">Account</label>
-            <Select value={fromAccount} onChange={setFromAccount}>
-              <option value="Bank">Bank</option>
-              <option value="Cash">Cash</option>
-            </Select>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-[11px] text-gray-500 dark:text-gray-400 font-medium mb-1">Wallet</label>
+              <Select value={fromWalletId} onChange={changeFromWallet}>
+                {wallets.map(w => <option key={w.WalletID} value={w.WalletID}>{w.WalletName} ({w.Currency})</option>)}
+              </Select>
+            </div>
+            <div>
+              <label className="block text-[11px] text-gray-500 dark:text-gray-400 font-medium mb-1">Account</label>
+              <Select value={fromAccount} onChange={setFromAccount}>
+                <option value="Bank">Bank</option>
+                <option value="Cash">Cash</option>
+              </Select>
+            </div>
           </div>
 
           <div>
@@ -88,20 +90,22 @@ export default function TransferForm({ wallets, currentUser, onSave, onCancel })
           </div>
         </div>
 
-        <div className="bg-slate-50 dark:bg-gray-950 border border-slate-200 dark:border-gray-700 rounded-xl p-3 space-y-2">
+        <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-gray-700 rounded-xl p-3 space-y-2">
           <div className="text-xs font-bold text-slate-700 dark:text-gray-200 uppercase tracking-wider">To (কোথায়)</div>
-          <div>
-            <label className="block text-[11px] text-gray-500 dark:text-gray-400 font-medium mb-1">Wallet</label>
-            <Select value={toWalletId} onChange={changeToWallet}>
-              {wallets.map(w => <option key={w.WalletID} value={w.WalletID}>{w.WalletName} ({w.Currency})</option>)}
-            </Select>
-          </div>
-          <div>
-            <label className="block text-[11px] text-gray-500 dark:text-gray-400 font-medium mb-1">Account</label>
-            <Select value={toAccount} onChange={setToAccount}>
-              <option value="Cash">Cash</option>
-              <option value="Bank">Bank</option>
-            </Select>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-[11px] text-gray-500 dark:text-gray-400 font-medium mb-1">Wallet</label>
+              <Select value={toWalletId} onChange={changeToWallet}>
+                {wallets.map(w => <option key={w.WalletID} value={w.WalletID}>{w.WalletName} ({w.Currency})</option>)}
+              </Select>
+            </div>
+            <div>
+              <label className="block text-[11px] text-gray-500 dark:text-gray-400 font-medium mb-1">Account</label>
+              <Select value={toAccount} onChange={setToAccount}>
+                <option value="Cash">Cash</option>
+                <option value="Bank">Bank</option>
+              </Select>
+            </div>
           </div>
 
           <div>

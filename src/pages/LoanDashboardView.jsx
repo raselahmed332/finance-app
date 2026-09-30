@@ -52,11 +52,15 @@ function SummaryCard({ meta, total, remaining }) {
 
 // Server timestamps are stored as "dd-MMM-yyyy HH:mm" (e.g. "24-Sep-2026 14:30");
 // display them like the loan date (e.g. "24 Sep 2026"), no time.
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 function fmtUpdated(ts) {
   if (!ts) return "—";
-  const m = /^(\d{1,2})-([A-Za-z]{3})-(\d{4})/.exec(String(ts).trim());
-  if (m) return `${m[1]} ${m[2]} ${m[3]}`;
-  return String(ts);
+  const s = String(ts).trim();
+  const d = /^(\d{1,2})-([A-Za-z]{3})-(\d{4})/.exec(s);
+  if (d) return `${d[1]} ${d[2]} ${d[3]}`;
+  const when = new Date(s);
+  if (!isNaN(when.getTime())) return `${when.getDate()} ${MONTHS[when.getMonth()]} ${when.getFullYear()}`;
+  return s;
 }
 
 function LoanCard({ loan, onSelect, creatorName }) {
@@ -88,7 +92,7 @@ function LoanCard({ loan, onSelect, creatorName }) {
       </div>
 
       <div className="grid grid-cols-3 gap-2 mt-3">
-        <div className="bg-slate-50 dark:bg-gray-950 rounded-xl p-2 text-center border border-gray-100 dark:border-gray-800">
+        <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-2 text-center border border-gray-100 dark:border-gray-800">
           <div className="text-[9px] text-gray-500 dark:text-gray-400 font-medium">{meta.totalLabel}</div>
           <div className="text-[11px] font-bold text-slate-800 dark:text-gray-100 mt-0.5">{formatMoney(totalAmountOf(loan), loan.currency)}</div>
         </div>
@@ -96,7 +100,7 @@ function LoanCard({ loan, onSelect, creatorName }) {
           <div className="text-[9px] text-emerald-700 dark:text-emerald-400 font-medium">{meta.repaidLabel}</div>
           <div className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">{formatMoney(loan.repaid, loan.currency)}</div>
         </div>
-        <div className={`rounded-xl p-2 text-center border ${remaining > 0 ? "bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-800" : "bg-slate-50 dark:bg-gray-950 border-gray-100 dark:border-gray-800"}`}>
+        <div className={`rounded-xl p-2 text-center border ${remaining > 0 ? "bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-800" : "bg-slate-50 dark:bg-slate-900 border-gray-100 dark:border-gray-800"}`}>
           <div className="text-[9px] text-amber-700 dark:text-amber-400 font-medium">{meta.remainingLabel}</div>
           <div className={`text-[11px] font-bold mt-0.5 ${remaining > 0 ? "text-amber-600 dark:text-amber-400" : "text-slate-500 dark:text-gray-400"}`}>{formatMoney(remaining, loan.currency)}</div>
         </div>
@@ -109,14 +113,14 @@ function LoanCard({ loan, onSelect, creatorName }) {
         </div>
         <div className="text-right ml-2 flex items-center justify-end gap-x-2 flex-wrap">
           {creatorName && (
-            <span className="text-[9px] text-gray-400 dark:text-gray-500">
-              <i className="fa-solid fa-user-pen me-1"></i>Created by:{" "}
+            <span className="text-[9px] text-gray-400 dark:text-gray-500 flex items-center gap-1">
+              <i className="fa-solid fa-user-pen"></i>
               <span className="font-semibold text-gray-500 dark:text-gray-400">{creatorName}</span>
             </span>
           )}
           {loan.updatedAt && (
-            <span className="text-[9px] text-gray-400 dark:text-gray-500">
-              <i className="fa-solid fa-clock-rotate-left me-1"></i>Updated:{" "}
+            <span className="text-[9px] text-gray-400 dark:text-gray-500 flex items-center gap-1">
+              <i className="fa-solid fa-clock-rotate-left"></i>
               <span className="font-semibold text-gray-500 dark:text-gray-400">{fmtUpdated(loan.updatedAt)}</span>
             </span>
           )}
@@ -150,60 +154,69 @@ function FilterSheet({ open, onClose, onApply, onReset, currencies }) {
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose}></div>
-      <div className="relative bg-white dark:bg-gray-900 w-full max-w-[480px] rounded-t-2xl p-4 pb-6 shadow-2xl max-h-[88vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-3">
-          <h4 className="font-bold text-sm text-slate-800 dark:text-gray-100">ফিল্টার</h4>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+      <div className="w-full max-w-[480px] bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 max-h-[90vh] overflow-y-auto custom-scrollbar" onClick={(e) => e.stopPropagation()}>
+        <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800">
+          <h4 className="font-bold text-slate-800 dark:text-gray-100 text-base">ফিল্টার</h4>
           <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 flex items-center justify-center">
             <i className="fa-solid fa-xmark"></i>
           </button>
         </div>
 
-        <div className="text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5">STATUS</div>
-        <div className="flex flex-wrap gap-1.5 mb-4">
-          {STATUS_CHOICES.map((s) => (
-            <span key={s.value}>{chip(status === s.value, () => setStatus(s.value), s.label)}</span>
-          ))}
-        </div>
-
-        <div className="text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5">DATE</div>
-        <div className="flex flex-wrap gap-1.5 mb-3">
-          {DATE_CHOICES.map((d) => (
-            <span key={d.value}>{chip(dateOption === d.value, () => setDateOption(d.value), d.label)}</span>
-          ))}
-        </div>
-        {dateOption === "custom" && (
-          <div className="grid grid-cols-2 gap-2 mb-3">
-            <label className="block">
-              <span className="text-[10px] text-gray-500 dark:text-gray-400 mb-0.5 block">তারিখ (থেকে)</span>
-              <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" />
-            </label>
-            <label className="block">
-              <span className="text-[10px] text-gray-500 dark:text-gray-400 mb-0.5 block">তারিখ (পর্যন্ত)</span>
-              <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" />
-            </label>
+        <div className="p-5 space-y-3">
+          <div>
+            <div className="text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5">STATUS</div>
+            <div className="flex flex-wrap gap-1.5">
+              {STATUS_CHOICES.map((s) => (
+                <span key={s.value}>{chip(status === s.value, () => setStatus(s.value), s.label)}</span>
+              ))}
+            </div>
           </div>
-        )}
 
-        <div className="text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5">CURRENCY</div>
-        <div className="flex flex-wrap gap-1.5 mb-4">
-          <span>{chip(currency === "all", () => setCurrency("all"), "সব")}</span>
-          {currencies.map((c) => (
-            <span key={c}>{chip(currency === c, () => setCurrency(c), c)}</span>
-          ))}
-        </div>
+          <div>
+            <div className="text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5">DATE</div>
+            <div className="flex flex-wrap gap-1.5">
+              {DATE_CHOICES.map((d) => (
+                <span key={d.value}>{chip(dateOption === d.value, () => setDateOption(d.value), d.label)}</span>
+              ))}
+            </div>
+          </div>
+          {dateOption === "custom" && (
+            <div className="grid grid-cols-2 gap-2">
+              <label className="block">
+                <span className="text-[10px] text-gray-500 dark:text-gray-400 mb-0.5 block">তারিখ (থেকে)</span>
+                <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" />
+              </label>
+              <label className="block">
+                <span className="text-[10px] text-gray-500 dark:text-gray-400 mb-0.5 block">তারিখ (পর্যন্ত)</span>
+                <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" />
+              </label>
+            </div>
+          )}
 
-        <div className="text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5">REMAINING</div>
-        <div className="flex flex-wrap gap-1.5 mb-5">
-          <span>{chip(remaining === "all", () => setRemaining("all"), "সব")}</span>
-          <span>{chip(remaining === "due", () => setRemaining("due"), "টাকা বাকি আছে")}</span>
-          <span>{chip(remaining === "done", () => setRemaining("done"), "সম্পূর্ণ ফেরত হয়েছে")}</span>
-        </div>
+          <div>
+            <div className="text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5">CURRENCY</div>
+            <div className="flex flex-wrap gap-1.5">
+              <span>{chip(currency === "all", () => setCurrency("all"), "সব")}</span>
+              {currencies.map((c) => (
+                <span key={c}>{chip(currency === c, () => setCurrency(c), c)}</span>
+              ))}
+            </div>
+          </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <button onClick={() => { onReset(); onClose(); }} className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-bold py-2.5 rounded-xl text-xs">রিসেট</button>
-          <button onClick={() => { onApply({ status, dateOption, from, to, currency, remaining }); onClose(); }} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs">ফিল্টার করুন</button>
+          <div>
+            <div className="text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5">REMAINING</div>
+            <div className="flex flex-wrap gap-1.5">
+              <span>{chip(remaining === "all", () => setRemaining("all"), "সব")}</span>
+              <span>{chip(remaining === "due", () => setRemaining("due"), "টাকা বাকি আছে")}</span>
+              <span>{chip(remaining === "done", () => setRemaining("done"), "সম্পূর্ণ ফেরত হয়েছে")}</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 pt-2">
+            <button onClick={() => { onReset(); onClose(); }} className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-bold py-2.5 rounded-xl text-xs">রিসেট</button>
+            <button onClick={() => { onApply({ status, dateOption, from, to, currency, remaining }); onClose(); }} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs">ফিল্টার করুন</button>
+          </div>
         </div>
       </div>
     </div>

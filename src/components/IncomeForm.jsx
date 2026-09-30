@@ -40,7 +40,7 @@ export default function IncomeForm({ wallets, categories, currentUser, onSave, o
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow-sm border border-gray-200 dark:border-gray-800 space-y-4">
-      <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+      <div className="flex items-center justify-between pb-3">
         <button onClick={onCancel} className="text-gray-500 hover:text-slate-800 dark:text-gray-400 dark:hover:text-gray-200">
           <i className="fa-solid fa-arrow-left text-lg"></i>
         </button>
@@ -51,20 +51,22 @@ export default function IncomeForm({ wallets, categories, currentUser, onSave, o
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-3.5">
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Wallet (কোন হিসাবে)</label>
-          <Select value={walletId} onChange={changeWallet} required>
-            {wallets.length === 0 && <option value="">কোনো Wallet এক্সেস নেই</option>}
-            {wallets.map(w => <option key={w.WalletID} value={w.WalletID}>{w.WalletName} ({w.Currency})</option>)}
-          </Select>
-        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Wallet (কোন হিসাবে)</label>
+            <Select value={walletId} onChange={changeWallet} required>
+              {wallets.length === 0 && <option value="">কোনো Wallet এক্সেস নেই</option>}
+              {wallets.map(w => <option key={w.WalletID} value={w.WalletID}>{w.WalletName} ({w.Currency})</option>)}
+            </Select>
+          </div>
 
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Account (অ্যাকাউন্ট)</label>
-          <Select value={account} onChange={setAccount}>
-            <option value="Cash">Cash</option>
-            <option value="Bank">Bank</option>
-          </Select>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Account (অ্যাকাউন্ট)</label>
+            <Select value={account} onChange={setAccount}>
+              <option value="Cash">Cash</option>
+              <option value="Bank">Bank</option>
+            </Select>
+          </div>
         </div>
 
         <div>
@@ -77,16 +79,16 @@ export default function IncomeForm({ wallets, categories, currentUser, onSave, o
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Description (বিবরণ)</label>
-          <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="যেমন: May Salary" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-900 dark:text-gray-100" />
-        </div>
-
-        <div>
           <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Amount</label>
           <div className="relative flex items-center">
             <input type="number" step="any" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl pl-3 pr-14 py-2 text-sm font-semibold focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-900 dark:text-gray-100" required />
             <span className="absolute right-3 text-xs font-bold text-gray-400 dark:text-gray-500">{selectedWallet?.Currency}</span>
           </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Description (বিবরণ)</label>
+          <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="যেমন: May Salary" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-900 dark:text-gray-100" />
         </div>
 
         <div>

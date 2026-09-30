@@ -107,7 +107,7 @@ function filterGroups(groups, allowed) {
 
 function SectionCard({ icon, title, hint, children, className = "" }) {
   return (
-    <div className={`bg-slate-50 dark:bg-gray-950 rounded-xl p-3 border border-gray-200 dark:border-gray-800 space-y-2 ${className}`}>
+    <div className={`bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-gray-200 dark:border-gray-800 space-y-2 ${className}`}>
       <div>
         <div className="text-[11px] font-bold text-slate-700 dark:text-gray-200 flex items-center gap-1.5">
           {icon && <i className={`fa-solid ${icon} text-emerald-600 dark:text-emerald-400 text-[10px]`}></i>}
@@ -399,7 +399,7 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
   const isEditSection = section === "edit";
 
   return (
-    <div className="bg-slate-50 dark:bg-gray-950 rounded-xl p-3 mb-3 space-y-3 border border-gray-200 dark:border-gray-800">
+    <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-3 mb-3 space-y-3 border border-gray-200 dark:border-gray-800">
       <div className="flex items-center justify-between">
         <div className="text-[11px] font-bold text-slate-700 dark:text-gray-200">
           {isEditSection ? "Edit User" : "Manage User"} <span className="text-gray-400 dark:text-gray-500 font-normal">— {user.FullName || user.Username}</span>
@@ -699,7 +699,7 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
           <AdminFullAccessCard />
         ) : (
           <>
-            <div className="bg-slate-50 dark:bg-gray-950 rounded-xl p-3 border border-gray-200 dark:border-gray-800 space-y-2">
+            <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-gray-200 dark:border-gray-800 space-y-2">
               <div className="text-[11px] font-bold text-slate-700 dark:text-gray-200">
                 <i className="fa-solid fa-wallet me-1.5 text-emerald-600 dark:text-emerald-400 text-[10px]"></i>Wallet Access
               </div>
@@ -719,7 +719,7 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
               )}
             </div>
 
-            <div className="bg-slate-50 dark:bg-gray-950 rounded-xl p-3 border border-gray-200 dark:border-gray-800 space-y-1.5">
+            <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-gray-200 dark:border-gray-800 space-y-1.5">
               <div className="text-[11px] font-bold text-slate-700 dark:text-gray-200">
                 <i className="fa-solid fa-list-check me-1.5 text-emerald-600 dark:text-emerald-400 text-[10px]"></i>Permissions
               </div>
@@ -829,7 +829,7 @@ function AddUserForm({ wallets, currentUser, showAlert, onRefresh, onClose }) {
 
   return (
     <form onSubmit={handleAddUser} className="space-y-3">
-      <div className="bg-slate-50 dark:bg-gray-950 rounded-xl p-3 border border-gray-200 dark:border-gray-800 space-y-2">
+      <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-gray-200 dark:border-gray-800 space-y-2">
         <div className="text-[11px] font-bold text-slate-700 dark:text-gray-200"><i className="fa-solid fa-id-card me-1.5 text-emerald-600 dark:text-emerald-400 text-[10px]"></i>1. Basic Information</div>
         <input type="text" placeholder="Full Name" value={fullName} onChange={(e) => setFullName(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" />
         <input type="text" placeholder="Username" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" required />
@@ -843,20 +843,20 @@ function AddUserForm({ wallets, currentUser, showAlert, onRefresh, onClose }) {
 
         {!isAdminNew && (
           <>
-            <div className="bg-slate-50 dark:bg-gray-950 rounded-xl p-3 border border-gray-200 dark:border-gray-800 space-y-2">
+            <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-gray-200 dark:border-gray-800 space-y-2">
               <div className="text-[11px] font-bold text-slate-700 dark:text-gray-200"><i className="fa-solid fa-wallet me-1.5 text-emerald-600 dark:text-emerald-400 text-[10px]"></i>2. Wallet Access</div>
               <div className="text-[10px] text-gray-400 dark:text-gray-500">কোন ওয়ালেটে এই ইউজার এক্সেস পাবে তা নির্বাচন করুন। Permissions শুধু অ্যাক্সেসযোগ্য ওয়ালেটের ভেতরেই কাজ করে।</div>
               <WalletChecklist wallets={wallets} selected={walletAccess} onToggle={toggleWallet} />
               {!hasWallet && <NoWalletAccessNotice showInactiveNote={AnyAdditionalGranted({ selected: permissions })} />}
             </div>
 
-            <div className="bg-slate-50 dark:bg-gray-950 rounded-xl p-3 border border-gray-200 dark:border-gray-800 space-y-2">
+            <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-gray-200 dark:border-gray-800 space-y-2">
               <div className="text-[11px] font-bold text-slate-700 dark:text-gray-200"><i className="fa-solid fa-list-check me-1.5 text-emerald-600 dark:text-emerald-400 text-[10px]"></i>3. Default Wallet Permissions</div>
               <div className="text-[10px] text-gray-400 dark:text-gray-500">Wallet Access থাকলে এই অ্যাকশনগুলো স্বয়ংক্রিয়ভাবে সক্রিয় হয়।</div>
               <DefaultPermissionsList active={hasWallet} />
             </div>
 
-            <div className="bg-slate-50 dark:bg-gray-950 rounded-xl p-3 border border-gray-200 dark:border-gray-800 space-y-2">
+            <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-gray-200 dark:border-gray-800 space-y-2">
               <div className="text-[11px] font-bold text-slate-700 dark:text-gray-200"><i className="fa-solid fa-user-shield me-1.5 text-emerald-600 dark:text-emerald-400 text-[10px]"></i>4. Additional Permissions</div>
               <div className="text-[10px] text-gray-400 dark:text-gray-500">এই Permissions Admin কে স্পষ্টভাবে দিতে হয়। এগুলো ইউজারের অ্যাক্সেসযোগ্য সব ওয়ালেটে প্রযোজ্য।</div>
               {!hasWallet && (

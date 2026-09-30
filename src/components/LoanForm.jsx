@@ -260,7 +260,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">সক্রিয় লোনের হিসাব আপডেট হয়েছে।</p>
         </div>
 
-        <div className="bg-slate-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-3 text-xs text-slate-800 dark:text-gray-100">
+        <div className="bg-slate-50 dark:bg-slate-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3 text-xs text-slate-800 dark:text-gray-100">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center text-base font-bold">{String(l?.personName || "?").charAt(0).toUpperCase()}</div>
             <div>
@@ -303,7 +303,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">আপনার হিসাব আপডেট করা হয়েছে।</p>
         </div>
 
-        <div className="bg-slate-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-3 text-xs text-slate-800 dark:text-gray-100">
+        <div className="bg-slate-50 dark:bg-slate-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3 text-xs text-slate-800 dark:text-gray-100">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center text-base font-bold">{String(l?.personName || "?").charAt(0).toUpperCase()}</div>
             <div>
@@ -345,7 +345,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
             {isEdit ? (
               <div>
                 <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">হাওলাতের ধরন</label>
-                <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-2.5 text-xs text-slate-700 dark:text-gray-200">
+                <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-900 px-3 py-2.5 text-xs text-slate-700 dark:text-gray-200">
                   <i className={`fa-solid ${type === "given" ? "fa-hand-holding-dollar text-rose-500" : "fa-sack-dollar text-emerald-500"} me-2`}></i>
                   {meta.action} <span className="text-[10px] text-gray-400 dark:text-gray-500">(এডিটে পরিবর্তন করা যাবে না)</span>
                 </div>
@@ -391,6 +391,22 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
 
         {step === 2 && (
           <>
+            <div className="grid grid-cols-2 gap-2">
+              <Field label="Wallet" error={errors.wallet}>
+                <Select value={walletId} onChange={changeWallet}>
+                  {wallets.length === 0 && <option value="">কোনো Wallet এক্সেস নেই</option>}
+                  {wallets.map(w => <option key={w.WalletID} value={w.WalletID}>{w.WalletName} ({w.Currency})</option>)}
+                </Select>
+              </Field>
+
+              <Field label="Wallet Account" error={errors.account}>
+                <Select value={account} onChange={setAccount}>
+                  <option value="Cash">Cash</option>
+                  <option value="Bank">Bank</option>
+                </Select>
+              </Field>
+            </div>
+
             <Field label={`পরিমাণ (${currency || "..."})`} error={errors.amount}>
               <input type="number" step="any" min="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm font-semibold focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-900 dark:text-gray-100" />
             </Field>
@@ -399,21 +415,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
               <input type="date" value={loanDate} onChange={(e) => setLoanDate(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-900 dark:text-gray-100" />
             </Field>
 
-            <Field label="Wallet" error={errors.wallet}>
-              <Select value={walletId} onChange={changeWallet}>
-                {wallets.length === 0 && <option value="">কোনো Wallet এক্সেস নেই</option>}
-                {wallets.map(w => <option key={w.WalletID} value={w.WalletID}>{w.WalletName} ({w.Currency})</option>)}
-              </Select>
-            </Field>
-
-            <Field label="Wallet Account" error={errors.account}>
-              <Select value={account} onChange={setAccount}>
-                <option value="Cash">Cash</option>
-                <option value="Bank">Bank</option>
-              </Select>
-            </Field>
-
-            <div className="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl px-3 py-2 flex items-center justify-between">
+            <div className="bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-gray-800 rounded-xl px-3 py-2 flex items-center justify-between">
               <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">Currency</span>
               <span className="text-xs font-bold text-slate-800 dark:text-gray-100">{currency || "—"} <span className="text-[10px] font-medium text-gray-400 dark:text-gray-500">(Auto)</span></span>
             </div>
@@ -433,7 +435,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
         )}
 
         {step === 3 && (
-          <div className="bg-slate-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-3.5 text-xs space-y-2 text-slate-800 dark:text-gray-100">
+          <div className="bg-slate-50 dark:bg-slate-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3.5 text-xs space-y-2 text-slate-800 dark:text-gray-100">
             <div className="font-bold text-sm text-slate-800 dark:text-gray-100 mb-1">বিস্তারিত নিশ্চিত করুন</div>
             <div className="flex items-center gap-2.5">
               <div className="w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center text-sm font-bold">{String(personName || "?").charAt(0).toUpperCase()}</div>
@@ -490,7 +492,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
                 <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">নতুন হাওলাত হিসাবে আলাদাভাবে সংরক্ষণ হবে।</div>
               </button>
               <button type="button" onClick={chooseAddToExisting} disabled={compatibleActiveLoans.length === 0}
-                className={`w-full text-left rounded-xl p-3 active:scale-95 transition-transform ${compatibleActiveLoans.length === 0 ? "bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 opacity-60" : "bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-300 dark:border-emerald-800"}`}>
+                className={`w-full text-left rounded-xl p-3 active:scale-95 transition-transform ${compatibleActiveLoans.length === 0 ? "bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-gray-800 opacity-60" : "bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-300 dark:border-emerald-800"}`}>
                 <div className="text-sm font-bold text-slate-800 dark:text-gray-100"><i className={`fa-solid fa-circle-plus ${compatibleActiveLoans.length === 0 ? "text-gray-400" : "text-emerald-600"} me-2`}></i>সক্রিয় লোনের সাথে যোগ করুন</div>
                 <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
                   {compatibleActiveLoans.length === 0
@@ -503,7 +505,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
             <div className="border-t border-gray-100 dark:border-gray-800 mt-4 pt-3 space-y-2">
               <div className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase">সক্রিয় হাওলাত</div>
               {serverActive.map((al, i) => (
-                <div key={al.id} className="flex items-center justify-between bg-slate-50 dark:bg-gray-950 border border-gray-100 dark:border-gray-800 rounded-xl px-3 py-2">
+                <div key={al.id} className="flex items-center justify-between bg-slate-50 dark:bg-slate-900 border border-gray-100 dark:border-gray-800 rounded-xl px-3 py-2">
                   <div className="flex items-center gap-2">
                     <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${String(al.type) === "given" ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700"}`}>{i + 1}</span>
                     <span className="text-xs font-semibold text-slate-800 dark:text-gray-100">{loanTypeMeta(al.type).action} <span className="text-[10px] font-medium text-gray-400">{al.currency}</span></span>
@@ -549,7 +551,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
             <p className="text-[11px] text-gray-400 dark:text-gray-500 mb-3">নিচের যেকোনো একটি সক্রিয় লোন নির্বাচন করুন।</p>
             <div className="space-y-2">
               {compatibleActiveLoans.map((al) => (
-                <button key={al.id} type="button" onClick={() => { setShowLoanPicker(false); openAddFlow(al); }} className="w-full text-left bg-slate-50 dark:bg-gray-950 border border-gray-100 dark:border-gray-800 rounded-xl p-3 active:scale-95 transition-transform">
+                <button key={al.id} type="button" onClick={() => { setShowLoanPicker(false); openAddFlow(al); }} className="w-full text-left bg-slate-50 dark:bg-slate-900 border border-gray-100 dark:border-gray-800 rounded-xl p-3 active:scale-95 transition-transform">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-800 dark:text-gray-100">{loanTypeMeta(al.type).action}</span>
                     <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400">{formatMoney(remainingOf(al), al.currency)} বাকি</span>

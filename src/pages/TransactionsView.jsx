@@ -157,25 +157,33 @@ export default function TransactionsView({ transactions, wallets, onDelete, onEd
         </div>
       </Popup>
 
-      <Select value={filterWallet} onChange={setFilterWallet}>
-        <option value="All">সব Wallet</option>
-        {wallets.map((w) => (
-          <option key={w.WalletID} value={w.WalletID}>
-            {w.WalletName} ({w.Currency})
-          </option>
-        ))}
-      </Select>
+      <div className={canViewUsers ? "grid grid-cols-2 gap-2" : ""}>
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Wallet</label>
+          <Select value={filterWallet} onChange={setFilterWallet}>
+            <option value="All">সব Wallet</option>
+            {wallets.map((w) => (
+              <option key={w.WalletID} value={w.WalletID}>
+                {w.WalletName} ({w.Currency})
+              </option>
+            ))}
+          </Select>
+        </div>
 
-      {canViewUsers && (
-        <Select value={filterUser} onChange={setFilterUser}>
-          <option value="All">সব ব্যবহারকারী</option>
-          {[...new Set(transactions.map((t) => t.User).filter(Boolean))].map((user) => (
-            <option key={user} value={user}>
-              {user}
-            </option>
-          ))}
-        </Select>
-      )}
+        {canViewUsers && (
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">ব্যবহারকারী</label>
+            <Select value={filterUser} onChange={setFilterUser}>
+              <option value="All">সব ব্যবহারকারী</option>
+              {[...new Set(transactions.map((t) => t.User).filter(Boolean))].map((user) => (
+                <option key={user} value={user}>
+                  {user}
+                </option>
+              ))}
+            </Select>
+          </div>
+        )}
+      </div>
 
       <div className="flex gap-1.5 overflow-x-auto pb-1 text-xs">
         {["All", "Income", "Expense", "Transfer"].map((t) => (

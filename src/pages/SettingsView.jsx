@@ -9,7 +9,7 @@ import { getAllCurrencies, refreshCurrencies, onCurrenciesChange } from "../util
 // Shared input look for every form control on this screen so the two manager
 // cards read as one design system.
 const INPUT_CLS =
-  "w-full border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-gray-950 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-colors";
+  "w-full border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-slate-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-colors";
 
 const LABEL_CLS = "block text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1";
 
@@ -128,7 +128,7 @@ function CategoriesManager({ currentUser, can, showAlert }) {
       subtitle="Income ও Expense ক্যাটাগরি"
       count={categories ? categories.length : undefined}
     >
-      <form onSubmit={handleAdd} className="rounded-xl bg-gray-50 dark:bg-gray-950/60 border border-gray-100 dark:border-gray-800 px-2.5 py-2">
+      <form onSubmit={handleAdd} className="rounded-xl bg-gray-50 dark:bg-slate-900/60 border border-gray-100 dark:border-gray-800 px-2.5 py-2">
         <div className="flex gap-2 items-end">
           <div className="flex-1 min-w-0">
             <label className={LABEL_CLS} htmlFor="cat-name">ক্যাটাগরির নাম</label>
@@ -187,7 +187,7 @@ function CategoriesManager({ currentUser, can, showAlert }) {
                             if (e.key === 'Escape') setEditingId(null);
                           }}
                           maxLength={60}
-                          className="flex-1 min-w-0 bg-white dark:bg-gray-950 border border-emerald-500 rounded-lg px-1.5 py-1 text-xs text-slate-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                          className="flex-1 min-w-0 bg-white dark:bg-slate-900 border border-emerald-500 rounded-lg px-1.5 py-1 text-xs text-slate-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                         />
                       ) : (
                         <span className="flex-1 min-w-0 font-semibold text-slate-700 dark:text-gray-200 truncate">{c.Name}</span>
@@ -341,7 +341,7 @@ function CurrenciesManager({ currentUser, can, showAlert }) {
         <span>Wallet তৈরির পর কারেন্সি পরিবর্তন করা যায় না। হাওলাত শুধু লোন চিহ্নিত কারেন্সিতে চলে।</span>
       </div>
 
-      <form onSubmit={handleAdd} className="rounded-xl bg-gray-50 dark:bg-gray-950/60 border border-gray-100 dark:border-gray-800 px-2.5 py-2">
+      <form onSubmit={handleAdd} className="rounded-xl bg-gray-50 dark:bg-slate-900/60 border border-gray-100 dark:border-gray-800 px-2.5 py-2">
         <div className="flex gap-2 items-end">
           <div className="flex-1 min-w-0">
             <label className={LABEL_CLS} htmlFor="cur-code">কোড</label>
@@ -369,7 +369,7 @@ function CurrenciesManager({ currentUser, can, showAlert }) {
             <span className={LABEL_CLS}>ঘর</span>
             <span
               title="পুরো হিসাবটি পূর্ণসংখ্য সেন্টে (integer cents) হিসাব হয়, তাই দশমিক ঘর নির্দিষ্ট।"
-              className="flex h-[34px] px-2.5 items-center justify-center text-[11px] font-bold text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-950 border border-dashed border-gray-200 dark:border-gray-700 rounded-xl"
+              className="flex h-[34px] px-2.5 items-center justify-center text-[11px] font-bold text-gray-500 dark:text-gray-400 bg-white dark:bg-slate-900 border border-dashed border-gray-200 dark:border-gray-700 rounded-xl"
             >
               {CURRENCY_DECIMALS}dp
             </span>
@@ -467,7 +467,7 @@ function CurrenciesManager({ currentUser, can, showAlert }) {
               className={`${INPUT_CLS} text-center text-base`}
             />
           </div>
-          <div className="rounded-xl bg-gray-50 dark:bg-gray-950/60 border border-gray-100 dark:border-gray-800 p-3 space-y-2.5">
+          <div className="rounded-xl bg-gray-50 dark:bg-slate-900/60 border border-gray-100 dark:border-gray-800 p-3 space-y-2.5">
             <div className="flex items-center justify-between gap-3">
               <span className="text-[11px] text-slate-600 dark:text-gray-300">Active</span>
               <button

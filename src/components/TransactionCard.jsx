@@ -112,7 +112,7 @@ export default function TransactionCard({ t, userMap, canEdit, canDelete, onEdit
           </div>
         </div>
 
-        <div className="bg-slate-50 dark:bg-gray-950 rounded-xl p-3 border border-gray-200 dark:border-gray-800 grid grid-cols-2 gap-x-4 gap-y-2.5">
+        <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-gray-200 dark:border-gray-800 grid grid-cols-2 gap-x-4 gap-y-2.5">
           {t.ID ? <DetailCell label="Transaction ID" value={String(t.ID)} full /> : null}
           {t.Date ? <DetailCell label="Date" value={String(t.Date)} /> : null}
           {t.Type ? <DetailCell label="Type" value={String(t.Type)} /> : null}

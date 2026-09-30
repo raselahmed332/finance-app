@@ -90,7 +90,7 @@ export default function AuditLogView({ currentUser, onCancel }) {
                 <i className="fa-solid fa-triangle-exclamation me-1"></i> {checkResult.count} টি Broken Pair পাওয়া গেছে।
               </div>
               {checkResult.brokenPairs.map((b, i) => (
-                <div key={i} className="text-[11px] bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-lg px-2.5 py-1.5">
+                <div key={i} className="text-[11px] bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-gray-800 rounded-lg px-2.5 py-1.5">
                   <span className="font-semibold">{b.WalletName}</span> — {b.Type} (ID: {b.ID}) — {b.Issue}
                 </div>
               ))}

@@ -68,7 +68,7 @@ export default function LoanRepaymentForm({ loan, payment, wallets, currentUser,
 
   return (
     <Popup open title={isEdit ? "ফেরত এডিট করুন" : meta.repaymentTitle} onClose={submitting ? undefined : onCancel}>
-      <div className="bg-slate-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-3 mb-4">
+      <div className="bg-slate-50 dark:bg-slate-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3 mb-4">
           <div className="text-center text-sm font-bold text-slate-800 dark:text-gray-100 mb-2">{loan?.personName}</div>
           <div className="grid grid-cols-3 gap-1 text-center">
             <div>
@@ -87,6 +87,26 @@ export default function LoanRepaymentForm({ loan, payment, wallets, currentUser,
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3.5">
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Wallet</label>
+              <div className="w-full flex items-center justify-between border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-gray-50 dark:bg-slate-900 text-gray-500 dark:text-gray-400">
+                <span className="truncate">{selectedWallet ? `${selectedWallet.WalletName} (${selectedWallet.Currency})` : (loan?.walletName || walletId || "—")}</span>
+                <span className="ml-2 shrink-0 text-[9px] font-semibold uppercase tracking-wide">লক করা আছে</span>
+              </div>
+              <ErrorText msg={errors.wallet} />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Wallet Account</label>
+              <Select value={account} onChange={setAccount}>
+                <option value="Cash">Cash</option>
+                <option value="Bank">Bank</option>
+              </Select>
+              <ErrorText msg={errors.account} />
+            </div>
+          </div>
+
           <div>
             <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">ফেরতের পরিমাণ ({currency})</label>
             <input type="number" step="any" min="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm font-semibold focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-900 dark:text-gray-100" />
@@ -105,25 +125,7 @@ export default function LoanRepaymentForm({ loan, payment, wallets, currentUser,
             <ErrorText msg={errors.date} />
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Wallet</label>
-            <div className="w-full flex items-center justify-between border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-gray-50 dark:bg-gray-950 text-gray-500 dark:text-gray-400">
-              <span className="truncate">{selectedWallet ? `${selectedWallet.WalletName} (${selectedWallet.Currency})` : (loan?.walletName || walletId || "—")}</span>
-              <span className="ml-2 shrink-0 text-[9px] font-semibold uppercase tracking-wide">লক করা আছে</span>
-            </div>
-            <ErrorText msg={errors.wallet} />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Wallet Account</label>
-            <Select value={account} onChange={setAccount}>
-              <option value="Cash">Cash</option>
-              <option value="Bank">Bank</option>
-            </Select>
-            <ErrorText msg={errors.account} />
-          </div>
-
-          <div className="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl px-3 py-2 flex items-center justify-between">
+          <div className="bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-gray-800 rounded-xl px-3 py-2 flex items-center justify-between">
             <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">Currency</span>
             <span className="text-xs font-bold text-slate-800 dark:text-gray-100">{currency} <span className="text-[10px] font-medium text-gray-400 dark:text-gray-500">(Auto)</span></span>
           </div>

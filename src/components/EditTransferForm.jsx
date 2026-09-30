@@ -95,7 +95,7 @@ export default function EditTransferForm({ transaction, currentUser, onSave, onC
   return (
     <Popup open title="Edit Transfer" onClose={submitting ? undefined : onCancel}>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="bg-slate-50 dark:bg-gray-950 border border-slate-200 dark:border-gray-700 rounded-xl p-3 space-y-2">
+        <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-gray-700 rounded-xl p-3 space-y-2">
           <div className="text-xs font-bold text-slate-700 dark:text-gray-200 uppercase tracking-wider">From (কোথা থেকে)</div>
           <div className="text-xs text-slate-600 dark:text-gray-300">{pair.out.walletName} — {pair.out.account}</div>
           <div>
@@ -113,7 +113,7 @@ export default function EditTransferForm({ transaction, currentUser, onSave, onC
           </div>
         </div>
 
-        <div className="bg-slate-50 dark:bg-gray-950 border border-slate-200 dark:border-gray-700 rounded-xl p-3 space-y-2">
+        <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-gray-700 rounded-xl p-3 space-y-2">
           <div className="text-xs font-bold text-slate-700 dark:text-gray-200 uppercase tracking-wider">To (কোথায়)</div>
           <div className="text-xs text-slate-600 dark:text-gray-300">{pair.in.walletName} — {pair.in.account}</div>
           <div>

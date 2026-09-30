@@ -207,7 +207,7 @@ function EditWalletRow({ wallet, walletSummaries, currentUser, can, onRefresh, s
           <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${active ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400' : 'bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}>{wallet.Status}</span>
         </div>
 
-        <div className="bg-slate-50 dark:bg-gray-950 rounded-xl p-3 border border-gray-200 dark:border-gray-800 grid grid-cols-2 gap-x-4 gap-y-2.5">
+        <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-gray-200 dark:border-gray-800 grid grid-cols-2 gap-x-4 gap-y-2.5">
           <DetailCell label="Currency" value={wallet.Currency} />
           <DetailCell label="Sheet" value={wallet.SheetName || "—"} />
           <DetailCell label="Created" value={fmtTimestamp(wallet.CreatedAt)} />
@@ -242,14 +242,14 @@ function EditWalletRow({ wallet, walletSummaries, currentUser, can, onRefresh, s
           </div>
         </div>
 
-        <div className="bg-slate-50 dark:bg-gray-950 rounded-xl p-3 border border-gray-200 dark:border-gray-800 grid grid-cols-2 gap-x-4 gap-y-2.5">
+        <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-gray-200 dark:border-gray-800 grid grid-cols-2 gap-x-4 gap-y-2.5">
           <DetailCell label="Total Balance" value={summary ? money(summary.totalBalance) : "—"} />
           <DetailCell label="Opening Cash" value={money(wallet.OpeningCash)} />
           <DetailCell label="Opening Bank" value={money(wallet.OpeningBank)} />
           <DetailCell label="Wallet ID" value={String(wallet.WalletID)} />
         </div>
 
-        <div className="bg-slate-50 dark:bg-gray-950 rounded-xl p-3 border border-gray-200 dark:border-gray-800">
+        <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-gray-200 dark:border-gray-800">
           <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-2">
             <i className="fa-solid fa-users me-1.5 text-emerald-600 dark:text-emerald-400"></i>
             যাদের এই Wallet-এ অ্যাক্সেস আছে
