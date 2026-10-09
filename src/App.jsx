@@ -12,6 +12,7 @@ import { useToast } from "./components/Toast.jsx";
 import { useConfirm } from "./components/ConfirmDialog.jsx";
 import { loadCurrencies } from "./utils/currency.js";
 import { todayStr } from "./utils/loan.js";
+import ErrorBoundary from "./components/ErrorBoundary.jsx";
 
 const LoginScreen = lazy(() => import("./pages/LoginScreen.jsx"));
 const DashboardView = lazy(() => import("./pages/DashboardView.jsx"));
@@ -784,6 +785,7 @@ export default function App() {
             রিফ্রেশ হচ্ছে...
           </div>
         )}
+        <ErrorBoundary>
         <Suspense fallback={<PageFallback />}>
           {activeTab === "home" && can("VIEW_DASHBOARD") && (
             <DashboardView
@@ -1121,6 +1123,7 @@ export default function App() {
             </div>
           )}
         </Suspense>
+        </ErrorBoundary>
       </main>
 
       {/* Bottom Nav */}

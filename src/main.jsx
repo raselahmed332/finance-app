@@ -16,6 +16,20 @@ import "@fortawesome/fontawesome-free/css/fontawesome.min.css";
 import "@fortawesome/fontawesome-free/css/solid.min.css";
 import "./index.css";
 
+// A redeploy replaces every hashed asset. If the browser still runs an old
+// index.html, Vite fires this when a route's chunk 404s; reloading fetches the
+// new index. The sessionStorage guard prevents a reload loop when a chunk is
+// truly missing. Cleared shortly after a successful load so a later deploy in
+// the same session can recover too.
+window.addEventListener("vite:preloadError", (event) => {
+  event.preventDefault();
+  if (!sessionStorage.getItem("hisab_chunk_reload")) {
+    sessionStorage.setItem("hisab_chunk_reload", "1");
+    window.location.reload();
+  }
+});
+setTimeout(() => sessionStorage.removeItem("hisab_chunk_reload"), 15000);
+
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <ToastProvider>
