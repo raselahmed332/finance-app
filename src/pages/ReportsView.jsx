@@ -3,6 +3,7 @@ import { api } from "../api.js";
 import Chart from "chart.js/auto";
 import { downloadCsv } from "../utils/csvExport.js";
 import Select from "../components/Select.jsx";
+import Popup from "../components/Popup.jsx";
 import { todayStr } from "../utils/loan.js";
 
 export default function ReportsView({ wallets, currentUser }) {
@@ -10,6 +11,13 @@ export default function ReportsView({ wallets, currentUser }) {
   const [account, setAccount] = useState('All');
   const [period, setPeriod] = useState('monthly');
   const [periodValue, setPeriodValue] = useState(todayStr().slice(0, 7));
+  // customFrom/customTo are the APPLIED range the report is fetched with;
+  // customDraft is what the open popup is editing, so closing without applying
+  // discards the edits the same way the Transactions date sheet does.
+  const [customFrom, setCustomFrom] = useState(`${todayStr().slice(0, 7)}-01`);
+  const [customTo, setCustomTo] = useState(todayStr());
+  const [customDraft, setCustomDraft] = useState({ from: `${todayStr().slice(0, 7)}-01`, to: todayStr() });
+  const [customOpen, setCustomOpen] = useState(false);
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(false);
   const chartRef = useRef(null);
@@ -76,16 +84,45 @@ export default function ReportsView({ wallets, currentUser }) {
     if (val === 'daily' || val === 'weekly') setPeriodValue(todayStr());
     else if (val === 'monthly') setPeriodValue(todayStr().slice(0, 7));
     else if (val === 'yearly') setPeriodValue(String(new Date().getFullYear()));
+    else if (val === 'custom') {
+      setCustomDraft({ from: customFrom, to: customTo });
+      setCustomOpen(true);
+    }
   };
+
+  const openCustom = () => {
+    setCustomDraft({ from: customFrom, to: customTo });
+    setCustomOpen(true);
+  };
+
+  // Only "Apply" changes the applied range, which is what the fetch effect
+  // depends on - so the report refilters exactly when the user confirms.
+  const applyCustomRange = () => {
+    if (!customDraft.from || !customDraft.to || customDraft.from > customDraft.to) return;
+    setCustomFrom(customDraft.from);
+    setCustomTo(customDraft.to);
+    setCustomOpen(false);
+  };
+
+  const clearCustomRange = () => {
+    setCustomOpen(false);
+    setPeriod('monthly');
+    setPeriodValue(todayStr().slice(0, 7));
+  };
+
+  const invalidCustomDraft = !customDraft.from || !customDraft.to || customDraft.from > customDraft.to;
+  const periodLabel = period === 'custom' ? `${customFrom} থেকে ${customTo}` : `${period} ${periodValue}`;
 
   useEffect(() => {
     if (!walletId) return;
+    if (period === 'custom' && (!customFrom || !customTo || customFrom > customTo)) { setReport(null); setLoading(false); return; }
+    const value = period === 'custom' ? `${customFrom}:${customTo}` : periodValue;
     setLoading(true);
-    api.getReport(currentUser.username, walletId, period, periodValue).then((res) => {
+    api.getReport(currentUser.username, walletId, period, value).then((res) => {
       setReport(res.status === 'SUCCESS' ? res : null);
       setLoading(false);
     }).catch(() => { setReport(null); setLoading(false); });
-  }, [walletId, period, periodValue, currentUser.username]);
+  }, [walletId, period, periodValue, customFrom, customTo, currentUser.username]);
 
   const CHART_COLORS = ['#2563eb', '#3b82f6', '#f97316', '#eab308', '#10b981', '#8b5cf6', '#ec4899', '#14b8a6', '#f43f5e', '#64748b'];
 
@@ -154,8 +191,8 @@ export default function ReportsView({ wallets, currentUser }) {
 
       <div>
         <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Period</label>
-        <div className="grid grid-cols-4 gap-1.5 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl text-xs font-bold">
-          {[['daily', 'Daily'], ['weekly', 'Weekly'], ['monthly', 'Monthly'], ['yearly', 'Yearly']].map(([val, label]) => (
+        <div className="grid grid-cols-5 gap-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl text-[11px] font-bold">
+          {[['daily', 'Daily'], ['weekly', 'Weekly'], ['monthly', 'Monthly'], ['yearly', 'Yearly'], ['custom', 'Custom']].map(([val, label]) => (
             <button key={val} onClick={() => changePeriod(val)} className={`py-1.5 rounded-lg transition-all ${period === val ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-600 dark:text-gray-400'}`}>
               {label}
             </button>
@@ -164,8 +201,18 @@ export default function ReportsView({ wallets, currentUser }) {
       </div>
 
       <div>
-        <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Select {period === 'daily' ? 'Date' : period === 'weekly' ? 'Any date in the week' : period === 'yearly' ? 'Year' : 'Month'}</label>
-        {period === 'yearly' ? (
+        <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Select {period === 'daily' ? 'Date' : period === 'weekly' ? 'Any date in the week' : period === 'yearly' ? 'Year' : period === 'custom' ? 'Date Range' : 'Month'}</label>
+        {period === 'custom' ? (
+          <button
+            onClick={openCustom}
+            className="w-full flex items-center justify-between border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs font-semibold bg-white dark:bg-gray-900 dark:text-gray-100"
+          >
+            <span className="truncate">{customFrom} থেকে {customTo}</span>
+            <span className="shrink-0 ms-2 text-gray-400 dark:text-gray-500 flex items-center gap-1.5">
+              <i className="fa-solid fa-sliders"></i> পরিবর্তন
+            </span>
+          </button>
+        ) : period === 'yearly' ? (
           <input type="number" value={periodValue} onChange={(e) => setPeriodValue(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs font-semibold bg-white dark:bg-gray-900 dark:text-gray-100" />
         ) : period === 'monthly' ? (
           <input type="month" value={periodValue} onChange={(e) => setPeriodValue(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs font-semibold bg-white dark:bg-gray-900 dark:text-gray-100" />
@@ -234,16 +281,26 @@ export default function ReportsView({ wallets, currentUser }) {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-200 dark:border-gray-800 shadow-2xs">
+          <div id="report-print" className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-200 dark:border-gray-800 shadow-2xs">
+            <div className="hidden print:block mb-3">
+              <div className="text-base font-bold text-slate-900">{selectedWallet?.WalletName} — Statement</div>
+              <div className="text-[11px] text-gray-600">
+                {selectedWallet?.Currency} · {periodLabel} · {account === 'All' ? 'সব Account' : account} · {todayStr()}
+              </div>
+            </div>
             <div className="text-xs font-bold text-slate-800 dark:text-gray-100 mb-2">Statement (লেনদেনের তালিকা)</div>
-            <div className="overflow-x-auto -mx-1">
+            <div className="report-scroll overflow-auto -mx-1 max-h-[85vh]">
               <table className="w-full text-left text-[11px]">
-                <thead>
+                <thead className="sticky top-0 z-10 bg-white dark:bg-gray-900">
                   <tr className="text-[9px] uppercase tracking-wide text-gray-400 dark:text-gray-500">
                     <th className="px-1 pb-1.5 font-semibold">তারিখ</th>
                     <th className="px-1 pb-1.5 font-semibold">Type</th>
                     <th className="px-1 pb-1.5 font-semibold">Account</th>
-                    <th className="px-1 pb-1.5 font-semibold hidden sm:table-cell">বিবরণ</th>
+                    <th className="px-1 pb-1.5 font-semibold">খাত</th>
+                    <th className="px-1 pb-1.5 font-semibold">Where/Vendor</th>
+                    <th className="px-1 pb-1.5 font-semibold">বিবরণ</th>
+                    <th className="px-1 pb-1.5 font-semibold">নোট</th>
+                    <th className="px-1 pb-1.5 font-semibold">ইউজার</th>
                     <th className="px-1 pb-1.5 font-semibold text-right">Amount</th>
                   </tr>
                 </thead>
@@ -253,52 +310,49 @@ export default function ReportsView({ wallets, currentUser }) {
                       <td className="px-1 py-1.5 whitespace-nowrap text-gray-500 dark:text-gray-400">{t.Date}</td>
                       <td className="px-1 py-1.5 whitespace-nowrap font-semibold text-slate-700 dark:text-gray-200">{t.Type}</td>
                       <td className="px-1 py-1.5 whitespace-nowrap text-gray-500 dark:text-gray-400">{t.Account || "—"}</td>
-                      <td className="px-1 py-1.5 hidden sm:table-cell text-gray-500 dark:text-gray-400 truncate max-w-[160px]">
-                        {[t.SourceCategory, t.WhereVendor, t.Description].filter(Boolean).join(" • ") || "—"}
-                      </td>
+                      <td className="px-1 py-1.5 text-gray-500 dark:text-gray-400">{t.SourceCategory || "—"}</td>
+                      <td className="px-1 py-1.5 text-gray-500 dark:text-gray-400">{t.WhereVendor || "—"}</td>
+                      <td className="px-1 py-1.5 text-gray-500 dark:text-gray-400 max-w-[180px] truncate">{t.Description || "—"}</td>
+                      <td className="px-1 py-1.5 text-gray-500 dark:text-gray-400 max-w-[160px] truncate">{t.Note || "—"}</td>
+                      <td className="px-1 py-1.5 text-gray-500 dark:text-gray-400">{t.User || "—"}</td>
                       <td className={`px-1 py-1.5 whitespace-nowrap text-right font-bold ${t.Type === 'Income' || t.Type === 'Transfer In' || t.Type === 'Loan In' || t.Type === 'Loan Repaid' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                         {Number(t.Amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
                     </tr>
                   ))}
                 </tbody>
-                <tfoot>
-                  {(data.rows || []).length === 0 ? (
-                    <tr>
-                      <td colSpan="5" className="px-1 pt-3 text-center text-gray-400 dark:text-gray-500">এই সময়ে কোনো লেনদেন নেই।</td>
+                {(data.rows || []).length > 0 && (
+                  <tfoot>
+                    <tr className="border-t border-gray-200 dark:border-gray-700">
+                      <td className="px-1 py-2 font-bold text-slate-800 dark:text-gray-100" colSpan="8">মোট লেনদেন ({data.transactionCount})</td>
+                      <td className={`px-1 py-2 text-right font-bold ${data.netChange >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                        {data.netChange.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
                     </tr>
-                  ) : (
-                    <>
-                      <tr className="border-t border-gray-200 dark:border-gray-700">
-                        <td className="px-1 py-2 font-bold text-slate-800 dark:text-gray-100" colSpan="4">মোট লেনদেন ({data.transactionCount})</td>
-                        <td className={`px-1 py-2 text-right font-bold ${data.netChange >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                          {data.netChange.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </td>
-                      </tr>
-                      <tr className="border-t border-gray-200 dark:border-gray-700">
-                        <td colSpan="5" className="px-1 pt-2">
-                          <div className="grid grid-cols-2 gap-2">
-                            <button
-                              onClick={() => downloadCsv(
-                                `report_${selectedWallet?.WalletName}${account !== 'All' ? '_' + account : ''}_${period}_${todayStr()}.csv`,
-                                ['Date', 'Type', 'Currency', 'Account', 'Category', 'Vendor', 'Description', 'Amount', 'Note', 'User'],
-                                (data.rows || []).map(t => [t.Date, t.Type, t.Currency, t.Account, t.SourceCategory, t.WhereVendor, t.Description, t.Amount, t.Note, t.User]),
-                              )}
-                              className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl py-2 text-xs font-semibold text-slate-700 dark:text-gray-200 flex items-center justify-center gap-1.5 hover:bg-gray-50 dark:hover:bg-gray-800"
-                            >
-                              <i className="fa-solid fa-file-csv text-emerald-600"></i> Export CSV
-                            </button>
-                            <button onClick={() => window.print()} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl py-2 text-xs font-semibold text-slate-700 dark:text-gray-200 flex items-center justify-center gap-1.5 hover:bg-gray-50 dark:hover:bg-gray-800">
-                              <i className="fa-solid fa-file-pdf text-rose-600"></i> Print / PDF
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    </>
-                  )}
-                </tfoot>
+                  </tfoot>
+                )}
               </table>
             </div>
+
+            {(data.rows || []).length === 0 ? (
+              <div className="px-1 pt-3 text-center text-gray-400 dark:text-gray-500">এই সময়ে কোনো লেনদেন নেই।</div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 no-print mt-3">
+                <button
+                  onClick={() => downloadCsv(
+                    `report_${selectedWallet?.WalletName}${account !== 'All' ? '_' + account : ''}_${period === 'custom' ? `custom_${customFrom}_to_${customTo}` : period}_${todayStr()}.csv`,
+                    ['Date', 'Type', 'Currency', 'Account', 'Category', 'Vendor', 'Description', 'Amount', 'Note', 'User'],
+                    (data.rows || []).map(t => [t.Date, t.Type, t.Currency, t.Account, t.SourceCategory, t.WhereVendor, t.Description, t.Amount, t.Note, t.User]),
+                  )}
+                  className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl py-2 text-xs font-semibold text-slate-700 dark:text-gray-200 flex items-center justify-center gap-1.5 hover:bg-gray-50 dark:hover:bg-gray-800"
+                >
+                  <i className="fa-solid fa-file-csv text-emerald-600"></i> Export CSV
+                </button>
+                <button onClick={() => window.print()} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl py-2 text-xs font-semibold text-slate-700 dark:text-gray-200 flex items-center justify-center gap-1.5 hover:bg-gray-50 dark:hover:bg-gray-800">
+                  <i className="fa-solid fa-file-pdf text-rose-600"></i> Print / PDF
+                </button>
+              </div>
+            )}
           </div>
         </>
       )}
@@ -306,6 +360,55 @@ export default function ReportsView({ wallets, currentUser }) {
       {!loading && !report && walletId && (
         <div className="text-center py-8 text-gray-400 dark:text-gray-500 text-xs">এই সময়ের জন্য কোনো ডেটা নেই।</div>
       )}
+
+      <Popup
+        open={customOpen}
+        onClose={() => setCustomOpen(false)}
+        title="কাস্টম তারিখ সীমা"
+        maxWidth="max-w-sm"
+      >
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block">
+            <span className="text-[10px] text-gray-500 dark:text-gray-400 mb-0.5 block">থেকে</span>
+            <input
+              type="date"
+              value={customDraft.from}
+              onChange={(e) => setCustomDraft((p) => ({ ...p, from: e.target.value }))}
+              className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs font-semibold bg-white dark:bg-gray-900 dark:text-gray-100"
+            />
+          </label>
+          <label className="block">
+            <span className="text-[10px] text-gray-500 dark:text-gray-400 mb-0.5 block">পর্যন্ত</span>
+            <input
+              type="date"
+              value={customDraft.to}
+              onChange={(e) => setCustomDraft((p) => ({ ...p, to: e.target.value }))}
+              className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs font-semibold bg-white dark:bg-gray-900 dark:text-gray-100"
+            />
+          </label>
+          {customDraft.from && customDraft.to && customDraft.from > customDraft.to && (
+            <div className="col-span-2 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+              "থেকে" তারিখ "পর্যন্ত" তারিখের পরে হতে পারে না।
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={clearCustomRange}
+            className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-bold py-2.5 rounded-xl text-xs"
+          >
+            ক্লিয়ার
+          </button>
+          <button
+            onClick={applyCustomRange}
+            disabled={invalidCustomDraft}
+            className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold py-2.5 rounded-xl text-xs"
+          >
+            আপ্লাই করুন
+          </button>
+        </div>
+      </Popup>
     </div>
   );
 }

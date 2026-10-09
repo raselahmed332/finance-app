@@ -59,7 +59,7 @@ function CategoriesManager({ currentUser, can, showAlert }) {
   const [name, setName] = useState('');
   const [type, setType] = useState('Expense');
   const [adding, setAdding] = useState(false);
-  const [editingId, setEditingId] = useState(null);
+  const [editingCategory, setEditingCategory] = useState(null);
   const [editName, setEditName] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
   const toast = useToast();
@@ -97,16 +97,15 @@ function CategoriesManager({ currentUser, can, showAlert }) {
     });
   };
 
-  const handleRename = (category) => {
-    if (editingId === category.CategoryID) return;
-    if (savingEdit) return;
+  const handleSaveEdit = () => {
+    if (!editingCategory || savingEdit) return;
     const trimmed = editName.trim();
     if (!trimmed) return toast.error('ক্যাটাগরির নাম দিন!');
-    if (trimmed === category.Name) { setEditingId(null); return; }
+    if (trimmed === editingCategory.Name) { setEditingCategory(null); return; }
     setSavingEdit(true);
-    api.updateCategory(category.CategoryID, { name: trimmed }, currentUser.username).then((res) => {
+    api.updateCategory(editingCategory.CategoryID, { name: trimmed }, currentUser.username).then((res) => {
       showAlert(res.message, res.status === 'ERROR' ? 'error' : 'success');
-      if (res.status === 'SUCCESS') { setEditingId(null); load(); }
+      if (res.status === 'SUCCESS') { setEditingCategory(null); load(); }
     }).catch(() => showAlert('নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।', 'error')).finally(() => setSavingEdit(false));
   };
 
@@ -177,57 +176,21 @@ function CategoriesManager({ currentUser, can, showAlert }) {
                       <span className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${tone}`}>
                         <i className={`fa-solid ${t === 'Expense' ? 'fa-arrow-up' : 'fa-arrow-down'} text-[8px]`}></i>
                       </span>
-                      {editingId === c.CategoryID ? (
-                        <input
-                          autoFocus
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') { e.preventDefault(); handleRename(c); }
-                            if (e.key === 'Escape') setEditingId(null);
-                          }}
-                          maxLength={60}
-                          className="flex-1 min-w-0 bg-white dark:bg-slate-900 border border-emerald-500 rounded-lg px-1.5 py-1 text-xs text-slate-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                        />
-                      ) : (
-                        <span className="flex-1 min-w-0 font-semibold text-slate-700 dark:text-gray-200 truncate">{c.Name}</span>
-                      )}
-                      {editingId === c.CategoryID ? (
-                        <>
-                          <button
-                            onClick={() => handleRename(c)}
-                            disabled={savingEdit}
-                            aria-label="সেভ করুন"
-                            className="shrink-0 w-5 h-5 rounded text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 disabled:opacity-50 transition-colors flex items-center justify-center"
-                          >
-                            <i className={`fa-solid ${savingEdit ? 'fa-spinner fa-spin' : 'fa-check'} text-[9px]`}></i>
-                          </button>
-                          <button
-                            onClick={() => setEditingId(null)}
-                            aria-label="বাতিল করুন"
-                            className="shrink-0 w-5 h-5 rounded text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center justify-center"
-                          >
-                            <i className="fa-solid fa-xmark text-[9px]"></i>
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            onClick={() => { setEditingId(c.CategoryID); setEditName(c.Name); }}
-                            aria-label={`${c.Name} সম্পাদনা`}
-                            className="shrink-0 w-5 h-5 rounded text-gray-300 dark:text-gray-600 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors flex items-center justify-center"
-                          >
-                            <i className="fa-solid fa-pen text-[9px]"></i>
-                          </button>
-                          <button
-                            onClick={() => handleDelete(c.CategoryID)}
-                            aria-label={`${c.Name} মুছুন`}
-                            className="shrink-0 w-5 h-5 rounded text-gray-300 dark:text-gray-600 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors flex items-center justify-center"
-                          >
-                            <i className="fa-solid fa-trash-can text-[9px]"></i>
-                          </button>
-                        </>
-                      )}
+                      <span className="flex-1 min-w-0 font-semibold text-slate-700 dark:text-gray-200 truncate">{c.Name}</span>
+                      <button
+                        onClick={() => { setEditingCategory(c); setEditName(c.Name); }}
+                        aria-label={`${c.Name} সম্পাদনা`}
+                        className="shrink-0 w-5 h-5 rounded text-gray-300 dark:text-gray-600 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors flex items-center justify-center"
+                      >
+                        <i className="fa-solid fa-pen text-[9px]"></i>
+                      </button>
+                      <button
+                        onClick={() => handleDelete(c.CategoryID)}
+                        aria-label={`${c.Name} মুছুন`}
+                        className="shrink-0 w-5 h-5 rounded text-gray-300 dark:text-gray-600 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors flex items-center justify-center"
+                      >
+                        <i className="fa-solid fa-trash-can text-[9px]"></i>
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -236,6 +199,49 @@ function CategoriesManager({ currentUser, can, showAlert }) {
           ))}
         </div>
       )}
+
+      <Popup
+        open={editingCategory !== null}
+        onClose={() => { if (!savingEdit) setEditingCategory(null); }}
+        title={editingCategory ? `${editingCategory.Name} সম্পাদনা` : ''}
+        maxWidth="max-w-xs"
+      >
+        <div className="space-y-3">
+          <div>
+            <label className={LABEL_CLS} htmlFor="edit-cat-name">ক্যাটাগরির নাম</label>
+            <input
+              id="edit-cat-name"
+              autoFocus
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSaveEdit(); } }}
+              maxLength={60}
+              placeholder="যেমন: বাজার, বেতন"
+              className={INPUT_CLS}
+            />
+          </div>
+          <div className="rounded-xl bg-gray-50 dark:bg-slate-900/60 border border-gray-100 dark:border-gray-800 px-3 py-2.5">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[11px] text-slate-600 dark:text-gray-300">ধরন</span>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                editingCategory && editingCategory.Type === 'Expense'
+                  ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400'
+                  : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
+              }`}>
+                {editingCategory ? editingCategory.Type : ''}
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={handleSaveEdit}
+            disabled={savingEdit}
+            className="w-full h-[38px] rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+          >
+            {savingEdit ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-check"></i>}
+            সেভ করুন
+          </button>
+        </div>
+      </Popup>
     </SectionCard>
   );
 }
@@ -427,7 +433,7 @@ function CurrenciesManager({ currentUser, can, showAlert }) {
                         লোন {c.loanEnabled ? 'ON' : 'OFF'}
                       </span>
                       <button
-                        onClick={() => { setEditingCode(c.code); setEditSymbol(c.symbol); setEditLoan(c.loanEnabled); }}
+                        onClick={() => { setEditingCode(c.code); setEditSymbol(c.symbol); setEditActive(active); setEditLoan(c.loanEnabled); }}
                         aria-label={`${c.code} সম্পাদনা`}
                         className="w-6 h-6 rounded-lg text-gray-300 dark:text-gray-600 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors flex items-center justify-center"
                       >

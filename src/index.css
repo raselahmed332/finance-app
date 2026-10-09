@@ -11,3 +11,80 @@
     transform: translateY(0);
   }
 }
+
+/* Print / PDF: only the statement (marked with #report-print) is printed, not
+   the surrounding app chrome, filters, cards or the chart. */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  #report-print,
+  #report-print * {
+    visibility: visible;
+  }
+
+  #report-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: #fff !important;
+  }
+
+  /* Force readable ink on white paper regardless of the on-screen theme. */
+  #report-print,
+  #report-print * {
+    color: #1f2937 !important;
+    border-color: #d1d5db !important;
+    background-color: transparent !important;
+  }
+
+  #report-print table {
+    width: 100% !important;
+    font-size: 10px !important;
+  }
+
+  #report-print thead {
+    display: table-header-group;
+  }
+
+  #report-print tr {
+    break-inside: avoid;
+  }
+
+  /* The on-screen statement list scrolls inside a capped box with a sticky
+     header; on paper it must expand fully so no row is clipped. */
+  #report-print .report-scroll {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  #report-print thead {
+    position: static !important;
+  }
+
+  /* Let long cells wrap on paper instead of being clipped by the on-screen
+     truncate utility. */
+  #report-print td {
+    white-space: normal !important;
+    overflow: visible !important;
+    max-width: none !important;
+    text-overflow: clip !important;
+    word-break: break-word;
+  }
+
+  .no-print,
+  .no-print * {
+    display: none !important;
+  }
+}
