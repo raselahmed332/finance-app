@@ -20,6 +20,7 @@ export default function ReportsView({ wallets, currentUser, users }) {
   const [customOpen, setCustomOpen] = useState(false);
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
   const chartRef = useRef(null);
   const chartInstance = useRef(null);
 
@@ -45,6 +46,104 @@ export default function ReportsView({ wallets, currentUser, users }) {
     });
     return map;
   }, [users]);
+
+  // Rasterise ONLY the statement card (#report-print) and save it as a PDF.
+  // We capture the rendered DOM instead of building the PDF from text because
+  // the statement contains Bengali, which needs the browser's text shaping.
+  // The heavy libs are imported lazily so they stay out of the main bundle.
+  const downloadStatementPdf = async () => {
+    const el = document.getElementById('report-print');
+    if (!el || pdfBusy) return;
+    setPdfBusy(true);
+
+    // html2canvas measures the element's LIVE size, so a scroll-capped box would
+    // clip the export to the visible rows ("full table" missing). Temporarily
+    // expand the real DOM — reveal header, drop the scroll cap, drop buttons,
+    // flatten the sticky thead — and remember the originals to restore them.
+    const scrollY = window.scrollY;
+    const restore = [];
+    const patch = (node, style) => {
+      restore.push([node, node.getAttribute('style')]);
+      Object.assign(node.style, style);
+    };
+    const scroller = el.querySelector('.report-scroll');
+    const table = el.querySelector('table');
+    const header = document.getElementById('report-pdf-header');
+    const theads = Array.from(el.querySelectorAll('thead'));
+    const noPrints = Array.from(el.querySelectorAll('.no-print'));
+    try {
+      // Widen the card so the table's right-hand columns (ইউজার / Amount) — which
+      // overflow horizontally on screen — are NOT clipped out of the capture.
+      patch(el, { width: 'max-content', maxWidth: 'none' });
+      if (scroller) patch(scroller, { maxHeight: 'none', overflow: 'visible', margin: '0', width: 'max-content' });
+      if (table) patch(table, { width: 'max-content', minWidth: '0' });
+      if (header) patch(header, { display: 'block' });
+      theads.forEach((t) => patch(t, { position: 'static' }));
+      noPrints.forEach((n) => patch(n, { display: 'none' }));
+      void el.offsetHeight; // force a synchronous reflow before measuring
+
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import('html2canvas-pro'),
+        import('jspdf'),
+      ]);
+
+      const captureW = Math.ceil(el.offsetWidth);
+      const captureH = Math.ceil(el.offsetHeight);
+
+      // Cap the canvas area so long statements don't blow past mobile GPU/canvas
+      // limits (iOS ~16M px), which would otherwise yield a blank/partial PDF.
+      const MAX_AREA = 16000000;
+      const scale = Math.max(1, Math.min(2, Math.sqrt(MAX_AREA / Math.max(1, captureW * captureH))));
+
+      const canvas = await html2canvas(el, {
+        scale,
+        width: captureW,
+        height: captureH,
+        windowWidth: Math.max(window.innerWidth, captureW + 40),
+        windowHeight: Math.max(window.innerHeight, captureH + 40),
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        ignoreElements: (n) => n.classList && n.classList.contains('no-print'),
+        onclone: (doc) => { doc.documentElement.classList.remove('dark'); },
+      });
+      const img = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: canvas.width > canvas.height ? 'landscape' : 'portrait',
+        unit: 'px',
+        format: [canvas.width, canvas.height],
+        compress: true,
+      });
+      pdf.addImage(img, 'PNG', 0, 0, canvas.width, canvas.height);
+
+      const filename = `report_${selectedWallet?.WalletName || ''}${account !== 'All' ? '_' + account : ''}_${period === 'custom' ? `custom_${customFrom}_to_${customTo}` : period}_${todayStr()}.pdf`;
+
+      // On phones, prefer the native share sheet ("Save to Files"/Downloads):
+      // iOS Safari ignores the anchor download attribute for blob URLs.
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      if (isMobile && typeof File !== 'undefined' && navigator.canShare) {
+        const file = new File([pdf.output('blob')], filename, { type: 'application/pdf' });
+        if (navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({ files: [file], title: filename });
+            return;
+          } catch (e) {
+            if (e && e.name === 'AbortError') return; // user closed the sheet
+          }
+        }
+      }
+      pdf.save(filename);
+    } catch (e) {
+      console.error('PDF export failed', e);
+      alert('PDF তৈরি করা যায়নি। আবার চেষ্টা করুন।');
+    } finally {
+      restore.reverse().forEach(([node, prev]) => {
+        if (prev === null) node.removeAttribute('style');
+        else node.setAttribute('style', prev);
+      });
+      window.scrollTo(0, scrollY);
+      setPdfBusy(false);
+    }
+  };
 
   // Client-side account filter: the report is fetched once per wallet/period,
   // and the Account dropdown narrows it. Totals are recomputed from the filtered
@@ -293,7 +392,7 @@ export default function ReportsView({ wallets, currentUser, users }) {
           </div>
 
           <div id="report-print" className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-200 dark:border-gray-800 shadow-2xs">
-            <div className="hidden print:block mb-3">
+            <div id="report-pdf-header" className="hidden print:block mb-3">
               <div className="text-base font-bold text-slate-900">{selectedWallet?.WalletName} — Statement</div>
               <div className="text-[11px] text-gray-600">
                 {selectedWallet?.Currency} · {periodLabel} · {account === 'All' ? 'সব Account' : account} · {todayStr()}
@@ -359,8 +458,13 @@ export default function ReportsView({ wallets, currentUser, users }) {
                 >
                   <i className="fa-solid fa-file-csv text-emerald-600"></i> Export CSV
                 </button>
-                <button onClick={() => window.print()} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl py-2 text-xs font-semibold text-slate-700 dark:text-gray-200 flex items-center justify-center gap-1.5 hover:bg-gray-50 dark:hover:bg-gray-800">
-                  <i className="fa-solid fa-file-pdf text-rose-600"></i> Print / PDF
+                <button
+                  onClick={downloadStatementPdf}
+                  disabled={pdfBusy}
+                  className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl py-2 text-xs font-semibold text-slate-700 dark:text-gray-200 flex items-center justify-center gap-1.5 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-60"
+                >
+                  <i className={`fa-solid ${pdfBusy ? 'fa-spinner fa-spin' : 'fa-file-pdf'} text-rose-600`}></i>
+                  {pdfBusy ? 'তৈরি হচ্ছে...' : 'Download PDF'}
                 </button>
               </div>
             )}
