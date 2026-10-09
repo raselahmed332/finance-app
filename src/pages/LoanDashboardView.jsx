@@ -182,7 +182,7 @@ function FilterSheet({ open, onClose, onApply, onReset, currencies }) {
             </div>
           </div>
           {dateOption === "custom" && (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2">
               <label className="block">
                 <span className="text-[10px] text-gray-500 dark:text-gray-400 mb-0.5 block">তারিখ (থেকে)</span>
                 <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" />

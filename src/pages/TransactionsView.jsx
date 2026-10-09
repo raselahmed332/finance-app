@@ -121,7 +121,7 @@ export default function TransactionsView({ transactions, wallets, onDelete, onEd
         </div>
 
         {draft.option === "custom" && (
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2">
             <label className="block">
               <span className="text-[10px] text-gray-500 dark:text-gray-400 mb-0.5 block">তারিখ (থেকে)</span>
               <input type="date" value={draft.from} onChange={(e) => setDraft((p) => ({ ...p, from: e.target.value }))} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" />
@@ -133,7 +133,7 @@ export default function TransactionsView({ transactions, wallets, onDelete, onEd
             {/* Catching the inverted case here beats silently returning nothing:
                 a from later than to would otherwise filter out every row. */}
             {draft.from && draft.to && draft.from > draft.to && (
-              <div className="col-span-2 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+              <div className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
                 "থেকে" তারিখ "পর্যন্ত" তারিখের পরে হতে পারে না।
               </div>
             )}

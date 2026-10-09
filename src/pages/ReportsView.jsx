@@ -367,7 +367,7 @@ export default function ReportsView({ wallets, currentUser }) {
         title="কাস্টম তারিখ সীমা"
         maxWidth="max-w-sm"
       >
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2">
           <label className="block">
             <span className="text-[10px] text-gray-500 dark:text-gray-400 mb-0.5 block">থেকে</span>
             <input
@@ -387,7 +387,7 @@ export default function ReportsView({ wallets, currentUser }) {
             />
           </label>
           {customDraft.from && customDraft.to && customDraft.from > customDraft.to && (
-            <div className="col-span-2 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+            <div className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
               "থেকে" তারিখ "পর্যন্ত" তারিখের পরে হতে পারে না।
             </div>
           )}
