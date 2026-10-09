@@ -1031,7 +1031,7 @@ export default function App() {
             )}
 
           {can("VIEW_REPORTS") && activeTab === "reports" && (
-            <ReportsView wallets={wallets} currentUser={currentUser} />
+            <ReportsView wallets={wallets} currentUser={currentUser} users={usersList} />
           )}
 
           {canManageUsers && activeTab === "users" && (

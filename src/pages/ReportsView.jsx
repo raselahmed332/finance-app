@@ -6,7 +6,7 @@ import Select from "../components/Select.jsx";
 import Popup from "../components/Popup.jsx";
 import { todayStr } from "../utils/loan.js";
 
-export default function ReportsView({ wallets, currentUser }) {
+export default function ReportsView({ wallets, currentUser, users }) {
   const [walletId, setWalletId] = useState(wallets[0]?.WalletID || '');
   const [account, setAccount] = useState('All');
   const [period, setPeriod] = useState('monthly');
@@ -34,6 +34,17 @@ export default function ReportsView({ wallets, currentUser }) {
   }, [wallets]);
 
   const selectedWallet = wallets.find(w => String(w.WalletID) === String(walletId));
+
+  // Transactions store the creator's username; the statement shows the friendly
+  // full name when the viewer can see the user list (same mapping the
+  // Transactions view uses), falling back to the username otherwise.
+  const userMap = useMemo(() => {
+    const map = {};
+    (users || []).forEach((u) => {
+      map[u.Username] = u.FullName || u.Username;
+    });
+    return map;
+  }, [users]);
 
   // Client-side account filter: the report is fetched once per wallet/period,
   // and the Account dropdown narrows it. Totals are recomputed from the filtered
@@ -314,7 +325,7 @@ export default function ReportsView({ wallets, currentUser }) {
                       <td className="px-1 py-1.5 text-gray-500 dark:text-gray-400">{t.WhereVendor || "—"}</td>
                       <td className="px-1 py-1.5 text-gray-500 dark:text-gray-400 max-w-[180px] truncate">{t.Description || "—"}</td>
                       <td className="px-1 py-1.5 text-gray-500 dark:text-gray-400 max-w-[160px] truncate">{t.Note || "—"}</td>
-                      <td className="px-1 py-1.5 text-gray-500 dark:text-gray-400">{t.User || "—"}</td>
+                      <td className="px-1 py-1.5 text-gray-500 dark:text-gray-400">{userMap[t.User] || t.User || "—"}</td>
                       <td className={`px-1 py-1.5 whitespace-nowrap text-right font-bold ${t.Type === 'Income' || t.Type === 'Transfer In' || t.Type === 'Loan In' || t.Type === 'Loan Repaid' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                         {Number(t.Amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
@@ -342,7 +353,7 @@ export default function ReportsView({ wallets, currentUser }) {
                   onClick={() => downloadCsv(
                     `report_${selectedWallet?.WalletName}${account !== 'All' ? '_' + account : ''}_${period === 'custom' ? `custom_${customFrom}_to_${customTo}` : period}_${todayStr()}.csv`,
                     ['Date', 'Type', 'Currency', 'Account', 'Category', 'Vendor', 'Description', 'Amount', 'Note', 'User'],
-                    (data.rows || []).map(t => [t.Date, t.Type, t.Currency, t.Account, t.SourceCategory, t.WhereVendor, t.Description, t.Amount, t.Note, t.User]),
+                    (data.rows || []).map(t => [t.Date, t.Type, t.Currency, t.Account, t.SourceCategory, t.WhereVendor, t.Description, t.Amount, t.Note, userMap[t.User] || t.User]),
                   )}
                   className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl py-2 text-xs font-semibold text-slate-700 dark:text-gray-200 flex items-center justify-center gap-1.5 hover:bg-gray-50 dark:hover:bg-gray-800"
                 >
