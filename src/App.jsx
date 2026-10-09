@@ -773,7 +773,7 @@ export default function App() {
       )}
 
       <main
-        className="flex-1 p-3 pb-24 md:p-6 md:pb-28 overflow-y-auto custom-scrollbar"
+        className="flex-1 p-3 md:p-6 overflow-y-auto custom-scrollbar"
         onTouchStart={pullTouchStart}
         onTouchMove={pullTouchMove}
         onTouchEnd={pullTouchEnd}
@@ -1124,7 +1124,7 @@ export default function App() {
       </main>
 
       {/* Bottom Nav */}
-      <nav className="fixed bottom-0 left-0 right-0 max-w-[480px] md:max-w-[1000px] mx-auto bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 flex justify-around items-center py-3.5 z-40 shadow-lg">
+      <nav className="fixed bottom-0 left-0 right-0 max-w-[480px] md:max-w-[1000px] mx-auto bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 flex justify-around items-center py-2 z-40 shadow-lg">
         <button
           onClick={() => setActiveTab("home")}
           className={`flex flex-col items-center text-xs font-medium ${activeTab === "home" ? "text-emerald-600" : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"}`}
