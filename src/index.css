@@ -1,6 +1,31 @@
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ---------------------------------------------------------------------------
+   Android/Capacitor safe areas.
+   In a normal browser env(safe-area-inset-*) resolves to 0px, so the web
+   layout is pixel-identical to before. On a device with a notch or a gesture
+   navigation bar, the sticky header and the fixed bottom nav keep clear of the
+   system UI and the scrollable content adds room for the taller nav.
+--------------------------------------------------------------------------- */
+.app-header {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.app-bottom-nav {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.mobile-container {
+  padding-bottom: calc(75px + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 768px) {
+  .mobile-container {
+    padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 @keyframes toastIn {
   from {
     opacity: 0;

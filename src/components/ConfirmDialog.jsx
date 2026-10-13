@@ -1,4 +1,5 @@
-import { createContext, useCallback, useContext, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { pushBackHandler } from "../utils/native.js";
 
 const ConfirmContext = createContext(null);
 
@@ -24,12 +25,19 @@ export function ConfirmProvider({ children }) {
     });
   }, []);
 
-  const close = (result) => {
+  const close = useCallback((result) => {
     const resolve = resolveRef.current;
     resolveRef.current = null;
     setState(null);
     if (resolve) resolve(result);
-  };
+  }, []);
+
+  // While the dialog is open, the Android Back button dismisses it (same as a
+  // cancel / tap-outside) instead of navigating the app behind it.
+  useEffect(() => {
+    if (!state) return undefined;
+    return pushBackHandler(() => close(false));
+  }, [state, close]);
 
   return (
     <ConfirmContext.Provider value={confirm}>

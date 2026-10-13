@@ -13,6 +13,7 @@ import { useConfirm } from "./components/ConfirmDialog.jsx";
 import { loadCurrencies } from "./utils/currency.js";
 import { todayStr } from "./utils/loan.js";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
+import { registerNativeBackButton } from "./utils/native.js";
 
 const LoginScreen = lazy(() => import("./pages/LoginScreen.jsx"));
 const DashboardView = lazy(() => import("./pages/DashboardView.jsx"));
@@ -706,6 +707,61 @@ export default function App() {
     setTimeout(() => setPullRefreshing(false), 1000);
   }, []);
 
+  // Android hardware Back button. The app has no URL router - every screen is
+  // a value of `activeTab` - so Back walks that tab history backwards and only
+  // lets the press fall through to the app root (where it minimizes) once the
+  // user is actually on Home. Reads the latest state through refs, so the
+  // native listener is registered exactly once and never goes stale.
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
+  const canRef = useRef(can);
+  canRef.current = can;
+
+  const handleSystemBack = useCallback(() => {
+    const tab = activeTabRef.current;
+    if (tab === "home") return false;
+    if (tab.indexOf("edit-") === 0) {
+      setActiveTab(canRef.current("VIEW_TRANSACTIONS") ? "transactions" : "home");
+      return true;
+    }
+    if (tab === "loan-add") {
+      setActiveTab("loans");
+      return true;
+    }
+    if (tab.indexOf("loan-details-") === 0) {
+      setActiveTab("loans");
+      return true;
+    }
+    if (tab.indexOf("loan-edit-") === 0) {
+      setActiveTab("loan-details-" + tab.slice("loan-edit-".length));
+      return true;
+    }
+    if (tab.indexOf("loan-") === 0) {
+      setActiveTab("loans");
+      return true;
+    }
+    if (tab === "backup") {
+      setActiveTab("profile");
+      return true;
+    }
+    // Every other top-level tab returns to Home.
+    setActiveTab("home");
+    return true;
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    let dispose = () => {};
+    registerNativeBackButton(() => handleSystemBack()).then((d) => {
+      if (cancelled) d();
+      else dispose = d;
+    });
+    return () => {
+      cancelled = true;
+      dispose();
+    };
+  }, [handleSystemBack]);
+
   if (checkingAuth) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
@@ -733,7 +789,7 @@ export default function App() {
   return (
     <div className="mobile-container flex flex-col min-h-screen bg-gray-50 dark:bg-gray-950 border-x border-gray-200 dark:border-gray-800 transition-colors">
       {/* Header */}
-      <header className="bg-gray-900 dark:bg-gray-950 text-white px-4 py-4 flex items-center justify-between sticky top-0 z-30 shadow-md">
+      <header className="app-header bg-gray-900 dark:bg-gray-950 text-white px-4 py-4 flex items-center justify-between sticky top-0 z-30 shadow-md">
         <div className="flex items-center gap-3">
           <button
             onClick={() => setActiveTab("home")}
@@ -1127,7 +1183,7 @@ export default function App() {
       </main>
 
       {/* Bottom Nav */}
-      <nav className="fixed bottom-0 left-0 right-0 max-w-[480px] md:max-w-[1000px] mx-auto bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 flex justify-around items-center py-2 z-40 shadow-lg">
+      <nav className="app-bottom-nav fixed bottom-0 left-0 right-0 max-w-[480px] md:max-w-[1000px] mx-auto bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 flex justify-around items-center py-2 z-40 shadow-lg">
         <button
           onClick={() => setActiveTab("home")}
           className={`flex flex-col items-center text-xs font-medium ${activeTab === "home" ? "text-emerald-600" : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"}`}

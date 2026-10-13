@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
 import { ToastProvider } from "./components/Toast.jsx";
 import { ConfirmProvider } from "./components/ConfirmDialog.jsx";
+import { initNativeUi } from "./utils/native.js";
 
 // Everything below replaces what used to be CDN <script>/<link> tags in
 // index.html — same fonts, same icons, same Tailwind version, now bundled
@@ -39,3 +40,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     </ToastProvider>
   </React.StrictMode>,
 );
+
+// Native shell (Android): status bar, keyboard resize and splash hiding.
+// No-op on the web build.
+initNativeUi();

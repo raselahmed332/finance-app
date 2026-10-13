@@ -1,4 +1,13 @@
+import { useEffect } from "react";
+import { pushBackHandler } from "../utils/native.js";
+
 export default function Popup({ open, title, onClose, children, maxWidth = "max-w-md" }) {
+  // Android Back closes this popup while it is open, before app navigation.
+  useEffect(() => {
+    if (!open) return undefined;
+    return pushBackHandler(onClose);
+  }, [open, onClose]);
+
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={onClose}>

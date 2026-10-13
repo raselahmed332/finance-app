@@ -130,12 +130,100 @@ npm run dev     # http://localhost:5173
 | Script | What it does |
 |---|---|
 | `npm run dev` | Dev server with HMR |
-| `npm run build` | Production build into `dist/` |
+| `npm run build` | Production build into `dist/` (GitHub Pages base `/finance-app/`) |
+| `npm run build:android` | Production build for the Android WebView (relative asset base) |
 | `npm run preview` | Serve the built `dist/` locally |
 | `npm run analyze` | Build with a bundle-size visualizer |
 | `npm run deploy` | Publish `dist/` to the `gh-pages` branch |
+| `npm run cap:copy` | Copy the current `dist/` into `android/` without rebuilding |
+| `npm run cap:sync` | Build for Android and sync web assets + plugins into `android/` |
+| `npm run cap:open:android` | Open the native project in Android Studio |
+| `npm run cap:assets` | Regenerate launcher icons + splash from `assets/` |
+| `npm run android:debug` | Sync + build an installable debug APK |
+| `npm run android:release` | Sync + build a signed release APK (needs `android/keystore.properties`) |
 
 There is no test, lint, or typecheck script for the frontend.
+
+---
+
+## Android app (Capacitor)
+
+The frontend is packaged for Android with **Capacitor 8**. The web app and the
+Android app share exactly the same source; only the Vite asset base path
+differs — `npm run build` keeps the GitHub Pages base `/finance-app/`, while
+`npm run build:android` uses a relative base so every asset resolves inside the
+APK.
+
+- **App ID:** `com.amarhisab.app`
+- **App name:** Amar Hisab
+- **Capacitor config:** `capacitor.config.json`
+- **Native project:** `android/`
+- **Backend:** unchanged — the app still talks to the same Google Apps Script
+  Web App over HTTPS. Android only requests the `INTERNET` permission, and
+  cleartext HTTP is disabled (`usesCleartextTraffic="false"`); OS-level app
+  backup is also disabled so the session token is never copied off-device.
+- **Hardware Back button:** handled in `src/App.jsx` + `src/utils/native.js` —
+  it closes an open dialog first, then steps back through the in-app screen
+  history, and only minimizes the app from the Home screen.
+- **Icons / splash:** generated into `android/app/src/main/res/` from the
+  source images in `assets/`.
+
+### Prerequisites
+
+- Node 20+ and npm
+- JDK 21 (required by the Android Gradle Plugin)
+- Android SDK with **Platform 36** and **Build-Tools 36.0.0**
+- Android Studio (to open the project) and `JAVA_HOME`, `ANDROID_HOME`
+  (or `ANDROID_SDK_ROOT`) set.
+
+### Build a debug APK
+
+```bash
+npm install
+npm run android:debug        # build web + sync + gradle assembleDebug
+```
+
+APK: `android/app/build/outputs/apk/debug/app-debug.apk`
+
+### Build a signed release APK
+
+Signing credentials are **never committed**. Create
+`android/keystore.properties` (git-ignored) and keep the keystore beside it:
+
+```properties
+storeFile=amar-hisab-release.keystore
+storePassword=YOUR_STORE_PASSWORD
+keyAlias=amarhisab
+keyPassword=YOUR_KEY_PASSWORD
+```
+
+```bash
+npm run android:release
+```
+
+APK: `android/app/build/outputs/apk/release/app-release.apk`
+
+If `keystore.properties` is absent the release build still runs, but produces
+an **unsigned** APK.
+
+### Open in Android Studio
+
+```bash
+npm run cap:sync
+npm run cap:open:android
+```
+
+Then **Build → Build Bundle(s) / APK(s) → Build APK(s)**. Android Studio creates
+`android/local.properties` (SDK path) on first open.
+
+### Regenerating icons / splash
+
+Edit the source art (`scripts/generate-assets.mjs`) and run:
+
+```bash
+node scripts/generate-assets.mjs   # rebuild assets/*.png
+npm run cap:assets                 # regenerate Android mipmaps + splash
+```
 
 ### Backend tests
 

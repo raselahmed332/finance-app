@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Amar Hisab</string>
+    <string name="title_activity_main">Amar Hisab</string>
+    <string name="package_name">com.amarhisab.app</string>
+    <string name="custom_url_scheme">com.amarhisab.app</string>
+</resources>
