@@ -774,6 +774,10 @@ export default function App() {
       setActiveTab("loans");
       return true;
     }
+    if (tab.indexOf("savings-details-") === 0) {
+      setActiveTab("savings");
+      return true;
+    }
     if (tab === "backup") {
       setActiveTab("profile");
       return true;
@@ -1125,6 +1129,30 @@ export default function App() {
                 </div>
               )}
 
+            {canSavings && activeTab === "savings" && (
+              <SavingsDashboardView
+                currentUser={currentUser}
+                canCreate={canManageSavings}
+                onOpenDetails={(planId) =>
+                  setActiveTab("savings-details-" + planId)
+                }
+              />
+            )}
+
+            {canSavings &&
+              activeTab.indexOf("savings-details-") === 0 &&
+              (() => {
+                const planId = activeTab.slice("savings-details-".length);
+                return (
+                  <SavingsDetailsView
+                    key={"savings-details-" + planId}
+                    planId={planId}
+                    currentUser={currentUser}
+                    onBack={() => setActiveTab("savings")}
+                  />
+                );
+              })()}
+
             {can("VIEW_REPORTS") && activeTab === "reports" && (
               <ReportsView
                 wallets={wallets}
@@ -1296,6 +1324,19 @@ export default function App() {
           >
             <i className="fa-solid fa-hand-holding-dollar text-lg mb-0.5"></i>{" "}
             Loan
+          </button>
+        )}
+        {canSavings && (
+          <button
+            onClick={() => setActiveTab("savings")}
+            className={`flex flex-col items-center text-xs font-medium ${
+              activeTab === "savings" ||
+              activeTab.indexOf("savings-details-") === 0
+                ? "text-emerald-600"
+                : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"
+            }`}
+          >
+            <i className="fa-solid fa-piggy-bank text-lg mb-0.5"></i> Savings
           </button>
         )}
         {can("VIEW_REPORTS") && (
