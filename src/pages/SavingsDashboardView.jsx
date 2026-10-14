@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api.js";
 
-export default function SavingsDashboardView({ currentUser, onOpenDetails, canCreate }) {
+export default function SavingsDashboardView({ currentUser, onOpenDetails, canCreate, onAdd }) {
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -36,7 +36,7 @@ export default function SavingsDashboardView({ currentUser, onOpenDetails, canCr
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-bold text-slate-800 dark:text-gray-100">Savings</h1>
         {canCreate && (
-          <button className="px-3 py-1.5 text-sm rounded bg-emerald-600 text-white" disabled>
+          <button className="px-3 py-1.5 text-sm rounded bg-emerald-600 text-white" onClick={() => onAdd && onAdd()}>
             Add Savings
           </button>
         )}

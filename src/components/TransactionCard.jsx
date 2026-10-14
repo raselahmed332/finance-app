@@ -11,6 +11,11 @@ const TYPE_BADGES = {
   "Loan Repaid": { bg: "bg-emerald-100 dark:bg-emerald-900/40", text: "text-emerald-700 dark:text-emerald-400", icon: "fa-arrow-down", label: "Loan Repaid" },
   "Loan Out": { bg: "bg-rose-100 dark:bg-rose-900/40", text: "text-rose-700 dark:text-rose-400", icon: "fa-arrow-up", label: "Loan Out" },
   "Loan Payment": { bg: "bg-rose-100 dark:bg-rose-900/40", text: "text-rose-700 dark:text-rose-400", icon: "fa-arrow-up", label: "Loan Payment" },
+  "Savings Deposit": { bg: "bg-teal-100 dark:bg-teal-900/40", text: "text-teal-700 dark:text-teal-400", icon: "fa-piggy-bank", label: "Savings Deposit" },
+  "Savings Withdrawal": { bg: "bg-emerald-100 dark:bg-emerald-900/40", text: "text-emerald-700 dark:text-emerald-400", icon: "fa-piggy-bank", label: "Savings Withdrawal" },
+  "Savings Contribution": { bg: "bg-teal-100 dark:bg-teal-900/40", text: "text-teal-700 dark:text-teal-400", icon: "fa-arrow-up", label: "Savings Contribution" },
+  "Savings Payout": { bg: "bg-emerald-100 dark:bg-emerald-900/40", text: "text-emerald-700 dark:text-emerald-400", icon: "fa-arrow-down", label: "Savings Payout" },
+  "Savings Payment": { bg: "bg-teal-100 dark:bg-teal-900/40", text: "text-teal-700 dark:text-teal-400", icon: "fa-arrow-up", label: "Savings Payment" },
   Transfer: { bg: "bg-purple-100 dark:bg-purple-900/40", text: "text-purple-700 dark:text-purple-400", icon: "fa-right-left", label: "Transfer" },
   Deposit: { bg: "bg-emerald-100 dark:bg-emerald-900/40", text: "text-emerald-700 dark:text-emerald-400", icon: "fa-arrow-down", label: "Deposit" },
   Withdraw: { bg: "bg-rose-100 dark:bg-rose-900/40", text: "text-rose-700 dark:text-rose-400", icon: "fa-arrow-up", label: "Withdraw" },
@@ -43,19 +48,20 @@ function getBadge(t) {
 }
 
 const LOAN_TXN_TYPES = ["Loan Out", "Loan In", "Loan Payment", "Loan Repaid"];
+const SAVINGS_TXN_TYPES = ["Savings Deposit", "Savings Withdrawal", "Savings Contribution", "Savings Payout", "Savings Payment"];
 
-// Loan-linked rows are never free-form editable, and they are not deletable on
-// their own — they are the other side of a loan record.
+// Loan/savings-linked rows are never free-form editable, and they are not
+// deletable on their own — they are the other side of a record.
 const EDITABLE_TYPES = ["Income", "Expense", "Transfer Out", "Transfer In"];
 
 export default function TransactionCard({ t, userMap, canEdit, canDelete, onEdit, onDelete }) {
   const badge = getBadge(t);
-  const isIncome = t.Type === "Income" || t.Type === "Transfer In" || t.Type === "Loan In" || t.Type === "Loan Repaid" || t.Type === "Bank Deposit";
-  const isExpense = t.Type === "Expense" || t.Type === "Transfer Out" || t.Type === "Loan Out" || t.Type === "Loan Payment" || t.Type === "Bank Withdraw";
+  const isIncome = t.Type === "Income" || t.Type === "Transfer In" || t.Type === "Loan In" || t.Type === "Loan Repaid" || t.Type === "Bank Deposit" || t.Type === "Savings Withdrawal" || t.Type === "Savings Payout";
+  const isExpense = t.Type === "Expense" || t.Type === "Transfer Out" || t.Type === "Loan Out" || t.Type === "Loan Payment" || t.Type === "Bank Withdraw" || t.Type === "Savings Deposit" || t.Type === "Savings Contribution" || t.Type === "Savings Payment";
   const [detailsOpen, setDetailsOpen] = useState(false);
 
   const canEditThis = canEdit && EDITABLE_TYPES.includes(t.Type);
-  const canDeleteThis = canDelete && !LOAN_TXN_TYPES.includes(t.Type);
+  const canDeleteThis = canDelete && !LOAN_TXN_TYPES.includes(t.Type) && !SAVINGS_TXN_TYPES.includes(t.Type);
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl p-3 border border-gray-200 dark:border-gray-800 flex items-center justify-between gap-2 shadow-2xs">

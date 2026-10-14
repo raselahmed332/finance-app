@@ -164,10 +164,10 @@ export default function ReportsView({ wallets, currentUser, users }) {
       }
       if (t.Type === 'Loan In' || t.Type === 'Loan Repaid') loanInCents += amt;
       if (t.Type === 'Loan Out' || t.Type === 'Loan Payment') loanOutCents += amt;
-      if (t.Type === 'Income' || t.Type === 'Transfer In' || t.Type === 'Loan In' || t.Type === 'Loan Repaid') {
+      if (t.Type === 'Income' || t.Type === 'Transfer In' || t.Type === 'Loan In' || t.Type === 'Loan Repaid' || t.Type === 'Savings Withdrawal' || t.Type === 'Savings Payout') {
         accountCents[t.Account] = (accountCents[t.Account] || 0) + amt;
       }
-      if (t.Type === 'Expense' || t.Type === 'Transfer Out' || t.Type === 'Loan Out' || t.Type === 'Loan Payment') {
+      if (t.Type === 'Expense' || t.Type === 'Transfer Out' || t.Type === 'Loan Out' || t.Type === 'Loan Payment' || t.Type === 'Savings Deposit' || t.Type === 'Savings Contribution' || t.Type === 'Savings Payment') {
         accountCents[t.Account] = (accountCents[t.Account] || 0) - amt;
       }
     });
@@ -425,7 +425,7 @@ export default function ReportsView({ wallets, currentUser, users }) {
                       <td className="px-1 py-1.5 text-gray-500 dark:text-gray-400 max-w-[180px] truncate">{t.Description || "—"}</td>
                       <td className="px-1 py-1.5 text-gray-500 dark:text-gray-400 max-w-[160px] truncate">{t.Note || "—"}</td>
                       <td className="px-1 py-1.5 text-gray-500 dark:text-gray-400">{userMap[t.User] || t.User || "—"}</td>
-                      <td className={`px-1 py-1.5 whitespace-nowrap text-right font-bold ${t.Type === 'Income' || t.Type === 'Transfer In' || t.Type === 'Loan In' || t.Type === 'Loan Repaid' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                      <td className={`px-1 py-1.5 whitespace-nowrap text-right font-bold ${t.Type === 'Income' || t.Type === 'Transfer In' || t.Type === 'Loan In' || t.Type === 'Loan Repaid' || t.Type === 'Savings Withdrawal' || t.Type === 'Savings Payout' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                         {Number(t.Amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
                     </tr>

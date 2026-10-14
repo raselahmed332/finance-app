@@ -47,6 +47,7 @@ const EditTransferForm = lazy(() =>
   import("./components/EditTransferForm.jsx"),
 );
 const LoanForm = lazy(() => import("./components/LoanForm.jsx"));
+const SavingsForm = lazy(() => import("./components/SavingsForm.jsx"));
 
 function PageFallback() {
   return (
@@ -131,7 +132,10 @@ export default function App() {
     if (type === "FLEXIBLE") return can("SAVINGS_FLEXIBLE");
     return canSavings;
   };
-  const canManageSavings = can("MANAGE_SAVINGS");
+  // Creating any plan needs the matching SAVINGS_GROUP/FIXED/FLEXIBLE action
+  // (auto-granted by wallet access) or the MANAGE_SAVINGS grant the backend
+  // also accepts.
+  const canCreateSavings = canAny(["SAVINGS_GROUP", "SAVINGS_FIXED", "SAVINGS_FLEXIBLE", "MANAGE_SAVINGS"]);
   // Loan creation needs an issuing action (not just view); loan editing needs
   // the management grant the backend requires (MANAGE_LOANS is never auto-granted).
   const canAddLoan = canAny(["LOAN_GIVE", "LOAN_TAKE", "MANAGE_LOANS"]);
@@ -310,7 +314,9 @@ export default function App() {
         t.Type === "Income" ||
         t.Type === "Transfer In" ||
         t.Type === "Loan In" ||
-        t.Type === "Loan Repaid"
+        t.Type === "Loan Repaid" ||
+        t.Type === "Savings Withdrawal" ||
+        t.Type === "Savings Payout"
       ) {
         if (t.Type === "Income" && inCurrentMonth) summary.income += amt;
         if (t.Account === "Cash") summary.cash += amt;
@@ -319,7 +325,10 @@ export default function App() {
         t.Type === "Expense" ||
         t.Type === "Transfer Out" ||
         t.Type === "Loan Out" ||
-        t.Type === "Loan Payment"
+        t.Type === "Loan Payment" ||
+        t.Type === "Savings Deposit" ||
+        t.Type === "Savings Contribution" ||
+        t.Type === "Savings Payment"
       ) {
         if (t.Type === "Expense" && inCurrentMonth) summary.expense += amt;
         if (t.Account === "Cash") summary.cash -= amt;
@@ -466,6 +475,22 @@ export default function App() {
           if (res.transactions?.length)
             setTransactions((prev) => upsertTxns(prev, res.transactions));
         }
+        setLoading(false);
+        return res;
+      })
+      .catch((err) => {
+        showAlert("ত্রুটি: " + err, "error");
+        setLoading(false);
+        throw err;
+      });
+  };
+
+  const handleCreateSavingsPlan = (formData) => {
+    setLoading(true);
+    return api
+      .createSavingsPlan({ ...formData, user: currentUser.username })
+      .then((res) => {
+        showAlert(res.message, res.status === "ERROR" ? "error" : "success");
         setLoading(false);
         return res;
       })
@@ -775,6 +800,10 @@ export default function App() {
       return true;
     }
     if (tab.indexOf("savings-details-") === 0) {
+      setActiveTab("savings");
+      return true;
+    }
+    if (tab === "savings-add") {
       setActiveTab("savings");
       return true;
     }
@@ -1132,10 +1161,27 @@ export default function App() {
             {canSavings && activeTab === "savings" && (
               <SavingsDashboardView
                 currentUser={currentUser}
-                canCreate={canManageSavings}
+                canCreate={canCreateSavings}
+                onAdd={() => setActiveTab("savings-add")}
                 onOpenDetails={(planId) =>
                   setActiveTab("savings-details-" + planId)
                 }
+              />
+            )}
+
+            {canSavings && activeTab === "savings-add" && (
+              <SavingsForm
+                can={can}
+                wallets={wallets}
+                currentUser={currentUser}
+                onSave={handleCreateSavingsPlan}
+                onCancel={() => setActiveTab("savings")}
+                onDone={() => setActiveTab("savings")}
+                onGoHome={() => setActiveTab("home")}
+                onShow={(p) => {
+                  if (p?.PlanID) setActiveTab("savings-details-" + p.PlanID);
+                  else setActiveTab("savings");
+                }}
               />
             )}
 
