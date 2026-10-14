@@ -146,6 +146,25 @@ export const api = {
   editLoanAddition: (data, adminUsername) => callApi("editLoanAddition", [data, adminUsername]),
   deleteLoanAddition: (additionId, adminUsername) => callApi("deleteLoanAddition", [additionId, adminUsername]),
 
+  // Savings
+  getSavingsPlans: (username, type, opts) => callApi("getSavingsPlans", [username, type, opts]),
+  getSavingsPlanDetails: (planId, username) => callApi("getSavingsPlanDetails", [planId, username]),
+  createSavingsPlan: (data) => callApi("createSavingsPlan", [data]),
+  updateSavingsPlan: (data, adminUsername) => callApi("updateSavingsPlan", [data, adminUsername]),
+  deleteSavingsPlan: (planId, adminUsername) => callApi("deleteSavingsPlan", [planId, adminUsername]),
+  addSavingsGroupMember: (data) => callApi("addSavingsGroupMember", [data]),
+  updateSavingsGroupMember: (data, adminUsername) => callApi("updateSavingsGroupMember", [data, adminUsername]),
+  removeSavingsGroupMember: (memberId, adminUsername) => callApi("removeSavingsGroupMember", [memberId, adminUsername]),
+  setSavingsGroupRecipientOrder: (data) => callApi("setSavingsGroupRecipientOrder", [data]),
+  recordSavingsGroupContribution: (data) => callApi("recordSavingsGroupContribution", [data]),
+  recordSavingsGroupPayout: (data) => callApi("recordSavingsGroupPayout", [data]),
+  generateSavingsFixedInstallments: (data) => callApi("generateSavingsFixedInstallments", [data]),
+  addSavingsFixedPayment: (data) => callApi("addSavingsFixedPayment", [data]),
+  closeSavingsFixedPlan: (data) => callApi("closeSavingsFixedPlan", [data]),
+  addSavingsFlexDeposit: (data) => callApi("addSavingsFlexDeposit", [data]),
+  addSavingsFlexWithdrawal: (data) => callApi("addSavingsFlexWithdrawal", [data]),
+  deleteSavingsFlexTransaction: (txnId, type, adminUsername) => callApi("deleteSavingsFlexTransaction", [txnId, type, adminUsername]),
+
   // Currencies
   getCurrencies: (username) => callApi("getCurrencies", [username]),
   addCurrency: (data, adminUsername) => callApi("addCurrency", [data, adminUsername]),
@@ -193,6 +212,7 @@ export const DEFAULT_WALLET_ACTIONS = [
   "VIEW_DASHBOARD", "ADD_EXPENSE", "BANK_OPERATIONS",
   "VIEW_TRANSACTIONS", "VIEW_REPORTS", "VIEW_LOANS",
   "LOAN_GIVE", "LOAN_TAKE", "LOAN_PAYMENT",
+  "VIEW_SAVINGS", "SAVINGS_GROUP", "SAVINGS_FIXED", "SAVINGS_FLEXIBLE",
 ];
 
 // Actions an Admin may additionally grant to a Sub-Admin/User.
@@ -200,6 +220,7 @@ export const ADDITIONAL_PERMISSIONS = [
   "ADD_INCOME", "TRANSFER_MONEY", "MANAGE_TRANSACTIONS",
   "ADD_WALLET", "EDIT_WALLET", "MANAGE_WALLET_STATUS",
   "MANAGE_LOANS", "MANAGE_LOAN_TRANSACTIONS",
+  "MANAGE_SAVINGS", "MANAGE_SAVINGS_TRANSACTIONS",
   "ADD_USER", "EDIT_USER", "DELETE_USER", "MANAGE_USER_PERMISSIONS",
   "BACKUP_RESTORE", "VIEW_AUDIT_LOG", "MANAGE_CATEGORIES",
 ];

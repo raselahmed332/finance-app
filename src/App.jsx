@@ -20,8 +20,8 @@ const DashboardView = lazy(() => import("./pages/DashboardView.jsx"));
 const TransactionsView = lazy(() => import("./pages/TransactionsView.jsx"));
 const ReportsView = lazy(() => import("./pages/ReportsView.jsx"));
 const UserManagementView = lazy(() => import("./pages/UserManagementView.jsx"));
-const WalletManagementView = lazy(
-  () => import("./pages/WalletManagementView.jsx"),
+const WalletManagementView = lazy(() =>
+  import("./pages/WalletManagementView.jsx"),
 );
 const AuditLogView = lazy(() => import("./pages/AuditLogView.jsx"));
 const SettingsView = lazy(() => import("./pages/SettingsView.jsx"));
@@ -29,18 +29,22 @@ const BackupRestoreView = lazy(() => import("./pages/BackupRestoreView.jsx"));
 const UserProfileView = lazy(() => import("./pages/UserProfileView.jsx"));
 const LoanDashboardView = lazy(() => import("./pages/LoanDashboardView.jsx"));
 const LoanDetailsView = lazy(() => import("./pages/LoanDetailsView.jsx"));
+const SavingsDashboardView = lazy(() =>
+  import("./pages/SavingsDashboardView.jsx"),
+);
+const SavingsDetailsView = lazy(() => import("./pages/SavingsDetailsView.jsx"));
 
-const BankOperationForm = lazy(
-  () => import("./components/BankOperationForm.jsx"),
+const BankOperationForm = lazy(() =>
+  import("./components/BankOperationForm.jsx"),
 );
 const IncomeForm = lazy(() => import("./components/IncomeForm.jsx"));
 const ExpenseForm = lazy(() => import("./components/ExpenseForm.jsx"));
 const TransferForm = lazy(() => import("./components/TransferForm.jsx"));
-const EditTransactionForm = lazy(
-  () => import("./components/EditTransactionForm.jsx"),
+const EditTransactionForm = lazy(() =>
+  import("./components/EditTransactionForm.jsx"),
 );
-const EditTransferForm = lazy(
-  () => import("./components/EditTransferForm.jsx"),
+const EditTransferForm = lazy(() =>
+  import("./components/EditTransferForm.jsx"),
 );
 const LoanForm = lazy(() => import("./components/LoanForm.jsx"));
 
@@ -120,12 +124,23 @@ export default function App() {
   // Loan module: visible to everyone with wallet access (VIEW_LOANS is implied
   // by wallet access); Admins have it via their full effective permission set.
   const canLoan = can("VIEW_LOANS");
+  const canSavings = can("VIEW_SAVINGS");
+  const canSavingsType = (type) => {
+    if (type === "GROUP") return can("SAVINGS_GROUP");
+    if (type === "FIXED") return can("SAVINGS_FIXED");
+    if (type === "FLEXIBLE") return can("SAVINGS_FLEXIBLE");
+    return canSavings;
+  };
+  const canManageSavings = can("MANAGE_SAVINGS");
   // Loan creation needs an issuing action (not just view); loan editing needs
   // the management grant the backend requires (MANAGE_LOANS is never auto-granted).
   const canAddLoan = canAny(["LOAN_GIVE", "LOAN_TAKE", "MANAGE_LOANS"]);
   const canEditLoan = can("MANAGE_LOANS");
 
-  const showAlert = useCallback((msg, type = "success") => toast(msg, type), [toast]);
+  const showAlert = useCallback(
+    (msg, type = "success") => toast(msg, type),
+    [toast],
+  );
 
   // Clear every user-scoped list and search/filter state so a freshly
   // logged-in user never sees the previous user's data or a stale filter
@@ -188,7 +203,9 @@ export default function App() {
       .finally(() => {
         if (!cancelled) setCheckingAuth(false);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Any request that comes back SESSION_EXPIRED / INVALID_SESSION / AUTH_REQUIRED
@@ -226,7 +243,10 @@ export default function App() {
         // Re-derive the user from the authoritative payload the backend
         // returned - an Admin may have changed its permissions or name.
         const authoritative = res.user || currentUser;
-        const updated = { ...authoritative, permissions: res.permissions || authoritative.permissions };
+        const updated = {
+          ...authoritative,
+          permissions: res.permissions || authoritative.permissions,
+        };
         setCurrentUser(updated);
         setLoading(false);
       })
@@ -284,7 +304,8 @@ export default function App() {
       const amt = parseFloat(t.Amount) || 0;
       // A row with no parseable date is not "this month", so it contributes to
       // the balance but never to the monthly income/expense figures.
-      const inCurrentMonth = typeof t.Date === "string" && t.Date.slice(0, 7) === currentMonth;
+      const inCurrentMonth =
+        typeof t.Date === "string" && t.Date.slice(0, 7) === currentMonth;
       if (
         t.Type === "Income" ||
         t.Type === "Transfer In" ||
@@ -347,7 +368,9 @@ export default function App() {
   };
 
   const handleDeleteTxn = async (id, walletId) => {
-    const ok = await confirm({ message: "আপনি কি এই লেনদেনটি মুছে ফেলতে চান?" });
+    const ok = await confirm({
+      message: "আপনি কি এই লেনদেনটি মুছে ফেলতে চান?",
+    });
     if (!ok) return;
     setLoading(true);
     api
@@ -426,7 +449,8 @@ export default function App() {
     return api
       .getPersonActiveLoans(currentUser.username, identity)
       .then((res) => {
-        if (res && res.status === "ERROR") throw new Error(res.message || "লোনের আগের রেকর্ড যাচাই করা যায়নি।");
+        if (res && res.status === "ERROR")
+          throw new Error(res.message || "লোনের আগের রেকর্ড যাচাই করা যায়নি।");
         return res;
       });
   };
@@ -521,12 +545,16 @@ export default function App() {
   const handleEditLoanRepayment = (formData) => {
     setLoading(true);
     return api
-      .updateLoanRepayment({ ...formData, user: currentUser.username }, currentUser.username)
+      .updateLoanRepayment(
+        { ...formData, user: currentUser.username },
+        currentUser.username,
+      )
       .then((res) => {
         showAlert(res.message, res.status === "ERROR" ? "error" : "success");
         if (res.status === "SUCCESS") {
           if (res.loan) setLoans((prev) => upsertLoans(prev, [res.loan]));
-          if (res.transactions?.length) setTransactions((prev) => upsertTxns(prev, res.transactions));
+          if (res.transactions?.length)
+            setTransactions((prev) => upsertTxns(prev, res.transactions));
           else if (res.loan) loadData();
         }
         setLoading(false);
@@ -547,7 +575,8 @@ export default function App() {
         showAlert(res.message, res.status === "ERROR" ? "error" : "success");
         if (res.status === "SUCCESS") {
           if (res.loan) setLoans((prev) => upsertLoans(prev, [res.loan]));
-          if (res.transactions?.length) setTransactions((prev) => upsertTxns(prev, res.transactions));
+          if (res.transactions?.length)
+            setTransactions((prev) => upsertTxns(prev, res.transactions));
           else if (res.loan) loadData();
         }
         setLoading(false);
@@ -584,7 +613,10 @@ export default function App() {
   const handleEditLoanAddition = (formData) => {
     setLoading(true);
     return api
-      .editLoanAddition({ ...formData, user: currentUser.username }, currentUser.username)
+      .editLoanAddition(
+        { ...formData, user: currentUser.username },
+        currentUser.username,
+      )
       .then((res) => {
         showAlert(res.message, res.status === "ERROR" ? "error" : "success");
         if (res.status === "SUCCESS") {
@@ -721,7 +753,9 @@ export default function App() {
     const tab = activeTabRef.current;
     if (tab === "home") return false;
     if (tab.indexOf("edit-") === 0) {
-      setActiveTab(canRef.current("VIEW_TRANSACTIONS") ? "transactions" : "home");
+      setActiveTab(
+        canRef.current("VIEW_TRANSACTIONS") ? "transactions" : "home",
+      );
       return true;
     }
     if (tab === "loan-add") {
@@ -842,343 +876,352 @@ export default function App() {
           </div>
         )}
         <ErrorBoundary>
-        <Suspense fallback={<PageFallback />}>
-          {activeTab === "home" && can("VIEW_DASHBOARD") && (
-            <DashboardView
-              wallets={wallets}
-              walletSummaries={walletSummaries}
-              setActiveTab={setActiveTab}
-              setFilterWallet={setFilterWallet}
-              can={can}
-            />
-          )}
+          <Suspense fallback={<PageFallback />}>
+            {activeTab === "home" && can("VIEW_DASHBOARD") && (
+              <DashboardView
+                wallets={wallets}
+                walletSummaries={walletSummaries}
+                setActiveTab={setActiveTab}
+                setFilterWallet={setFilterWallet}
+                can={can}
+              />
+            )}
 
-          {can("ADD_INCOME") && activeTab === "income" && (
-            <IncomeForm
-              wallets={wallets}
-              categories={categories}
-              currentUser={currentUser}
-              onSave={handleSaveTransaction}
-              onCancel={() => setActiveTab("home")}
-            />
-          )}
+            {can("ADD_INCOME") && activeTab === "income" && (
+              <IncomeForm
+                wallets={wallets}
+                categories={categories}
+                currentUser={currentUser}
+                onSave={handleSaveTransaction}
+                onCancel={() => setActiveTab("home")}
+              />
+            )}
 
-          {can("ADD_EXPENSE") && activeTab === "expense" && (
-            <ExpenseForm
-              wallets={wallets}
-              categories={categories}
-              currentUser={currentUser}
-              onSave={handleSaveTransaction}
-              onCancel={() => setActiveTab("home")}
-            />
-          )}
+            {can("ADD_EXPENSE") && activeTab === "expense" && (
+              <ExpenseForm
+                wallets={wallets}
+                categories={categories}
+                currentUser={currentUser}
+                onSave={handleSaveTransaction}
+                onCancel={() => setActiveTab("home")}
+              />
+            )}
 
-          {can("TRANSFER_MONEY") && activeTab === "transfer" && (
-            <TransferForm
-              wallets={wallets}
-              currentUser={currentUser}
-              onSave={handleSaveTransaction}
-              onCancel={() => setActiveTab("home")}
-            />
-          )}
+            {can("TRANSFER_MONEY") && activeTab === "transfer" && (
+              <TransferForm
+                wallets={wallets}
+                currentUser={currentUser}
+                onSave={handleSaveTransaction}
+                onCancel={() => setActiveTab("home")}
+              />
+            )}
 
-          {can("BANK_OPERATIONS") && activeTab === "bank" && (
-            <BankOperationForm
-              wallets={wallets}
-              currentUser={currentUser}
-              onSave={handleSaveTransaction}
-              onCancel={() => setActiveTab("home")}
-            />
-          )}
+            {can("BANK_OPERATIONS") && activeTab === "bank" && (
+              <BankOperationForm
+                wallets={wallets}
+                currentUser={currentUser}
+                onSave={handleSaveTransaction}
+                onCancel={() => setActiveTab("home")}
+              />
+            )}
 
-          {can("VIEW_TRANSACTIONS") && activeTab === "transactions" && (
-            <TransactionsView
-              transactions={transactions}
-              wallets={wallets}
-              onDelete={handleDeleteTxn}
-              onEdit={(txn) => setActiveTab("edit-" + txn.ID)}
-              canEdit={can("MANAGE_TRANSACTIONS")}
-              canDelete={can("MANAGE_TRANSACTIONS")}
-              searchTerm={searchTerm}
-              setSearchTerm={setSearchTerm}
-              filterType={filterType}
-              setFilterType={setFilterType}
-              filterWallet={filterWallet}
-              setFilterWallet={setFilterWallet}
-              filterUser={filterUser}
-              setFilterUser={setFilterUser}
-              filterAccount={filterAccount}
-              setFilterAccount={setFilterAccount}
-              canViewUsers={canManageUsers}
-              users={usersList}
-            />
-          )}
+            {can("VIEW_TRANSACTIONS") && activeTab === "transactions" && (
+              <TransactionsView
+                transactions={transactions}
+                wallets={wallets}
+                onDelete={handleDeleteTxn}
+                onEdit={(txn) => setActiveTab("edit-" + txn.ID)}
+                canEdit={can("MANAGE_TRANSACTIONS")}
+                canDelete={can("MANAGE_TRANSACTIONS")}
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+                filterType={filterType}
+                setFilterType={setFilterType}
+                filterWallet={filterWallet}
+                setFilterWallet={setFilterWallet}
+                filterUser={filterUser}
+                setFilterUser={setFilterUser}
+                filterAccount={filterAccount}
+                setFilterAccount={setFilterAccount}
+                canViewUsers={canManageUsers}
+                users={usersList}
+              />
+            )}
 
-          {activeTab.indexOf("edit-") === 0 &&
-            can("MANAGE_TRANSACTIONS") &&
-            (() => {
-              const editTxn = transactions.find(
-                (t) => String(t.ID) === activeTab.slice(5),
-              );
-              const postEdit = () =>
-                setActiveTab(
-                  can("VIEW_TRANSACTIONS") ? "transactions" : "home",
+            {activeTab.indexOf("edit-") === 0 &&
+              can("MANAGE_TRANSACTIONS") &&
+              (() => {
+                const editTxn = transactions.find(
+                  (t) => String(t.ID) === activeTab.slice(5),
                 );
-              if (!editTxn)
+                const postEdit = () =>
+                  setActiveTab(
+                    can("VIEW_TRANSACTIONS") ? "transactions" : "home",
+                  );
+                if (!editTxn)
+                  return (
+                    <EditTransactionForm
+                      transaction={null}
+                      onSave={handleUpdateTransaction}
+                      onCancel={postEdit}
+                    />
+                  );
+                if (
+                  editTxn.Type === "Transfer Out" ||
+                  editTxn.Type === "Transfer In"
+                ) {
+                  return (
+                    <EditTransferForm
+                      key={editTxn.ID}
+                      transaction={editTxn}
+                      currentUser={currentUser}
+                      onSave={handleUpdateTransaction}
+                      onCancel={postEdit}
+                    />
+                  );
+                }
                 return (
                   <EditTransactionForm
-                    transaction={null}
-                    onSave={handleUpdateTransaction}
-                    onCancel={postEdit}
-                  />
-                );
-              if (
-                editTxn.Type === "Transfer Out" ||
-                editTxn.Type === "Transfer In"
-              ) {
-                return (
-                  <EditTransferForm
                     key={editTxn.ID}
                     transaction={editTxn}
-                    currentUser={currentUser}
                     onSave={handleUpdateTransaction}
                     onCancel={postEdit}
                   />
                 );
-              }
-              return (
-                <EditTransactionForm
-                  key={editTxn.ID}
-                  transaction={editTxn}
-                  onSave={handleUpdateTransaction}
-                  onCancel={postEdit}
-                />
-              );
-            })()}
+              })()}
 
-          {activeTab.indexOf("edit-") === 0 && !can("MANAGE_TRANSACTIONS") && (
-            <div className="text-center py-16 px-4">
-              <i className="fa-solid fa-lock text-3xl text-gray-300 dark:text-gray-600 mb-3"></i>
-              <div className="text-sm font-semibold text-slate-600 dark:text-gray-300">
-                লেনদেন এডিট করার অনুমতি নেই
-              </div>
-              <button
-                onClick={() => setActiveTab("transactions")}
-                className="mt-3 bg-slate-800 dark:bg-gray-800 text-white text-xs font-semibold px-4 py-2 rounded-xl"
-              >
-                লেনদেনে ফিরে যান
-              </button>
-            </div>
-          )}
-
-          {canLoan && activeTab === "loans" && (
-            <LoanDashboardView
-              loans={loans}
-              currentUser={currentUser}
-              users={usersList}
-              can={can}
-              onLoansChange={setLoans}
-              onAdd={() => setActiveTab("loan-add")}
-              onSelect={(loanId) => setActiveTab("loan-details-" + loanId)}
-            />
-          )}
-
-          {canAddLoan && activeTab === "loan-add" && (
-            <LoanForm
-              can={can}
-              wallets={wallets}
-              loans={loans}
-              currentUser={currentUser}
-              onSave={handleSaveLoan}
-              onAddToLoan={handleAddLoanAddition}
-              onCheckActive={handleCheckActiveLoans}
-              onCancel={() => setActiveTab("loans")}
-              onDone={() => setActiveTab("loans")}
-              onGoHome={() => setActiveTab("home")}
-              onShow={(l) => {
-                if (l?.id) setActiveTab("loan-details-" + l.id);
-              }}
-            />
-          )}
-
-          {canLoan &&
-            activeTab.indexOf("loan-details-") === 0 &&
-            (() => {
-              const loanId = activeTab.slice("loan-details-".length);
-              const found = loans.find((l) => String(l.id) === String(loanId));
-              return (
-                <LoanDetailsView
-                  key={"details-" + loanId}
-                  loan={found || { id: loanId }}
-                  wallets={wallets}
-                  currentUser={currentUser}
-                  can={can}
-                  showAlert={showAlert}
-                  onBack={() => setActiveTab("loans")}
-                  onGoHome={() => setActiveTab("home")}
-                  onEdit={() => setActiveTab("loan-edit-" + loanId)}
-                  onRepayment={handleLoanRepayment}
-                  onAddAddition={handleAddLoanAddition}
-                  onEditAddition={handleEditLoanAddition}
-                  onDeleteAddition={handleDeleteLoanAddition}
-                  onEditRepayment={handleEditLoanRepayment}
-                  onDeleteRepayment={handleDeleteLoanRepayment}
-                  onCancelLoan={handleCancelLoan}
-                />
-              );
-            })()}
-
-          {canEditLoan &&
-            activeTab.indexOf("loan-edit-") === 0 &&
-            (() => {
-              const loanId = activeTab.slice("loan-edit-".length);
-              const found = loans.find((l) => String(l.id) === String(loanId));
-              if (!found) {
-                return (
-                  <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 text-center">
-                    <div className="text-sm text-gray-500 dark:text-gray-400 py-4">
-                      লোন পাওয়া যায়নি।
-                    </div>
-                    <button
-                      onClick={() => setActiveTab("loans")}
-                      className="w-full bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs"
-                    >
-                      লিষ্টে ফিরে যান
-                    </button>
+            {activeTab.indexOf("edit-") === 0 &&
+              !can("MANAGE_TRANSACTIONS") && (
+                <div className="text-center py-16 px-4">
+                  <i className="fa-solid fa-lock text-3xl text-gray-300 dark:text-gray-600 mb-3"></i>
+                  <div className="text-sm font-semibold text-slate-600 dark:text-gray-300">
+                    লেনদেন এডিট করার অনুমতি নেই
                   </div>
-                );
-              }
-              return (
-                <LoanForm
-                  key={"edit-" + found.id}
-                  loan={found}
-                  wallets={wallets}
-                  loans={loans}
-                  currentUser={currentUser}
-                  onSave={handleUpdateLoan}
-                  onCancel={() => setActiveTab("loan-details-" + loanId)}
-                  onDone={() => setActiveTab("loan-details-" + loanId)}
-                  onGoHome={() => setActiveTab("home")}
-                  onShow={(l) => {
-                    if (l?.id) setActiveTab("loan-details-" + l.id);
-                  }}
-                />
-              );
-            })()}
-
-          {canLoan &&
-            activeTab.indexOf("loan-") === 0 &&
-            activeTab !== "loans" &&
-            activeTab !== "loan-add" &&
-            activeTab.indexOf("loan-details-") !== 0 &&
-            activeTab.indexOf("loan-edit-") !== 0 && (
-              <div className="text-center py-16 px-4">
-                <i className="fa-solid fa-hand-holding-dollar text-3xl text-gray-300 dark:text-gray-600 mb-3"></i>
-                <div className="text-sm font-semibold text-slate-600 dark:text-gray-300">
-                  হাওলাত বিভাগ
+                  <button
+                    onClick={() => setActiveTab("transactions")}
+                    className="mt-3 bg-slate-800 dark:bg-gray-800 text-white text-xs font-semibold px-4 py-2 rounded-xl"
+                  >
+                    লেনদেনে ফিরে যান
+                  </button>
                 </div>
-                <button
-                  onClick={() => setActiveTab("loans")}
-                  className="mt-3 bg-slate-800 dark:bg-gray-800 text-white text-xs font-semibold px-4 py-2 rounded-xl"
-                >
-                  হাওলাত লিষ্ট
-                </button>
+              )}
+
+            {canLoan && activeTab === "loans" && (
+              <LoanDashboardView
+                loans={loans}
+                currentUser={currentUser}
+                users={usersList}
+                can={can}
+                onLoansChange={setLoans}
+                onAdd={() => setActiveTab("loan-add")}
+                onSelect={(loanId) => setActiveTab("loan-details-" + loanId)}
+              />
+            )}
+
+            {canAddLoan && activeTab === "loan-add" && (
+              <LoanForm
+                can={can}
+                wallets={wallets}
+                loans={loans}
+                currentUser={currentUser}
+                onSave={handleSaveLoan}
+                onAddToLoan={handleAddLoanAddition}
+                onCheckActive={handleCheckActiveLoans}
+                onCancel={() => setActiveTab("loans")}
+                onDone={() => setActiveTab("loans")}
+                onGoHome={() => setActiveTab("home")}
+                onShow={(l) => {
+                  if (l?.id) setActiveTab("loan-details-" + l.id);
+                }}
+              />
+            )}
+
+            {canLoan &&
+              activeTab.indexOf("loan-details-") === 0 &&
+              (() => {
+                const loanId = activeTab.slice("loan-details-".length);
+                const found = loans.find(
+                  (l) => String(l.id) === String(loanId),
+                );
+                return (
+                  <LoanDetailsView
+                    key={"details-" + loanId}
+                    loan={found || { id: loanId }}
+                    wallets={wallets}
+                    currentUser={currentUser}
+                    can={can}
+                    showAlert={showAlert}
+                    onBack={() => setActiveTab("loans")}
+                    onGoHome={() => setActiveTab("home")}
+                    onEdit={() => setActiveTab("loan-edit-" + loanId)}
+                    onRepayment={handleLoanRepayment}
+                    onAddAddition={handleAddLoanAddition}
+                    onEditAddition={handleEditLoanAddition}
+                    onDeleteAddition={handleDeleteLoanAddition}
+                    onEditRepayment={handleEditLoanRepayment}
+                    onDeleteRepayment={handleDeleteLoanRepayment}
+                    onCancelLoan={handleCancelLoan}
+                  />
+                );
+              })()}
+
+            {canEditLoan &&
+              activeTab.indexOf("loan-edit-") === 0 &&
+              (() => {
+                const loanId = activeTab.slice("loan-edit-".length);
+                const found = loans.find(
+                  (l) => String(l.id) === String(loanId),
+                );
+                if (!found) {
+                  return (
+                    <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 text-center">
+                      <div className="text-sm text-gray-500 dark:text-gray-400 py-4">
+                        লোন পাওয়া যায়নি।
+                      </div>
+                      <button
+                        onClick={() => setActiveTab("loans")}
+                        className="w-full bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs"
+                      >
+                        লিষ্টে ফিরে যান
+                      </button>
+                    </div>
+                  );
+                }
+                return (
+                  <LoanForm
+                    key={"edit-" + found.id}
+                    loan={found}
+                    wallets={wallets}
+                    loans={loans}
+                    currentUser={currentUser}
+                    onSave={handleUpdateLoan}
+                    onCancel={() => setActiveTab("loan-details-" + loanId)}
+                    onDone={() => setActiveTab("loan-details-" + loanId)}
+                    onGoHome={() => setActiveTab("home")}
+                    onShow={(l) => {
+                      if (l?.id) setActiveTab("loan-details-" + l.id);
+                    }}
+                  />
+                );
+              })()}
+
+            {canLoan &&
+              activeTab.indexOf("loan-") === 0 &&
+              activeTab !== "loans" &&
+              activeTab !== "loan-add" &&
+              activeTab.indexOf("loan-details-") !== 0 &&
+              activeTab.indexOf("loan-edit-") !== 0 && (
+                <div className="text-center py-16 px-4">
+                  <i className="fa-solid fa-hand-holding-dollar text-3xl text-gray-300 dark:text-gray-600 mb-3"></i>
+                  <div className="text-sm font-semibold text-slate-600 dark:text-gray-300">
+                    হাওলাত বিভাগ
+                  </div>
+                  <button
+                    onClick={() => setActiveTab("loans")}
+                    className="mt-3 bg-slate-800 dark:bg-gray-800 text-white text-xs font-semibold px-4 py-2 rounded-xl"
+                  >
+                    হাওলাত লিষ্ট
+                  </button>
+                </div>
+              )}
+
+            {can("VIEW_REPORTS") && activeTab === "reports" && (
+              <ReportsView
+                wallets={wallets}
+                currentUser={currentUser}
+                users={usersList}
+              />
+            )}
+
+            {canManageUsers && activeTab === "users" && (
+              <UserManagementView
+                users={usersList}
+                wallets={wallets}
+                onRefresh={loadData}
+                showAlert={showAlert}
+                currentUser={currentUser}
+                onUserAction={handleUserAction}
+                can={can}
+              />
+            )}
+
+            {canManageWallets && activeTab === "wallets" && (
+              <WalletManagementView
+                currentUser={currentUser}
+                can={can}
+                showAlert={showAlert}
+                walletSummaries={walletSummaries}
+                users={usersList}
+              />
+            )}
+
+            {can("VIEW_AUDIT_LOG") && activeTab === "auditlog" && (
+              <AuditLogView
+                currentUser={currentUser}
+                onCancel={() => setActiveTab("home")}
+              />
+            )}
+
+            {canManageSettings && activeTab === "settings" && (
+              <SettingsView
+                showAlert={showAlert}
+                currentUser={currentUser}
+                can={can}
+              />
+            )}
+
+            {can("BACKUP_RESTORE") && activeTab === "backup" && (
+              <BackupRestoreView
+                currentUser={currentUser}
+                showAlert={showAlert}
+                onImport={handleImportBackup}
+                can={can}
+                onCancel={() => setActiveTab("profile")}
+              />
+            )}
+
+            {activeTab === "profile" && (
+              <UserProfileView
+                currentUser={currentUser}
+                transactions={transactions}
+                wallets={wallets}
+                darkMode={darkMode}
+                onSetDark={setDarkMode}
+                can={can}
+                onSave={handleProfileUpdate}
+                onCancel={() => setActiveTab("home")}
+                onEditTxn={(txn) => setActiveTab("edit-" + txn.ID)}
+                onDeleteTxn={handleDeleteTxn}
+                onLogout={handleLogout}
+                setActiveTab={setActiveTab}
+              />
+            )}
+
+            {activeTab === "home" && !can("VIEW_DASHBOARD") && (
+              <div className="text-center py-16 px-4">
+                <i className="fa-solid fa-lock text-3xl text-gray-300 dark:text-gray-600 mb-3"></i>
+                <div className="text-sm font-semibold text-slate-600 dark:text-gray-300">
+                  ড্যাশবোর্ড দেখার অনুমতি নেই
+                </div>
+                <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                  নিচের মেনু থেকে আপনার অনুমোদিত পেজ ব্যবহার করুন।
+                </div>
               </div>
             )}
 
-          {can("VIEW_REPORTS") && activeTab === "reports" && (
-            <ReportsView wallets={wallets} currentUser={currentUser} users={usersList} />
-          )}
-
-          {canManageUsers && activeTab === "users" && (
-            <UserManagementView
-              users={usersList}
-              wallets={wallets}
-              onRefresh={loadData}
-              showAlert={showAlert}
-              currentUser={currentUser}
-              onUserAction={handleUserAction}
-              can={can}
-            />
-          )}
-
-          {canManageWallets && activeTab === "wallets" && (
-            <WalletManagementView
-              currentUser={currentUser}
-              can={can}
-              showAlert={showAlert}
-              walletSummaries={walletSummaries}
-              users={usersList}
-            />
-          )}
-
-          {can("VIEW_AUDIT_LOG") && activeTab === "auditlog" && (
-            <AuditLogView
-              currentUser={currentUser}
-              onCancel={() => setActiveTab("home")}
-            />
-          )}
-
-          {canManageSettings && activeTab === "settings" && (
-            <SettingsView
-              showAlert={showAlert}
-              currentUser={currentUser}
-              can={can}
-            />
-          )}
-
-          {can("BACKUP_RESTORE") && activeTab === "backup" && (
-            <BackupRestoreView
-              currentUser={currentUser}
-              showAlert={showAlert}
-              onImport={handleImportBackup}
-              can={can}
-              onCancel={() => setActiveTab("profile")}
-            />
-          )}
-
-          {activeTab === "profile" && (
-            <UserProfileView
-              currentUser={currentUser}
-              transactions={transactions}
-              wallets={wallets}
-              darkMode={darkMode}
-              onSetDark={setDarkMode}
-              can={can}
-              onSave={handleProfileUpdate}
-              onCancel={() => setActiveTab("home")}
-              onEditTxn={(txn) => setActiveTab("edit-" + txn.ID)}
-              onDeleteTxn={handleDeleteTxn}
-              onLogout={handleLogout}
-              setActiveTab={setActiveTab}
-            />
-          )}
-
-          {activeTab === "home" && !can("VIEW_DASHBOARD") && (
-            <div className="text-center py-16 px-4">
-              <i className="fa-solid fa-lock text-3xl text-gray-300 dark:text-gray-600 mb-3"></i>
-              <div className="text-sm font-semibold text-slate-600 dark:text-gray-300">
-                ড্যাশবোর্ড দেখার অনুমতি নেই
+            {!currentUser.permissions?.length && activeTab === "home" && (
+              <div className="text-center py-16 px-4">
+                <i className="fa-solid fa-lock text-3xl text-gray-300 dark:text-gray-600 mb-3"></i>
+                <div className="text-sm font-semibold text-slate-600 dark:text-gray-300">
+                  এখনো কোনো অনুমতি দেওয়া হয়নি
+                </div>
+                <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                  আপনার অ্যাকাউন্টে কোনো Permission সেট করা নেই। Admin এর সাথে
+                  যোগাযোগ করুন।
+                </div>
               </div>
-              <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                নিচের মেনু থেকে আপনার অনুমোদিত পেজ ব্যবহার করুন।
-              </div>
-            </div>
-          )}
-
-          {!currentUser.permissions?.length && activeTab === "home" && (
-            <div className="text-center py-16 px-4">
-              <i className="fa-solid fa-lock text-3xl text-gray-300 dark:text-gray-600 mb-3"></i>
-              <div className="text-sm font-semibold text-slate-600 dark:text-gray-300">
-                এখনো কোনো অনুমতি দেওয়া হয়নি
-              </div>
-              <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                আপনার অ্যাকাউন্টে কোনো Permission সেট করা নেই। Admin এর সাথে
-                যোগাযোগ করুন।
-              </div>
-            </div>
-          )}
-        </Suspense>
+            )}
+          </Suspense>
         </ErrorBoundary>
       </main>
 
@@ -1186,14 +1229,22 @@ export default function App() {
       <nav className="app-bottom-nav fixed bottom-0 left-0 right-0 max-w-[480px] md:max-w-[1000px] mx-auto bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 flex justify-around items-center py-2 z-40 shadow-lg">
         <button
           onClick={() => setActiveTab("home")}
-          className={`flex flex-col items-center text-xs font-medium ${activeTab === "home" ? "text-emerald-600" : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"}`}
+          className={`flex flex-col items-center text-xs font-medium ${
+            activeTab === "home"
+              ? "text-emerald-600"
+              : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"
+          }`}
         >
           <i className="fa-solid fa-house text-lg mb-0.5"></i> Home
         </button>
         {can("ADD_INCOME") && (
           <button
             onClick={() => setActiveTab("income")}
-            className={`flex flex-col items-center text-xs font-medium ${activeTab === "income" ? "text-emerald-600" : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"}`}
+            className={`flex flex-col items-center text-xs font-medium ${
+              activeTab === "income"
+                ? "text-emerald-600"
+                : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"
+            }`}
           >
             <i className="fa-solid fa-circle-plus text-lg mb-0.5"></i> Income
           </button>
@@ -1201,7 +1252,11 @@ export default function App() {
         {can("ADD_EXPENSE") && (
           <button
             onClick={() => setActiveTab("expense")}
-            className={`flex flex-col items-center text-xs font-medium ${activeTab === "expense" ? "text-emerald-600" : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"}`}
+            className={`flex flex-col items-center text-xs font-medium ${
+              activeTab === "expense"
+                ? "text-emerald-600"
+                : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"
+            }`}
           >
             <i className="fa-solid fa-circle-minus text-lg mb-0.5"></i> Expense
           </button>
@@ -1209,7 +1264,11 @@ export default function App() {
         {can("TRANSFER_MONEY") && (
           <button
             onClick={() => setActiveTab("transfer")}
-            className={`flex flex-col items-center text-xs font-medium ${activeTab === "transfer" ? "text-emerald-600" : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"}`}
+            className={`flex flex-col items-center text-xs font-medium ${
+              activeTab === "transfer"
+                ? "text-emerald-600"
+                : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"
+            }`}
           >
             <i className="fa-solid fa-right-left text-lg mb-0.5"></i> Transfer
           </button>
@@ -1217,7 +1276,11 @@ export default function App() {
         {can("BANK_OPERATIONS") && (
           <button
             onClick={() => setActiveTab("bank")}
-            className={`flex flex-col items-center text-xs font-medium ${activeTab === "bank" ? "text-emerald-600" : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"}`}
+            className={`flex flex-col items-center text-xs font-medium ${
+              activeTab === "bank"
+                ? "text-emerald-600"
+                : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"
+            }`}
           >
             <i className="fa-solid fa-building-columns text-lg mb-0.5"></i> Bank
           </button>
@@ -1225,7 +1288,11 @@ export default function App() {
         {canLoan && (
           <button
             onClick={() => setActiveTab("loans")}
-            className={`flex flex-col items-center text-xs font-medium ${activeTab === "loans" ? "text-emerald-600" : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"}`}
+            className={`flex flex-col items-center text-xs font-medium ${
+              activeTab === "loans"
+                ? "text-emerald-600"
+                : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"
+            }`}
           >
             <i className="fa-solid fa-hand-holding-dollar text-lg mb-0.5"></i>{" "}
             Loan
@@ -1234,7 +1301,11 @@ export default function App() {
         {can("VIEW_REPORTS") && (
           <button
             onClick={() => setActiveTab("reports")}
-            className={`flex flex-col items-center text-xs font-medium ${activeTab === "reports" ? "text-emerald-600" : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"}`}
+            className={`flex flex-col items-center text-xs font-medium ${
+              activeTab === "reports"
+                ? "text-emerald-600"
+                : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"
+            }`}
           >
             <i className="fa-solid fa-chart-pie text-lg mb-0.5"></i> Reports
           </button>
