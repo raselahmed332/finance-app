@@ -125,7 +125,15 @@ export default function App() {
   // Loan module: visible to everyone with wallet access (VIEW_LOANS is implied
   // by wallet access); Admins have it via their full effective permission set.
   const canLoan = can("VIEW_LOANS");
-  const canSavings = can("VIEW_SAVINGS");
+  const canSavings =
+    String(currentUser?.role).toLowerCase() === "admin" ||
+    canAny([
+      "VIEW_SAVINGS",
+      "SAVINGS_GROUP",
+      "SAVINGS_FIXED",
+      "SAVINGS_FLEXIBLE",
+      "MANAGE_SAVINGS",
+    ]);
   const canSavingsType = (type) => {
     if (type === "GROUP") return can("SAVINGS_GROUP");
     if (type === "FIXED") return can("SAVINGS_FIXED");
@@ -1299,6 +1307,31 @@ export default function App() {
         </ErrorBoundary>
       </main>
 
+      {activeTab === "home" && (can("ADD_INCOME") || can("ADD_EXPENSE")) && (
+        <div className="fixed bottom-20 left-0 right-0 max-w-[480px] md:max-w-[1000px] mx-auto px-4 flex flex-col items-end gap-3 z-40 pointer-events-none">
+          {can("ADD_INCOME") && (
+            <button
+              onClick={() => setActiveTab("income")}
+              aria-label="Income"
+              title="Income (আয়)"
+              className="pointer-events-auto w-14 h-14 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/40 flex items-center justify-center active:scale-95 transition-transform"
+            >
+              <i className="fa-solid fa-plus text-xl"></i>
+            </button>
+          )}
+          {can("ADD_EXPENSE") && (
+            <button
+              onClick={() => setActiveTab("expense")}
+              aria-label="Expense"
+              title="Expense (খরচ)"
+              className="pointer-events-auto w-14 h-14 rounded-full bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-600/40 flex items-center justify-center active:scale-95 transition-transform"
+            >
+              <i className="fa-solid fa-minus text-xl"></i>
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Bottom Nav */}
       <nav className="app-bottom-nav fixed bottom-0 left-0 right-0 max-w-[480px] md:max-w-[1000px] mx-auto bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 flex justify-around items-center py-2 z-40 shadow-lg">
         <button
@@ -1311,28 +1344,17 @@ export default function App() {
         >
           <i className="fa-solid fa-house text-lg mb-0.5"></i> Home
         </button>
-        {can("ADD_INCOME") && (
+        {can("VIEW_TRANSACTIONS") && (
           <button
-            onClick={() => setActiveTab("income")}
+            onClick={() => setActiveTab("transactions")}
             className={`flex flex-col items-center text-xs font-medium ${
-              activeTab === "income"
+              activeTab === "transactions" ||
+              activeTab.indexOf("edit-") === 0
                 ? "text-emerald-600"
                 : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"
             }`}
           >
-            <i className="fa-solid fa-circle-plus text-lg mb-0.5"></i> Income
-          </button>
-        )}
-        {can("ADD_EXPENSE") && (
-          <button
-            onClick={() => setActiveTab("expense")}
-            className={`flex flex-col items-center text-xs font-medium ${
-              activeTab === "expense"
-                ? "text-emerald-600"
-                : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"
-            }`}
-          >
-            <i className="fa-solid fa-circle-minus text-lg mb-0.5"></i> Expense
+            <i className="fa-solid fa-list-check text-lg mb-0.5"></i> Txn
           </button>
         )}
         {can("TRANSFER_MONEY") && (
