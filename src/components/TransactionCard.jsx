@@ -3,24 +3,24 @@ import Popup from "./Popup.jsx";
 import { DetailCell } from "./FormField.jsx";
 
 const TYPE_BADGES = {
-  Income: { bg: "bg-emerald-100 dark:bg-emerald-900/40", text: "text-emerald-700 dark:text-emerald-400", icon: "fa-arrow-down", label: "Income" },
-  Expense: { bg: "bg-rose-100 dark:bg-rose-900/40", text: "text-rose-700 dark:text-rose-400", icon: "fa-arrow-up", label: "Expense" },
-  "Transfer In": { bg: "bg-blue-100 dark:bg-blue-900/40", text: "text-blue-700 dark:text-blue-400", icon: "fa-arrow-down", label: "Transfer In" },
-  "Transfer Out": { bg: "bg-amber-100 dark:bg-amber-900/40", text: "text-amber-700 dark:text-amber-400", icon: "fa-arrow-up", label: "Transfer Out" },
-  "Loan In": { bg: "bg-emerald-100 dark:bg-emerald-900/40", text: "text-emerald-700 dark:text-emerald-400", icon: "fa-arrow-down", label: "Loan In" },
-  "Loan Repaid": { bg: "bg-emerald-100 dark:bg-emerald-900/40", text: "text-emerald-700 dark:text-emerald-400", icon: "fa-arrow-down", label: "Loan Repaid" },
-  "Loan Out": { bg: "bg-rose-100 dark:bg-rose-900/40", text: "text-rose-700 dark:text-rose-400", icon: "fa-arrow-up", label: "Loan Out" },
-  "Loan Payment": { bg: "bg-rose-100 dark:bg-rose-900/40", text: "text-rose-700 dark:text-rose-400", icon: "fa-arrow-up", label: "Loan Payment" },
+  Income: { bg: "bg-emerald-100 dark:bg-emerald-900/40", text: "text-emerald-700 dark:text-emerald-400", icon: "fa-sack-dollar", label: "Income" },
+  Expense: { bg: "bg-rose-100 dark:bg-rose-900/40", text: "text-rose-700 dark:text-rose-400", icon: "fa-cart-shopping", label: "Expense" },
+  "Transfer In": { bg: "bg-blue-100 dark:bg-blue-900/40", text: "text-blue-700 dark:text-blue-400", icon: "fa-arrow-right-to-bracket", label: "Transfer In" },
+  "Transfer Out": { bg: "bg-amber-100 dark:bg-amber-900/40", text: "text-amber-700 dark:text-amber-400", icon: "fa-arrow-right-from-bracket", label: "Transfer Out" },
+  "Loan In": { bg: "bg-emerald-100 dark:bg-emerald-900/40", text: "text-emerald-700 dark:text-emerald-400", icon: "fa-hand-holding-dollar", label: "Loan In" },
+  "Loan Repaid": { bg: "bg-emerald-100 dark:bg-emerald-900/40", text: "text-emerald-700 dark:text-emerald-400", icon: "fa-money-bill-transfer", label: "Loan Repaid" },
+  "Loan Out": { bg: "bg-rose-100 dark:bg-rose-900/40", text: "text-rose-700 dark:text-rose-400", icon: "fa-hand-holding-dollar", label: "Loan Out" },
+  "Loan Payment": { bg: "bg-rose-100 dark:bg-rose-900/40", text: "text-rose-700 dark:text-rose-400", icon: "fa-money-bill-transfer", label: "Loan Payment" },
   "Savings Deposit": { bg: "bg-teal-100 dark:bg-teal-900/40", text: "text-teal-700 dark:text-teal-400", icon: "fa-piggy-bank", label: "Savings Deposit" },
   "Savings Withdrawal": { bg: "bg-emerald-100 dark:bg-emerald-900/40", text: "text-emerald-700 dark:text-emerald-400", icon: "fa-piggy-bank", label: "Savings Withdrawal" },
-  "Savings Contribution": { bg: "bg-teal-100 dark:bg-teal-900/40", text: "text-teal-700 dark:text-teal-400", icon: "fa-arrow-up", label: "Savings Contribution" },
-  "Savings Payout": { bg: "bg-emerald-100 dark:bg-emerald-900/40", text: "text-emerald-700 dark:text-emerald-400", icon: "fa-arrow-down", label: "Savings Payout" },
-  "Savings Payment": { bg: "bg-teal-100 dark:bg-teal-900/40", text: "text-teal-700 dark:text-teal-400", icon: "fa-arrow-up", label: "Savings Payment" },
+  "Savings Contribution": { bg: "bg-teal-100 dark:bg-teal-900/40", text: "text-teal-700 dark:text-teal-400", icon: "fa-piggy-bank", label: "Savings Contribution" },
+  "Savings Payout": { bg: "bg-emerald-100 dark:bg-emerald-900/40", text: "text-emerald-700 dark:text-emerald-400", icon: "fa-piggy-bank", label: "Savings Payout" },
+  "Savings Payment": { bg: "bg-teal-100 dark:bg-teal-900/40", text: "text-teal-700 dark:text-teal-400", icon: "fa-piggy-bank", label: "Savings Payment" },
   Transfer: { bg: "bg-purple-100 dark:bg-purple-900/40", text: "text-purple-700 dark:text-purple-400", icon: "fa-right-left", label: "Transfer" },
-  Deposit: { bg: "bg-emerald-100 dark:bg-emerald-900/40", text: "text-emerald-700 dark:text-emerald-400", icon: "fa-arrow-down", label: "Deposit" },
-  Withdraw: { bg: "bg-rose-100 dark:bg-rose-900/40", text: "text-rose-700 dark:text-rose-400", icon: "fa-arrow-up", label: "Withdraw" },
-  "Bank Deposit": { bg: "bg-emerald-100 dark:bg-emerald-900/40", text: "text-emerald-700 dark:text-emerald-400", icon: "fa-arrow-down", label: "Bank Deposit" },
-  "Bank Withdraw": { bg: "bg-rose-100 dark:bg-rose-900/40", text: "text-rose-700 dark:text-rose-400", icon: "fa-arrow-up", label: "Bank Withdraw" },
+  Deposit: { bg: "bg-emerald-100 dark:bg-emerald-900/40", text: "text-emerald-700 dark:text-emerald-400", icon: "fa-building-columns", label: "Deposit" },
+  Withdraw: { bg: "bg-rose-100 dark:bg-rose-900/40", text: "text-rose-700 dark:text-rose-400", icon: "fa-building-columns", label: "Withdraw" },
+  "Bank Deposit": { bg: "bg-emerald-100 dark:bg-emerald-900/40", text: "text-emerald-700 dark:text-emerald-400", icon: "fa-building-columns", label: "Bank Deposit" },
+  "Bank Withdraw": { bg: "bg-rose-100 dark:bg-rose-900/40", text: "text-rose-700 dark:text-rose-400", icon: "fa-building-columns", label: "Bank Withdraw" },
 };
 
 // Bank operation rows are real Transfer In/Out PAIRS with a "Bank Operation"
@@ -43,6 +43,12 @@ function getBadge(t) {
   if ((t.Type === "Transfer In" || t.Type === "Transfer Out") &&
       (v.includes("deposit") || v.includes("withdraw"))) {
     return t.Type === "Transfer In" ? TYPE_BADGES.Deposit : TYPE_BADGES.Withdraw;
+  }
+  // Any savings row keeps the savings (piggy-bank) icon, even a subtype the
+  // badge table does not name explicitly - it must never fall back to the
+  // generic transfer icon.
+  if (String(t.Type || "").indexOf("Savings") === 0) {
+    return TYPE_BADGES[t.Type] || { ...TYPE_BADGES["Savings Deposit"], label: t.Type };
   }
   return TYPE_BADGES[t.Type] || TYPE_BADGES.Transfer;
 }

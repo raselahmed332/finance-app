@@ -1202,6 +1202,10 @@ export default function App() {
                     key={"savings-details-" + planId}
                     planId={planId}
                     currentUser={currentUser}
+                    wallets={wallets}
+                    can={can}
+                    showAlert={showAlert}
+                    onRefresh={loadData}
                     onBack={() => setActiveTab("savings")}
                   />
                 );
@@ -1308,15 +1312,15 @@ export default function App() {
       </main>
 
       {activeTab === "home" && (can("ADD_INCOME") || can("ADD_EXPENSE")) && (
-        <div className="fixed bottom-20 left-0 right-0 max-w-[480px] md:max-w-[1000px] mx-auto px-4 flex flex-col items-end gap-3 z-40 pointer-events-none">
+        <div className="fixed bottom-20 left-0 right-0 max-w-[480px] md:max-w-[1000px] mx-auto px-4 flex flex-col items-end gap-2.5 z-40 pointer-events-none">
           {can("ADD_INCOME") && (
             <button
               onClick={() => setActiveTab("income")}
               aria-label="Income"
               title="Income (আয়)"
-              className="pointer-events-auto w-14 h-14 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/40 flex items-center justify-center active:scale-95 transition-transform"
+              className="pointer-events-auto w-12 h-12 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/40 flex items-center justify-center active:scale-95 transition-transform"
             >
-              <i className="fa-solid fa-plus text-xl"></i>
+              <i className="fa-solid fa-plus text-lg"></i>
             </button>
           )}
           {can("ADD_EXPENSE") && (
@@ -1324,9 +1328,9 @@ export default function App() {
               onClick={() => setActiveTab("expense")}
               aria-label="Expense"
               title="Expense (খরচ)"
-              className="pointer-events-auto w-14 h-14 rounded-full bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-600/40 flex items-center justify-center active:scale-95 transition-transform"
+              className="pointer-events-auto w-12 h-12 rounded-full bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-600/40 flex items-center justify-center active:scale-95 transition-transform"
             >
-              <i className="fa-solid fa-minus text-xl"></i>
+              <i className="fa-solid fa-minus text-lg"></i>
             </button>
           )}
         </div>

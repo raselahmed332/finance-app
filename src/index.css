@@ -9,7 +9,7 @@
    system UI and the scrollable content adds room for the taller nav.
 --------------------------------------------------------------------------- */
 .app-header {
-  padding-top: env(safe-area-inset-top, 0px);
+  padding-top: calc(1rem + env(safe-area-inset-top, 0px));
 }
 
 .app-bottom-nav {
