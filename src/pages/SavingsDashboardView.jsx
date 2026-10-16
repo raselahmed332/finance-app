@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api.js";
 import { formatMoney, fmtDate } from "../utils/loan.js";
+import { accountName } from "../utils/accounts.js";
 
 const TYPE_META = {
   GROUP: { label: "গ্রুপ সঞ্চয়", short: "গ্রুপ", icon: "fa-people-group", accent: "emerald" },
@@ -59,7 +60,7 @@ function PlanCard({ plan, onOpen }) {
           <div className="min-w-0">
             <div className="text-sm font-bold text-slate-800 dark:text-gray-100 truncate">{plan.Name}</div>
             <div className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
-              {plan.WalletName || plan.WalletID} • {plan.Account} • {currency}
+              {plan.WalletName || plan.WalletID} • {accountName(plan.WalletID, plan.Account)} • {currency}
             </div>
           </div>
         </div>

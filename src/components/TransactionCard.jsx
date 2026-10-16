@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Popup from "./Popup.jsx";
 import { DetailCell } from "./FormField.jsx";
+import { accountName } from "../utils/accounts.js";
 
 const TYPE_BADGES = {
   Income: { bg: "bg-emerald-100 dark:bg-emerald-900/40", text: "text-emerald-700 dark:text-emerald-400", icon: "fa-sack-dollar", label: "Income" },
@@ -91,7 +92,7 @@ export default function TransactionCard({ t, userMap, canEdit, canDelete, onEdit
               ? (t.Type === "Transfer Out"
                   ? `${t.WalletName} → ${t.WhereVendor}`
                   : `${t.WhereVendor} → ${t.WalletName}`)
-              : (t.WalletName ? t.WalletName + " • " : "") + (t.Account || "")}
+              : (t.WalletName ? t.WalletName + " • " : "") + (t.Account ? accountName(t.WalletID, t.Account) : "")}
           </div>
           <div className="text-[10px] text-slate-400 dark:text-gray-500 mt-0.5">
             {userMap ? <><i className="fa-solid fa-user me-1"></i>{userMap[t.User] || t.User || "Unknown"} • </> : null}
@@ -128,7 +129,7 @@ export default function TransactionCard({ t, userMap, canEdit, canDelete, onEdit
           {t.ID ? <DetailCell label="Transaction ID" value={String(t.ID)} full /> : null}
           {t.Date ? <DetailCell label="Date" value={String(t.Date)} /> : null}
           {t.Type ? <DetailCell label="Type" value={String(t.Type)} /> : null}
-          {t.Account ? <DetailCell label="Account" value={String(t.Account)} /> : null}
+          {t.Account ? <DetailCell label="Account" value={accountName(t.WalletID, t.Account)} /> : null}
           {t.SourceCategory ? <DetailCell label="Category" value={String(t.SourceCategory)} /> : null}
           {t.WhereVendor ? <DetailCell label="Vendor" value={String(t.WhereVendor)} full /> : null}
           {t.Description ? <DetailCell label="Description" value={String(t.Description)} full /> : null}

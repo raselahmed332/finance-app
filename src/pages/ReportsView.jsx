@@ -5,6 +5,7 @@ import { downloadCsv } from "../utils/csvExport.js";
 import Select from "../components/Select.jsx";
 import Popup from "../components/Popup.jsx";
 import { todayStr } from "../utils/loan.js";
+import { accountName } from "../utils/accounts.js";
 
 export default function ReportsView({ wallets, currentUser, users }) {
   const [walletId, setWalletId] = useState(wallets[0]?.WalletID || '');
@@ -33,6 +34,10 @@ export default function ReportsView({ wallets, currentUser, users }) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wallets]);
+
+  // A wallet switch invalidates any account selection, since account ids only
+  // exist inside their own wallet.
+  useEffect(() => { setAccount('All'); }, [walletId]);
 
   const selectedWallet = wallets.find(w => String(w.WalletID) === String(walletId));
 
@@ -145,6 +150,21 @@ export default function ReportsView({ wallets, currentUser, users }) {
     }
   };
 
+  // Accounts available to filter by: the wallet's registered accounts (from the
+  // backend report) unioned with any account id that actually appears on a row
+  // (covers a since-deactivated account that still has history).
+  const reportAccounts = useMemo(() => {
+    const map = {};
+    const add = (id, name) => {
+      const key = String(id == null ? "" : id);
+      if (!key) return;
+      if (!map[key]) map[key] = { id: key, name: name ? String(name) : key };
+    };
+    (report?.accounts || []).forEach(a => add(a.accountId ?? a.AccountID, a.name ?? a.Name));
+    (report?.transactions || []).forEach(t => add(t.Account, accountName(walletId, t.Account)));
+    return Object.values(map);
+  }, [report]);
+
   // Client-side account filter: the report is fetched once per wallet/period,
   // and the Account dropdown narrows it. Totals are recomputed from the filtered
   // rows in integer cents (same approach as the backend) so figures never drift.
@@ -153,7 +173,8 @@ export default function ReportsView({ wallets, currentUser, users }) {
     const rows = (report.transactions || []).filter(t => account === 'All' || String(t.Account) === String(account));
     let incomeCents = 0, expenseCents = 0, loanInCents = 0, loanOutCents = 0;
     const categoryCents = {};
-    const accountCents = { Cash: 0, Bank: 0 };
+    const accountCents = {};
+    reportAccounts.forEach(a => { accountCents[a.id] = 0; });
     rows.forEach((t) => {
       const amt = Math.round((Number(t.Amount) || 0) * 100);
       if (t.Type === 'Income') incomeCents += amt;
@@ -174,6 +195,10 @@ export default function ReportsView({ wallets, currentUser, users }) {
     const toAmount = (c) => (c || 0) / 100;
     const categoryBreakdown = {};
     Object.keys(categoryCents).forEach((cat) => { categoryBreakdown[cat] = toAmount(categoryCents[cat]); });
+    const nameById = {};
+    reportAccounts.forEach(a => { nameById[a.id] = a.name; });
+    const accountBreakdown = {};
+    Object.keys(accountCents).forEach((id) => { accountBreakdown[nameById[id] || id] = toAmount(accountCents[id]); });
     return {
       rows,
       totalIncome: toAmount(incomeCents),
@@ -183,11 +208,17 @@ export default function ReportsView({ wallets, currentUser, users }) {
       netChange: toAmount(incomeCents - expenseCents),
       transactionCount: rows.length,
       categoryBreakdown,
-      accountBreakdown: { Cash: toAmount(accountCents.Cash || 0), Bank: toAmount(accountCents.Bank || 0) },
+      accountBreakdown,
     };
-  }, [report, account]);
+  }, [report, account, reportAccounts]);
 
   const data = filtered || report;
+  const accountLabel = account === 'All' ? 'সব Account' : (reportAccounts.find(a => a.id === String(account))?.name || account);
+  const accountLabelOf = (id) => {
+    if (id === undefined || id === null || id === '') return '—';
+    const a = reportAccounts.find(x => x.id === String(id));
+    return a ? a.name : String(id);
+  };
 
   const changePeriod = (val) => {
     setPeriod(val);
@@ -293,8 +324,7 @@ export default function ReportsView({ wallets, currentUser, users }) {
           <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Account</label>
           <Select value={account} onChange={setAccount}>
             <option value="All">সব Account</option>
-            <option value="Cash">Cash</option>
-            <option value="Bank">Bank</option>
+            {reportAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
           </Select>
         </div>
       </div>
@@ -395,7 +425,7 @@ export default function ReportsView({ wallets, currentUser, users }) {
             <div id="report-pdf-header" className="hidden print:block mb-3">
               <div className="text-base font-bold text-slate-900">{selectedWallet?.WalletName} — Statement</div>
               <div className="text-[11px] text-gray-600">
-                {selectedWallet?.Currency} · {periodLabel} · {account === 'All' ? 'সব Account' : account} · {todayStr()}
+                {selectedWallet?.Currency} · {periodLabel} · {accountLabel} · {todayStr()}
               </div>
             </div>
             <div className="text-xs font-bold text-slate-800 dark:text-gray-100 mb-2">Statement (লেনদেনের তালিকা)</div>
@@ -419,7 +449,7 @@ export default function ReportsView({ wallets, currentUser, users }) {
                     <tr key={i} className="border-t border-gray-100 dark:border-gray-800">
                       <td className="px-1 py-1.5 whitespace-nowrap text-gray-500 dark:text-gray-400">{t.Date}</td>
                       <td className="px-1 py-1.5 whitespace-nowrap font-semibold text-slate-700 dark:text-gray-200">{t.Type}</td>
-                      <td className="px-1 py-1.5 whitespace-nowrap text-gray-500 dark:text-gray-400">{t.Account || "—"}</td>
+                      <td className="px-1 py-1.5 whitespace-nowrap text-gray-500 dark:text-gray-400">{accountLabelOf(t.Account)}</td>
                       <td className="px-1 py-1.5 text-gray-500 dark:text-gray-400">{t.SourceCategory || "—"}</td>
                       <td className="px-1 py-1.5 text-gray-500 dark:text-gray-400">{t.WhereVendor || "—"}</td>
                       <td className="px-1 py-1.5 text-gray-500 dark:text-gray-400 max-w-[180px] truncate">{t.Description || "—"}</td>
@@ -452,7 +482,7 @@ export default function ReportsView({ wallets, currentUser, users }) {
                   onClick={() => downloadCsv(
                     `report_${selectedWallet?.WalletName}${account !== 'All' ? '_' + account : ''}_${period === 'custom' ? `custom_${customFrom}_to_${customTo}` : period}_${todayStr()}.csv`,
                     ['Date', 'Type', 'Currency', 'Account', 'Category', 'Vendor', 'Description', 'Amount', 'Note', 'User'],
-                    (data.rows || []).map(t => [t.Date, t.Type, t.Currency, t.Account, t.SourceCategory, t.WhereVendor, t.Description, t.Amount, t.Note, userMap[t.User] || t.User]),
+                    (data.rows || []).map(t => [t.Date, t.Type, t.Currency, accountLabelOf(t.Account), t.SourceCategory, t.WhereVendor, t.Description, t.Amount, t.Note, userMap[t.User] || t.User]),
                   )}
                   className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl py-2 text-xs font-semibold text-slate-700 dark:text-gray-200 flex items-center justify-center gap-1.5 hover:bg-gray-50 dark:hover:bg-gray-800"
                 >

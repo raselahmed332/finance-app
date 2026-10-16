@@ -2,9 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../api.js";
 import Popup from "../components/Popup.jsx";
 import Select from "../components/Select.jsx";
+import AccountSelect from "../components/AccountSelect.jsx";
 import { Field } from "../components/FormField.jsx";
 import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { formatMoney, fmtDate, todayStr } from "../utils/loan.js";
+import { accountName } from "../utils/accounts.js";
 
 const TYPE_META = {
   GROUP: { label: "গ্রুপ সঞ্চয় (কমিটি)", icon: "fa-people-group" },
@@ -307,7 +309,7 @@ export default function SavingsDetailsView({ planId, currentUser, wallets, can, 
             </div>
             <div className="min-w-0">
               <h1 className="text-base font-bold text-slate-800 dark:text-gray-100 truncate">{plan.Name}</h1>
-              <div className="text-[11px] text-gray-500 dark:text-gray-400">{meta.label} • {plan.WalletName || plan.WalletID} • {plan.Account} • {currency}</div>
+              <div className="text-[11px] text-gray-500 dark:text-gray-400">{meta.label} • {plan.WalletName || plan.WalletID} • {accountName(plan.WalletID, plan.Account)} • {currency}</div>
             </div>
           </div>
 
@@ -339,7 +341,7 @@ export default function SavingsDetailsView({ planId, currentUser, wallets, can, 
 
       <ModalPopup
         modal={modal} form={form} set={set} busy={busy}
-        currency={currency} account={plan?.Account}
+        currency={currency} account={plan?.Account} walletId={plan?.WalletID}
         members={details?.members || []} openRounds={openRounds} money={money}
         alreadyReceived={alreadyReceived}
         onClose={() => (busy ? null : setModal(null))} onSubmit={submitModal}
@@ -627,7 +629,7 @@ function FlexSection({ plan, details, money, canTxn, canManageTxn, closed, onOpe
 
 /* ---------------- MODAL ---------------- */
 
-function ModalPopup({ modal, form, set, busy, currency, members, openRounds, money, alreadyReceived, onClose, onSubmit }) {
+function ModalPopup({ modal, form, set, busy, currency, walletId, members, openRounds, money, alreadyReceived, onClose, onSubmit }) {
   if (!modal) return null;
   const kind = modal.kind;
 
@@ -710,10 +712,7 @@ function ModalPopup({ modal, form, set, busy, currency, members, openRounds, mon
 
         {showAccount && (
           <Field label="Wallet Account">
-            <Select value={form.account} onChange={(v) => set({ account: v })}>
-              <option value="Cash">Cash</option>
-              <option value="Bank">Bank</option>
-            </Select>
+            <AccountSelect walletId={walletId} value={form.account} onChange={(v) => set({ account: v })} />
           </Field>
         )}
 

@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
 import Select from "./Select.jsx";
+import AccountSelect from "./AccountSelect.jsx";
 import Popup from "./Popup.jsx";
 import { Field } from "./FormField.jsx";
 import { formatMoney, todayStr, pickDefaultWalletId } from "../utils/loan.js";
+import { accountName } from "../utils/accounts.js";
 
 function StepIndicator({ step }) {
   const steps = ["তথ্য দিন", "বিস্তারিত দিন", "নিশ্চিত করুন"];
@@ -226,7 +228,7 @@ export default function SavingsForm({ can, wallets, currentUser, onSave, onCance
           {type === "GROUP" && <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">কিস্তি</span><span className="font-bold">{cur} {moneyText(contribution)} × {rounds}</span></div>}
           {type === "FIXED" && <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">পরিমাণ</span><span className="font-bold">{cur} {moneyText(amount)} / {durationMonths} মাস</span></div>}
           <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">Wallet</span><span className="font-bold">{p.WalletName || selectedWallet?.WalletName || "—"}</span></div>
-          <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">Wallet Account</span><span className="font-bold">{p.Account || account}</span></div>
+          <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">Wallet Account</span><span className="font-bold">{accountName(p.WalletID, p.Account || account)}</span></div>
           <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">কারেন্সি</span><span className="font-bold">{cur}</span></div>
         </div>
 
@@ -289,10 +291,7 @@ export default function SavingsForm({ can, wallets, currentUser, onSave, onCance
                   </Select>
                 </Field>
                 <Field label="Wallet Account" error={errors.account}>
-                  <Select value={account} onChange={setAccount}>
-                    <option value="Cash">Cash</option>
-                    <option value="Bank">Bank</option>
-                  </Select>
+                  <AccountSelect walletId={walletId} value={account} onChange={setAccount} />
                 </Field>
               </div>
 
@@ -401,7 +400,7 @@ export default function SavingsForm({ can, wallets, currentUser, onSave, onCance
                   </>
                 )}
                 <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">Wallet</span><span className="font-bold">{selectedWallet?.WalletName || "—"}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">Wallet Account</span><span className="font-bold">{account}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">Wallet Account</span><span className="font-bold">{accountName(walletId, account)}</span></div>
                 <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">কারেন্সি</span><span className="font-bold">{currency}</span></div>
                 <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">শুরুর তারিখ</span><span className="font-bold">{startDate}</span></div>
               </div>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import Select from "./Select.jsx";
+import AccountSelect from "./AccountSelect.jsx";
 import Popup from "./Popup.jsx";
 import { useToast } from "./Toast.jsx";
 import {
@@ -123,10 +123,7 @@ export default function LoanAddForm({ loan, addition, wallets, onSave, onCancel,
 
             <div>
               <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Wallet Account</label>
-              <Select value={account} onChange={setAccount}>
-                <option value="Cash">Cash</option>
-                <option value="Bank">Bank</option>
-              </Select>
+              <AccountSelect walletId={walletId} value={account} onChange={setAccount} />
               <ErrorText msg={errors.account} />
             </div>
           </div>

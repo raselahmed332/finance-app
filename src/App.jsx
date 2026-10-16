@@ -11,6 +11,7 @@ import { api, session, onAuthFailure, AUTH_FAILURE_CODES } from "./api.js";
 import { useToast } from "./components/Toast.jsx";
 import { useConfirm } from "./components/ConfirmDialog.jsx";
 import { loadCurrencies } from "./utils/currency.js";
+import { setAccounts as setAccountsRegistry, resetAccounts } from "./utils/accounts.js";
 import { todayStr } from "./utils/loan.js";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import { registerNativeBackButton } from "./utils/native.js";
@@ -34,12 +35,11 @@ const SavingsDashboardView = lazy(() =>
 );
 const SavingsDetailsView = lazy(() => import("./pages/SavingsDetailsView.jsx"));
 
-const BankOperationForm = lazy(() =>
-  import("./components/BankOperationForm.jsx"),
+const MoveMoneyForm = lazy(() =>
+  import("./components/MoveMoneyForm.jsx"),
 );
 const IncomeForm = lazy(() => import("./components/IncomeForm.jsx"));
 const ExpenseForm = lazy(() => import("./components/ExpenseForm.jsx"));
-const TransferForm = lazy(() => import("./components/TransferForm.jsx"));
 const EditTransactionForm = lazy(() =>
   import("./components/EditTransactionForm.jsx"),
 );
@@ -77,6 +77,7 @@ export default function App() {
   const [usersList, setUsersList] = useState([]);
   const [wallets, setWallets] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [accounts, setAccounts] = useState([]);
   const [loans, setLoans] = useState([]);
   const [loading, setLoading] = useState(false);
   // Session epoch guard. Bumped on every login AND every logout. Each request
@@ -121,7 +122,18 @@ export default function App() {
     "EDIT_WALLET",
     "MANAGE_WALLET_STATUS",
   ]);
-  const canManageSettings = canAny(["BACKUP_RESTORE", "MANAGE_CATEGORIES"]);
+  // Settings hosts the currency/category/account managers. Each manager
+  // self-gates on its own permission, so the tab is shown to anyone who can
+  // manage at least one of them (account management reuses the wallet perms).
+  const canManageSettings = canAny([
+    "BACKUP_RESTORE",
+    "MANAGE_CATEGORIES",
+    "MANAGE_CURRENCIES",
+    "MANAGE_ACCOUNTS",
+    "ADD_WALLET",
+    "EDIT_WALLET",
+    "MANAGE_WALLET_STATUS",
+  ]);
   // Loan module: visible to everyone with wallet access (VIEW_LOANS is implied
   // by wallet access); Admins have it via their full effective permission set.
   const canLoan = can("VIEW_LOANS");
@@ -162,6 +174,8 @@ export default function App() {
     setUsersList([]);
     setWallets([]);
     setCategories([]);
+    setAccounts([]);
+    resetAccounts();
     setLoans([]);
     setSearchTerm("");
     setFilterType("All");
@@ -243,11 +257,16 @@ export default function App() {
           users: res.users || [],
           wallets: res.wallets || [],
           categories: res.categories || [],
+          accounts: res.accounts || [],
         };
         setTransactions(data.transactions);
         setUsersList(data.users);
         setWallets(data.wallets);
         setCategories(data.categories);
+        setAccounts(data.accounts);
+        // Mirror the account list into the in-memory registry every account
+        // dropdown reads from (mirrors how loadCurrencies seeds currencies).
+        setAccountsRegistry(data.accounts);
         // Stale-response guard: if the user logged out or a different user
         // logged in while this getInitialData was in flight, do NOT resurrect
         // that session here.
@@ -297,18 +316,35 @@ export default function App() {
   // test is a plain string prefix, same shape the server uses for its ranges.
   const currentMonth = todayStr().slice(0, 7);
   const walletSummaries = useMemo(() => {
+    // Per-account balances. Each wallet starts from its accounts' own opening
+    // balances (the registry), falling back to the legacy OpeningCash/OpeningBank
+    // columns until the account list for that wallet has loaded.
     const summaries = Object.fromEntries(
-      wallets.map((w) => [
-        w.WalletID,
-        {
-          totalBalance:
-            (parseFloat(w.OpeningCash) || 0) + (parseFloat(w.OpeningBank) || 0),
-          cash: parseFloat(w.OpeningCash) || 0,
-          bank: parseFloat(w.OpeningBank) || 0,
-          income: 0,
-          expense: 0,
-        },
-      ]),
+      wallets.map((w) => {
+        const list = (accounts || []).filter(
+          (a) => String(a.WalletID) === String(w.WalletID),
+        );
+        const perAccount = {};
+        if (list.length) {
+          list.forEach((a) => {
+            perAccount[a.AccountID] = Number(a.OpeningBalance) || 0;
+          });
+        } else {
+          perAccount.Cash = parseFloat(w.OpeningCash) || 0;
+          perAccount.Bank = parseFloat(w.OpeningBank) || 0;
+        }
+        return [
+          w.WalletID,
+          {
+            totalBalance: Object.values(perAccount).reduce((s, v) => s + v, 0),
+            cash: perAccount.Cash || 0,
+            bank: perAccount.Bank || 0,
+            accounts: perAccount,
+            income: 0,
+            expense: 0,
+          },
+        ];
+      }),
     );
     transactions.forEach((t) => {
       const summary = summaries[t.WalletID];
@@ -318,6 +354,9 @@ export default function App() {
       // the balance but never to the monthly income/expense figures.
       const inCurrentMonth =
         typeof t.Date === "string" && t.Date.slice(0, 7) === currentMonth;
+      // Only attribute the balance when the row names an account; a legacy row
+      // with no Account contributes to nothing rather than a phantom key.
+      const acct = t.Account ? String(t.Account) : "";
       if (
         t.Type === "Income" ||
         t.Type === "Transfer In" ||
@@ -327,8 +366,7 @@ export default function App() {
         t.Type === "Savings Payout"
       ) {
         if (t.Type === "Income" && inCurrentMonth) summary.income += amt;
-        if (t.Account === "Cash") summary.cash += amt;
-        if (t.Account === "Bank") summary.bank += amt;
+        if (acct) summary.accounts[acct] = (summary.accounts[acct] || 0) + amt;
       } else if (
         t.Type === "Expense" ||
         t.Type === "Transfer Out" ||
@@ -339,18 +377,22 @@ export default function App() {
         t.Type === "Savings Payment"
       ) {
         if (t.Type === "Expense" && inCurrentMonth) summary.expense += amt;
-        if (t.Account === "Cash") summary.cash -= amt;
-        if (t.Account === "Bank") summary.bank -= amt;
+        if (acct) summary.accounts[acct] = (summary.accounts[acct] || 0) - amt;
       }
     });
     Object.values(summaries).forEach((summary) => {
-      summary.totalBalance = summary.cash + summary.bank;
+      summary.totalBalance = Object.values(summary.accounts).reduce(
+        (s, v) => s + v,
+        0,
+      );
+      summary.cash = summary.accounts.Cash || 0;
+      summary.bank = summary.accounts.Bank || 0;
     });
     return summaries;
     // currentMonth is in the deps so an app left open across a month boundary
     // recomputes the monthly figures on the next render instead of showing
     // last month's numbers.
-  }, [wallets, transactions, currentMonth]);
+  }, [wallets, transactions, currentMonth, accounts]);
 
   // Merge one or two returned transaction rows into local state directly —
   // replacing a matching ID if it already exists, appending if it's new —
@@ -948,19 +990,12 @@ export default function App() {
               />
             )}
 
-            {can("TRANSFER_MONEY") && activeTab === "transfer" && (
-              <TransferForm
+            {(can("BANK_OPERATIONS") || can("TRANSFER_MONEY")) &&
+              (activeTab === "transfer" || activeTab === "bank") && (
+              <MoveMoneyForm
                 wallets={wallets}
                 currentUser={currentUser}
-                onSave={handleSaveTransaction}
-                onCancel={() => setActiveTab("home")}
-              />
-            )}
-
-            {can("BANK_OPERATIONS") && activeTab === "bank" && (
-              <BankOperationForm
-                wallets={wallets}
-                currentUser={currentUser}
+                can={can}
                 onSave={handleSaveTransaction}
                 onCancel={() => setActiveTab("home")}
               />
@@ -1253,6 +1288,7 @@ export default function App() {
                 showAlert={showAlert}
                 currentUser={currentUser}
                 can={can}
+                wallets={wallets}
               />
             )}
 
@@ -1361,28 +1397,16 @@ export default function App() {
             <i className="fa-solid fa-list-check text-lg mb-0.5"></i> Txn
           </button>
         )}
-        {can("TRANSFER_MONEY") && (
+        {(can("TRANSFER_MONEY") || can("BANK_OPERATIONS")) && (
           <button
             onClick={() => setActiveTab("transfer")}
             className={`flex flex-col items-center text-xs font-medium ${
-              activeTab === "transfer"
+              activeTab === "transfer" || activeTab === "bank"
                 ? "text-emerald-600"
                 : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"
             }`}
           >
             <i className="fa-solid fa-right-left text-lg mb-0.5"></i> Transfer
-          </button>
-        )}
-        {can("BANK_OPERATIONS") && (
-          <button
-            onClick={() => setActiveTab("bank")}
-            className={`flex flex-col items-center text-xs font-medium ${
-              activeTab === "bank"
-                ? "text-emerald-600"
-                : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"
-            }`}
-          >
-            <i className="fa-solid fa-building-columns text-lg mb-0.5"></i> Bank
           </button>
         )}
         {canLoan && (

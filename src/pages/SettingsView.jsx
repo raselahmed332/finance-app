@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { api } from "../api.js";
 import Select from "../components/Select.jsx";
 import Popup from "../components/Popup.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { useConfirm } from "../components/ConfirmDialog.jsx";
-import { getAllCurrencies, refreshCurrencies, onCurrenciesChange } from "../utils/currency.js";
+import { getAllCurrencies, getActiveCurrencies, refreshCurrencies, onCurrenciesChange } from "../utils/currency.js";
+import { loadAccounts } from "../utils/accounts.js";
 
 // Shared input look for every form control on this screen so the two manager
 // cards read as one design system.
@@ -511,7 +512,452 @@ function CurrenciesManager({ currentUser, can, showAlert }) {
   );
 }
 
-export default function SettingsView({ showAlert, currentUser, can }) {
+// Admin-only account-type registry (backend/Accounts.gs). A type says what KIND
+// of account exists ("Cash", "Bank", "Mobile Wallet") and which currencies it may
+// be used with; empty applicableCurrencies means "any currency". MANAGE_ACCOUNTS
+// is an ADMIN_ONLY action, so `can` is only true for an Admin and the server
+// re-checks it regardless.
+function CurrencyToggles({ selected, onChange, disabled }) {
+  const codes = getActiveCurrencies().map((c) => c.code);
+  if (!codes.length) return null;
+  const toggle = (code) => {
+    if (disabled) return;
+    onChange(selected.includes(code) ? selected.filter((c) => c !== code) : [...selected, code]);
+  };
+  return (
+    <div className="flex flex-wrap gap-1">
+      {codes.map((code) => {
+        const on = selected.includes(code);
+        return (
+          <button
+            key={code}
+            type="button"
+            onClick={() => toggle(code)}
+            className={`px-2 py-0.5 rounded-md text-[10px] font-bold border transition-colors ${on ? "bg-emerald-600 text-white border-emerald-600" : "bg-white dark:bg-slate-900 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700"}`}
+          >
+            {code}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function AccountTypesManager({ currentUser, can, showAlert, wallets }) {
+  const [types, setTypes] = useState(null);
+  const [name, setName] = useState('');
+  const [code, setCode] = useState('');
+  const [icon, setIcon] = useState('');
+  const [applicable, setApplicable] = useState([]);
+  const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [editDraft, setEditDraft] = useState(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const toast = useToast();
+  const confirm = useConfirm();
+
+  const reloadRegistry = () => loadAccounts(currentUser.username, (wallets || []).map((w) => w.WalletID));
+
+  const load = () => {
+    api.getAccountTypes(currentUser.username).then((res) => {
+      if (res.status === 'ERROR') { showAlert(res.message || 'Account Type লোড করা যায়নি।', 'error'); return; }
+      if (res.status === 'SUCCESS') setTypes(res.accountTypes || []);
+    }).catch(() => showAlert('Account Type লোড করা যায়নি।', 'error'));
+  };
+
+  useEffect(() => {
+    if (can('MANAGE_ACCOUNTS')) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleAdd = (e) => {
+    e.preventDefault();
+    if (adding) return;
+    if (!name.trim()) return toast.error('Account Type এর নাম দিন!');
+    if (!/^[A-Za-z0-9_]{2,20}$/.test(code.trim())) return toast.error('Code ২-২০ অক্ষরের A-Z, 0-9 বা _ হতে হবে।');
+    setAdding(true);
+    api.addAccountType(
+      { name: name.trim(), code: code.trim().toUpperCase(), icon: icon.trim(), applicableCurrencies: applicable },
+      currentUser.username
+    ).then((res) => {
+      showAlert(res.message, res.status === 'ERROR' ? 'error' : 'success');
+      if (res.status === 'SUCCESS') { setName(''); setCode(''); setIcon(''); setApplicable([]); load(); reloadRegistry(); }
+    }).catch(() => showAlert('নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।', 'error')).finally(() => setAdding(false));
+  };
+
+  const openEdit = (t) => {
+    setEditing(t);
+    setEditDraft({ name: t.Name, code: t.Code, icon: t.Icon || '', applicable: t.ApplicableCurrencies || [], status: t.Status });
+  };
+
+  const handleSaveEdit = () => {
+    if (!editing || !editDraft || savingEdit) return;
+    if (!editDraft.name.trim()) return toast.error('Account Type এর নাম দিন!');
+    if (!/^[A-Za-z0-9_]{2,20}$/.test(editDraft.code.trim())) return toast.error('Code ২-২০ অক্ষরের A-Z, 0-9 বা _ হতে হবে।');
+    setSavingEdit(true);
+    api.updateAccountType(editing.AccountTypeID, {
+      name: editDraft.name.trim(),
+      code: editDraft.code.trim().toUpperCase(),
+      icon: editDraft.icon.trim(),
+      applicableCurrencies: editDraft.applicable,
+      status: editDraft.status,
+    }, currentUser.username).then((res) => {
+      showAlert(res.message, res.status === 'ERROR' ? 'error' : 'success');
+      if (res.status === 'SUCCESS') { setEditing(null); setEditDraft(null); load(); reloadRegistry(); }
+    }).catch(() => showAlert('নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।', 'error')).finally(() => setSavingEdit(false));
+  };
+
+  const handleDelete = async (t) => {
+    const ok = await confirm({ message: `"${t.Name}" Account Type মুছে ফেলবেন? এটি কোনো অ্যাকাউন্ট ব্যবহার করলে মুছে ফেলা যাবে না।` });
+    if (!ok) return;
+    api.deleteAccountType(t.AccountTypeID, currentUser.username).then((res) => {
+      showAlert(res.message, res.status === 'ERROR' ? 'error' : 'success');
+      if (res.status === 'SUCCESS') { load(); reloadRegistry(); }
+    }).catch(() => showAlert('নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।', 'error'));
+  };
+
+  if (!can('MANAGE_ACCOUNTS')) return null;
+
+  return (
+    <SectionCard
+      icon="fa-layer-group"
+      iconTone="bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400"
+      title="অ্যাকাউন্ট টাইপ"
+      subtitle="Account Types · সব Wallet-এ প্রযোজ্য"
+      count={types ? types.length : undefined}
+    >
+      <form onSubmit={handleAdd} className="rounded-xl bg-gray-50 dark:bg-slate-900/60 border border-gray-100 dark:border-gray-800 px-2.5 py-2 space-y-2">
+        <div className="flex gap-2 items-end">
+          <div className="flex-1 min-w-0">
+            <label className={LABEL_CLS} htmlFor="at-name">নাম</label>
+            <input id="at-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="যেমন: মোবাইল ওয়ালেট" className={INPUT_CLS} />
+          </div>
+          <div className="w-[92px] shrink-0">
+            <label className={LABEL_CLS} htmlFor="at-code">Code</label>
+            <input id="at-code" value={code} onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, '').slice(0, 20))} placeholder="WALLET" className={`${INPUT_CLS} uppercase`} />
+          </div>
+          <div className="w-[72px] shrink-0">
+            <label className={LABEL_CLS} htmlFor="at-icon">Icon</label>
+            <input id="at-icon" value={icon} onChange={(e) => setIcon(e.target.value.slice(0, 40))} placeholder="wallet" className={INPUT_CLS} />
+          </div>
+          <button type="submit" disabled={adding} aria-label="Account Type যোগ করুন" className="shrink-0 h-[34px] w-[34px] rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center transition-colors">
+            {adding ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-plus"></i>}
+          </button>
+        </div>
+        <div>
+          <span className={LABEL_CLS}>প্রযোজ্য কারেন্সি (খালি = সব)</span>
+          <CurrencyToggles selected={applicable} onChange={setApplicable} disabled={adding} />
+        </div>
+      </form>
+
+      {types === null && <LoadingState />}
+
+      {types && (
+        types.length === 0 ? (
+          <EmptyState icon="fa-layer-group">কোনো Account Type নেই।</EmptyState>
+        ) : (
+          <ul className="rounded-xl border border-gray-100 dark:border-gray-800 overflow-hidden divide-y divide-gray-50 dark:divide-gray-800/80">
+            {types.map((t) => {
+              const active = t.Status === 'Active';
+              return (
+                <li key={t.AccountTypeID} className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-900">
+                  <span className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${active ? 'bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-400' : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'}`}>
+                    <i className={`fa-solid fa-${t.Icon || 'wallet'} text-[11px]`}></i>
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-bold text-slate-800 dark:text-gray-100 truncate">{t.Name}</div>
+                    <div className="text-[10px] text-gray-400 dark:text-gray-500 truncate">
+                      {t.Code}{(t.ApplicableCurrencies || []).length ? ` · ${t.ApplicableCurrencies.join(', ')}` : ' · সব কারেন্সি'}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${active ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'}`}>
+                      {active ? 'Active' : 'Inactive'}
+                    </span>
+                    <button onClick={() => openEdit(t)} aria-label={`${t.Name} সম্পাদনা`} className="w-6 h-6 rounded-lg text-gray-300 dark:text-gray-600 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors flex items-center justify-center">
+                      <i className="fa-solid fa-pen text-[10px]"></i>
+                    </button>
+                    <button onClick={() => handleDelete(t)} aria-label={`${t.Name} মুছুন`} className="w-6 h-6 rounded-lg text-gray-300 dark:text-gray-600 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors flex items-center justify-center">
+                      <i className="fa-solid fa-trash-can text-[10px]"></i>
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )
+      )}
+
+      <Popup open={editing !== null} onClose={() => { if (!savingEdit) { setEditing(null); setEditDraft(null); } }} title={editing ? `${editing.Name} সম্পাদনা` : ''} maxWidth="max-w-xs">
+        {editDraft && (
+          <div className="space-y-3">
+            <div>
+              <label className={LABEL_CLS} htmlFor="at-edit-name">নাম</label>
+              <input id="at-edit-name" value={editDraft.name} onChange={(e) => setEditDraft({ ...editDraft, name: e.target.value })} maxLength={60} className={INPUT_CLS} />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className={LABEL_CLS} htmlFor="at-edit-code">Code</label>
+                <input id="at-edit-code" value={editDraft.code} onChange={(e) => setEditDraft({ ...editDraft, code: e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, '').slice(0, 20) })} className={`${INPUT_CLS} uppercase`} />
+              </div>
+              <div>
+                <label className={LABEL_CLS} htmlFor="at-edit-icon">Icon</label>
+                <input id="at-edit-icon" value={editDraft.icon} onChange={(e) => setEditDraft({ ...editDraft, icon: e.target.value.slice(0, 40) })} className={INPUT_CLS} />
+              </div>
+            </div>
+            <div>
+              <span className={LABEL_CLS}>প্রযোজ্য কারেন্সি (খালি = সব)</span>
+              <CurrencyToggles selected={editDraft.applicable} onChange={(v) => setEditDraft({ ...editDraft, applicable: v })} disabled={savingEdit} />
+            </div>
+            <div className="rounded-xl bg-gray-50 dark:bg-slate-900/60 border border-gray-100 dark:border-gray-800 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[11px] text-slate-600 dark:text-gray-300">Active</span>
+                <button onClick={() => setEditDraft({ ...editDraft, status: editDraft.status === 'Active' ? 'Inactive' : 'Active' })} role="switch" aria-checked={editDraft.status === 'Active'} className={`w-9 h-5 rounded-full p-0.5 transition-colors shrink-0 ${editDraft.status === 'Active' ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                  <span className={`block w-4 h-4 rounded-full bg-white shadow transition-transform ${editDraft.status === 'Active' ? 'translate-x-4' : ''}`}></span>
+                </button>
+              </div>
+            </div>
+            <button onClick={handleSaveEdit} disabled={savingEdit} className="w-full h-[38px] rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center gap-2 transition-colors">
+              {savingEdit ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-check"></i>} সেভ করুন
+            </button>
+          </div>
+        )}
+      </Popup>
+    </SectionCard>
+  );
+}
+
+// Per-wallet financial accounts. A financial account is the real thing money
+// moves through (Wallet "W001"'s "Cash" or "Islami Bank"); its AccountID is what
+// every transaction stores. Adding uses ADD_WALLET, editing uses EDIT_WALLET and
+// retiring uses MANAGE_WALLET_STATUS - matching backend/Accounts.gs. Opening
+// balance is fixed at creation (the money model does not restate history).
+function FinancialAccountsManager({ currentUser, can, showAlert, wallets }) {
+  const [selectedWalletId, setSelectedWalletId] = useState('');
+  const [accounts, setAccounts] = useState(null);
+  const [types, setTypes] = useState([]);
+  const [typeId, setTypeId] = useState('');
+  const [name, setName] = useState('');
+  const [opening, setOpening] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [editDraft, setEditDraft] = useState(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const toast = useToast();
+  const confirm = useConfirm();
+
+  const canAdd = can('ADD_WALLET');
+  const canEdit = can('EDIT_WALLET');
+  const canRetire = can('MANAGE_WALLET_STATUS');
+  const allowed = canAdd || canEdit || canRetire;
+  const walletList = wallets || [];
+
+  const selectedWallet = walletList.find((w) => String(w.WalletID) === String(selectedWalletId));
+
+  useEffect(() => {
+    if (!selectedWalletId && walletList.length) setSelectedWalletId(String(walletList[0].WalletID));
+    else if (selectedWalletId && walletList.length && !walletList.some((w) => String(w.WalletID) === String(selectedWalletId))) {
+      setSelectedWalletId(String(walletList[0].WalletID));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wallets]);
+
+  const load = (walletId) => {
+    if (!walletId) { setAccounts([]); return; }
+    api.getFinancialAccounts(currentUser.username, walletId).then((res) => {
+      if (res.status === 'ERROR') { showAlert(res.message || 'অ্যাকাউন্ট লোড করা যায়নি।', 'error'); return; }
+      if (res.status === 'SUCCESS') setAccounts(res.accounts || []);
+    }).catch(() => showAlert('অ্যাকাউন্ট লোড করা যায়নি।', 'error'));
+  };
+
+  useEffect(() => {
+    if (!allowed) return;
+    api.getAccountTypes(currentUser.username).then((res) => {
+      if (res.status === 'SUCCESS') setTypes(res.accountTypes || []);
+    }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!allowed) return;
+    setAccounts(null);
+    setTypeId('');
+    load(selectedWalletId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedWalletId]);
+
+  const eligibleTypes = useMemo(() => {
+    const cur = selectedWallet ? String(selectedWallet.Currency).toUpperCase() : '';
+    return types.filter((t) => {
+      if (t.Status !== 'Active') return false;
+      const list = t.ApplicableCurrencies || [];
+      return list.length === 0 || !cur || list.map((c) => String(c).toUpperCase()).includes(cur);
+    });
+  }, [types, selectedWallet]);
+
+  useEffect(() => {
+    if (eligibleTypes.length && !eligibleTypes.some((t) => t.AccountTypeID === typeId)) setTypeId(eligibleTypes[0].AccountTypeID);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eligibleTypes.map((t) => t.AccountTypeID).join(',')]);
+
+  const refreshBoth = () => { load(selectedWalletId); loadAccounts(currentUser.username, [selectedWalletId]); };
+
+  const handleAdd = (e) => {
+    e.preventDefault();
+    if (adding) return;
+    if (!selectedWalletId) return toast.error('Wallet নির্বাচন করুন।');
+    if (!typeId) return toast.error('Account Type নির্বাচন করুন।');
+    const open = parseFloat(opening) || 0;
+    if (open < 0) return toast.error('Opening balance ঋণাত্মক হতে পারবে না।');
+    setAdding(true);
+    api.addFinancialAccount({
+      walletId: selectedWalletId,
+      accountTypeId: typeId,
+      name: name.trim(),
+      openingBalance: open,
+    }, currentUser.username).then((res) => {
+      showAlert(res.message, res.status === 'ERROR' ? 'error' : 'success');
+      if (res.status === 'SUCCESS') { setName(''); setOpening(''); refreshBoth(); }
+    }).catch(() => showAlert('নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।', 'error')).finally(() => setAdding(false));
+  };
+
+  const openEdit = (a) => {
+    setEditing(a);
+    setEditDraft({ name: a.Name, status: a.Status });
+  };
+
+  const handleSaveEdit = () => {
+    if (!editing || !editDraft || savingEdit) return;
+    if (!editDraft.name.trim()) return toast.error('অ্যাকাউন্টের নাম দিন!');
+    setSavingEdit(true);
+    api.updateFinancialAccount(editing.AccountID, { walletId: selectedWalletId, name: editDraft.name.trim(), status: editDraft.status }, currentUser.username).then((res) => {
+      showAlert(res.message, res.status === 'ERROR' ? 'error' : 'success');
+      if (res.status === 'SUCCESS') { setEditing(null); setEditDraft(null); refreshBoth(); }
+    }).catch(() => showAlert('নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।', 'error')).finally(() => setSavingEdit(false));
+  };
+
+  const handleRetire = async (a) => {
+    const ok = await confirm({ message: `"${a.Name}" অ্যাকাউন্ট নিষ্ক্রিয় করবেন? পুরনো লেনদেন অক্ষত থাকবে, শুধু নতুন এন্ট্রিতে দেখাবে না।` });
+    if (!ok) return;
+    api.deleteFinancialAccount(a.AccountID, { walletId: selectedWalletId }, currentUser.username).then((res) => {
+      showAlert(res.message, res.status === 'ERROR' ? 'error' : 'success');
+      if (res.status === 'SUCCESS') refreshBoth();
+    }).catch(() => showAlert('নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।', 'error'));
+  };
+
+  if (!allowed) return null;
+
+  return (
+    <SectionCard
+      icon="fa-building-columns"
+      iconTone="bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400"
+      title="Wallet অ্যাকাউন্ট"
+      subtitle="প্রতিটি Wallet-এর অ্যাকাউন্ট"
+      count={accounts ? accounts.length : undefined}
+    >
+      <div>
+        <label className={LABEL_CLS} htmlFor="fa-wallet">Wallet</label>
+        {walletList.length === 0 ? (
+          <div className="text-[11px] text-gray-400 dark:text-gray-500 py-1">কোনো Wallet এক্সেস নেই।</div>
+        ) : (
+          <Select value={selectedWalletId} onChange={setSelectedWalletId}>
+            {walletList.map((w) => <option key={w.WalletID} value={String(w.WalletID)}>{w.WalletName} ({w.Currency})</option>)}
+          </Select>
+        )}
+      </div>
+
+      {canAdd && walletList.length > 0 && (
+        <form onSubmit={handleAdd} className="rounded-xl bg-gray-50 dark:bg-slate-900/60 border border-gray-100 dark:border-gray-800 px-2.5 py-2 space-y-2">
+          <div className="flex gap-2 items-end">
+            <div className="w-[116px] shrink-0">
+              <label className={LABEL_CLS} htmlFor="fa-type">টাইপ</label>
+              <Select value={typeId} onChange={setTypeId}>
+                {eligibleTypes.length === 0 && <option value="">—</option>}
+                {eligibleTypes.map((t) => <option key={t.AccountTypeID} value={t.AccountTypeID}>{t.Name}</option>)}
+              </Select>
+            </div>
+            <div className="flex-1 min-w-0">
+              <label className={LABEL_CLS} htmlFor="fa-name">নাম (ঐচ্ছিক)</label>
+              <input id="fa-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="যেমন: Islami Bank" className={INPUT_CLS} />
+            </div>
+            <div className="w-[96px] shrink-0">
+              <label className={LABEL_CLS} htmlFor="fa-open">শুরু</label>
+              <input id="fa-open" type="number" step="0.01" min="0" value={opening} onChange={(e) => setOpening(e.target.value)} placeholder="0.00" className={INPUT_CLS} />
+            </div>
+            <button type="submit" disabled={adding} aria-label="অ্যাকাউন্ট যোগ করুন" className="shrink-0 h-[34px] w-[34px] rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center transition-colors">
+              {adding ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-plus"></i>}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {accounts === null && <LoadingState />}
+
+      {accounts && (
+        accounts.length === 0 ? (
+          <EmptyState icon="fa-building-columns">এই Wallet-এ কোনো অ্যাকাউন্ট নেই।</EmptyState>
+        ) : (
+          <ul className="rounded-xl border border-gray-100 dark:border-gray-800 overflow-hidden divide-y divide-gray-50 dark:divide-gray-800/80">
+            {accounts.map((a) => {
+              const active = a.Status === 'Active';
+              return (
+                <li key={a.AccountID} className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-900">
+                  <span className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${active ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400' : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'}`}>
+                    <i className={`fa-solid fa-${a.Icon || 'wallet'} text-[11px]`}></i>
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-bold text-slate-800 dark:text-gray-100 truncate">{a.Name}</div>
+                    <div className="text-[10px] text-gray-400 dark:text-gray-500 truncate">{a.AccountTypeName || a.AccountTypeID} · {selectedWallet?.Currency} {Number(a.OpeningBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${active ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'}`}>
+                      {active ? 'Active' : 'Inactive'}
+                    </span>
+                    {canEdit && (
+                      <button onClick={() => openEdit(a)} aria-label={`${a.Name} সম্পাদনা`} className="w-6 h-6 rounded-lg text-gray-300 dark:text-gray-600 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors flex items-center justify-center">
+                        <i className="fa-solid fa-pen text-[10px]"></i>
+                      </button>
+                    )}
+                    {canRetire && (
+                      <button onClick={() => handleRetire(a)} aria-label={`${a.Name} নিষ্ক্রিয়`} className="w-6 h-6 rounded-lg text-gray-300 dark:text-gray-600 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors flex items-center justify-center">
+                        <i className="fa-solid fa-trash-can text-[10px]"></i>
+                      </button>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )
+      )}
+
+      <Popup open={editing !== null} onClose={() => { if (!savingEdit) { setEditing(null); setEditDraft(null); } }} title={editing ? `${editing.Name} সম্পাদনা` : ''} maxWidth="max-w-xs">
+        {editDraft && (
+          <div className="space-y-3">
+            <div>
+              <label className={LABEL_CLS} htmlFor="fa-edit-name">নাম</label>
+              <input id="fa-edit-name" value={editDraft.name} onChange={(e) => setEditDraft({ ...editDraft, name: e.target.value })} maxLength={60} className={INPUT_CLS} />
+            </div>
+            <div className="rounded-xl bg-gray-50 dark:bg-slate-900/60 border border-gray-100 dark:border-gray-800 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[11px] text-slate-600 dark:text-gray-300">Active</span>
+                <button onClick={() => setEditDraft({ ...editDraft, status: editDraft.status === 'Active' ? 'Inactive' : 'Active' })} role="switch" aria-checked={editDraft.status === 'Active'} className={`w-9 h-5 rounded-full p-0.5 transition-colors shrink-0 ${editDraft.status === 'Active' ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                  <span className={`block w-4 h-4 rounded-full bg-white shadow transition-transform ${editDraft.status === 'Active' ? 'translate-x-4' : ''}`}></span>
+                </button>
+              </div>
+            </div>
+            <div className="text-[10px] text-gray-400 dark:text-gray-500 px-1">শুরুর ব্যালেন্স ও কারেন্সি পরে পরিবর্তন করা যায় না।</div>
+            <button onClick={handleSaveEdit} disabled={savingEdit} className="w-full h-[38px] rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center gap-2 transition-colors">
+              {savingEdit ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-check"></i>} সেভ করুন
+            </button>
+          </div>
+        )}
+      </Popup>
+    </SectionCard>
+  );
+}
+
+export default function SettingsView({ showAlert, currentUser, can, wallets }) {
   return (
     <div className="space-y-4">
       <h3 className="font-bold text-slate-800 dark:text-gray-100 text-base">Settings (সেটিংস)</h3>
@@ -527,6 +973,8 @@ export default function SettingsView({ showAlert, currentUser, can }) {
       </div>
 
       <CurrenciesManager currentUser={currentUser} can={can} showAlert={showAlert} />
+      <AccountTypesManager currentUser={currentUser} can={can} showAlert={showAlert} wallets={wallets} />
+      <FinancialAccountsManager currentUser={currentUser} can={can} showAlert={showAlert} wallets={wallets} />
       <CategoriesManager currentUser={currentUser} can={can} showAlert={showAlert} />
     </div>
   );

@@ -1,5 +1,6 @@
-import { memo, useState } from "react";
+import { memo, useState, useEffect, useMemo } from "react";
 import { useBalanceReveal, BalanceRevealToggle, MASK } from "../utils/balanceReveal.jsx";
+import { getWalletAccounts, accountName, onAccountsChange } from "../utils/accounts.js";
 
 const CURRENCY_FLAGS = {
   SAR: "🇸🇦", BDT: "🇧🇩", USD: "🇺🇸", EUR: "🇪🇺",
@@ -15,13 +16,53 @@ const PALETTES = [
   { head: "bg-rose-800", headBadge: "bg-rose-700/80", tint: "bg-rose-50/60 dark:bg-rose-900/20", border: "border-rose-200 dark:border-rose-800", text: "text-rose-900 dark:text-rose-300", pillText: "text-rose-200", cashIcon: "text-rose-600", bankIcon: "text-rose-600" },
 ];
 
+// Icon per account type so cash/bank keep the icons they always had and any
+// custom type (e.g. a wallet) still gets something sensible.
+function iconClass(code, p) {
+  if (code === "BANK") return `fa-solid fa-building-columns ${p.bankIcon}`;
+  if (code === "CASH") return `fa-solid fa-money-bill-wave ${p.cashIcon}`;
+  return `fa-solid fa-wallet ${p.cashIcon}`;
+}
+
 export default memo(function WalletCard({ wallet, summary, index, onOpen }) {
   const p = PALETTES[index % PALETTES.length];
   const flag = CURRENCY_FLAGS[wallet.Currency] || "💰";
-  const oc = parseFloat(wallet.OpeningCash) || 0;
-  const ob = parseFloat(wallet.OpeningBank) || 0;
-  const hasOpening = oc > 0 || ob > 0;
   const [expanded, setExpanded] = useState(false);
+  // Re-render when the account registry changes (a new account/rename), since
+  // this card is memoized on wallet+summary alone.
+  const [, force] = useState(0);
+  useEffect(() => onAccountsChange(() => force((v) => v + 1)), []);
+
+  const accountIds = useMemo(() => {
+    const list = getWalletAccounts(wallet.WalletID, { activeOnly: false });
+    const ids = list.map((a) => a.AccountID);
+    Object.keys(summary?.accounts || {}).forEach((id) => {
+      if (ids.indexOf(id) === -1) ids.push(id);
+    });
+    if (ids.length === 0) ids.push("Cash", "Bank");
+    return ids;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wallet.WalletID, summary]);
+
+  const openingFor = (id) => {
+    const a = getWalletAccounts(wallet.WalletID, { activeOnly: false }).find((x) => x.AccountID === id);
+    if (a) return Number(a.OpeningBalance) || 0;
+    if (id === "Cash") return parseFloat(wallet.OpeningCash) || 0;
+    if (id === "Bank") return parseFloat(wallet.OpeningBank) || 0;
+    return 0;
+  };
+  const accountLabel = (id) => {
+    const list = getWalletAccounts(wallet.WalletID, { activeOnly: false });
+    const a = list.find((x) => x.AccountID === id);
+    return a ? a.Name : accountName(wallet.WalletID, id);
+  };
+  const accountIcon = (id) => {
+    const list = getWalletAccounts(wallet.WalletID, { activeOnly: false });
+    const a = list.find((x) => x.AccountID === id);
+    return iconClass(a ? a.AccountTypeCode : id, p);
+  };
+  const openingAccounts = accountIds.filter((id) => openingFor(id) > 0);
+  const hasOpening = openingAccounts.length > 0;
 
   // The balance figures are masked until the user reveals them, and re-mask
   // themselves BALANCE_REVEAL_SECONDS later. Income/expense totals stay
@@ -62,18 +103,14 @@ export default memo(function WalletCard({ wallet, summary, index, onOpen }) {
       </div>
 
       <div className="grid grid-cols-2 gap-2 mb-3">
-        <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl p-2 text-center shadow-2xs">
-          <div className="text-[10px] text-gray-500 dark:text-gray-400 flex items-center justify-center gap-1 font-semibold">
-            <i className={`fa-solid fa-money-bill-wave ${p.cashIcon}`}></i> Cash
+        {accountIds.map((id) => (
+          <div key={id} className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl p-2 text-center shadow-2xs">
+            <div className="text-[10px] text-gray-500 dark:text-gray-400 flex items-center justify-center gap-1 font-semibold">
+              <i className={accountIcon(id)}></i> {accountLabel(id)}
+            </div>
+            <div className="text-xs font-bold text-slate-800 dark:text-gray-100 mt-1 tabular-nums">{wallet.Currency} {amount(summary?.accounts?.[id] || 0)}</div>
           </div>
-          <div className="text-xs font-bold text-slate-800 dark:text-gray-100 mt-1 tabular-nums">{wallet.Currency} {amount(summary.cash)}</div>
-        </div>
-        <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl p-2 text-center shadow-2xs">
-          <div className="text-[10px] text-gray-500 dark:text-gray-400 flex items-center justify-center gap-1 font-semibold">
-            <i className={`fa-solid fa-building-columns ${p.bankIcon}`}></i> Bank
-          </div>
-          <div className="text-xs font-bold text-slate-800 dark:text-gray-100 mt-1 tabular-nums">{wallet.Currency} {amount(summary.bank)}</div>
-        </div>
+        ))}
       </div>
 
       {hasOpening && (
@@ -85,8 +122,9 @@ export default memo(function WalletCard({ wallet, summary, index, onOpen }) {
 
       {hasOpening && expanded && (
         <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl p-2.5 mb-3 text-center text-[11px] text-gray-500 dark:text-gray-400 space-y-1">
-          <div>Cash: {wallet.Currency} {amount(oc)}</div>
-          <div>Bank: {wallet.Currency} {amount(ob)}</div>
+          {openingAccounts.map((id) => (
+            <div key={id}>{accountLabel(id)}: {wallet.Currency} {amount(openingFor(id))}</div>
+          ))}
         </div>
       )}
 

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Select from "./Select.jsx";
+import AccountSelect from "./AccountSelect.jsx";
 import { useToast } from "./Toast.jsx";
 import { todayStr, pickDefaultWalletId } from "../utils/loan.js";
 
@@ -62,10 +63,7 @@ export default function IncomeForm({ wallets, categories, currentUser, onSave, o
 
           <div>
             <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Account (অ্যাকাউন্ট)</label>
-            <Select value={account} onChange={setAccount}>
-              <option value="Cash">Cash</option>
-              <option value="Bank">Bank</option>
-            </Select>
+            <AccountSelect walletId={walletId} value={account} onChange={setAccount} />
           </div>
         </div>
 

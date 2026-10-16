@@ -4,6 +4,7 @@ import Popup from "../components/Popup.jsx";
 import TransactionCard from "../components/TransactionCard.jsx";
 import { compareNewestFirst } from "../utils/sortTransactions.js";
 import { DATE_CHOICES, dateInRange, todayStr } from "../utils/loan.js";
+import { getWalletAccounts, onAccountsChange } from "../utils/accounts.js";
 
 // Shows the active window so the applied filter is visible without reopening
 // the sheet. "Custom" keeps the raw range because the two dates are the only
@@ -43,6 +44,25 @@ export default function TransactionsView({ transactions, wallets, onDelete, onEd
   // wallet in the user's authorized wallet list. The backend already filters,
   // but this keeps a stray row from leaking into the UI or CSV export.
   const accessibleWalletIds = useMemo(() => new Set((wallets || []).map(w => String(w.WalletID))), [wallets]);
+
+  // Account chips follow the account registry: one pill per distinct account id
+  // across the user's wallets. Ids (not names) are the filter value so the same
+  // account in different wallets never collapses, while Income/Expense still
+  // key off the stored Account id. Re-renders when accounts are (re)loaded.
+  const [, forceAccounts] = useState(0);
+  useEffect(() => onAccountsChange(() => forceAccounts((v) => v + 1)), []);
+
+  const accountChips = useMemo(() => {
+    const map = {};
+    (wallets || []).forEach((w) => {
+      getWalletAccounts(w.WalletID, { activeOnly: false }).forEach((a) => {
+        if (!map[a.AccountID]) map[a.AccountID] = { id: a.AccountID, name: a.Name };
+      });
+    });
+    const chips = Object.values(map);
+    return chips.length ? chips : [{ id: "Cash", name: "Cash" }, { id: "Bank", name: "Bank" }];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wallets]);
 
   const filteredTxns = useMemo(
     () =>
@@ -192,9 +212,9 @@ export default function TransactionsView({ transactions, wallets, onDelete, onEd
           </button>
         ))}
         <span className="text-gray-300 dark:text-gray-600 mx-1">|</span>
-        {["All", "Cash", "Bank"].map((a) => (
-          <button key={a} onClick={() => setFilterAccount(a)} className={`px-3 py-1 rounded-full font-semibold whitespace-nowrap transition-all ${filterAccount === a ? "bg-slate-800 dark:bg-emerald-600 text-white" : "bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-300"}`}>
-            {a}
+        {[{ id: "All", name: "All" }, ...accountChips].map((a) => (
+          <button key={a.id} onClick={() => setFilterAccount(a.id)} className={`px-3 py-1 rounded-full font-semibold whitespace-nowrap transition-all ${filterAccount === a.id ? "bg-slate-800 dark:bg-emerald-600 text-white" : "bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-300"}`}>
+            {a.name}
           </button>
         ))}
       </div>

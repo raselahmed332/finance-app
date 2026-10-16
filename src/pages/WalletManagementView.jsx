@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { api } from "../api.js";
 import Select from "../components/Select.jsx";
 import Popup from "../components/Popup.jsx";
@@ -6,6 +6,7 @@ import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { DetailCell } from "../components/FormField.jsx";
 import { getActiveCurrencies } from "../utils/currency.js";
 import { useBalanceReveal, BalanceRevealToggle, MASK } from "../utils/balanceReveal.jsx";
+import { getWalletAccounts, onAccountsChange } from "../utils/accounts.js";
 
 // The currency dropdown now reads the backend Currencies sheet through the
 // registry in utils/currency.js instead of a hardcoded list here, so an Admin
@@ -137,6 +138,25 @@ function EditWalletRow({ wallet, walletSummaries, currentUser, can, onRefresh, s
   const summary = (walletSummaries || {})[wallet.WalletID];
   const active = wallet.Status === 'Active';
 
+  // Re-render when the account registry changes (new account/rename), since the
+  // popup lists this wallet's accounts from the registry.
+  const [, force] = useState(0);
+  useEffect(() => onAccountsChange(() => force((v) => v + 1)), []);
+
+  const accountIds = useMemo(() => {
+    const ids = getWalletAccounts(wallet.WalletID, { activeOnly: false }).map((a) => a.AccountID);
+    Object.keys(summary?.accounts || {}).forEach((id) => { if (ids.indexOf(id) === -1) ids.push(id); });
+    if (!ids.length) ids.push("Cash", "Bank");
+    return ids;
+  }, [wallet.WalletID, summary]);
+
+  const accountMeta = (id) => {
+    const a = getWalletAccounts(wallet.WalletID, { activeOnly: false }).find((x) => x.AccountID === id);
+    const code = a ? a.AccountTypeCode : id;
+    const icon = code === "BANK" ? "fa-building-columns" : code === "CASH" ? "fa-money-bill-wave" : "fa-wallet";
+    return { name: a ? a.Name : id, icon, opening: a ? Number(a.OpeningBalance) || 0 : (id === "Cash" ? parseFloat(wallet.OpeningCash) || 0 : id === "Bank" ? parseFloat(wallet.OpeningBank) || 0 : 0) };
+  };
+
   // Users holding access to THIS wallet. Only FullName is shown, per the
   // request. The backend already masks out wallet ids the viewer cannot reach
   // (see buildUserListForViewer_ in Users.gs), so a user missing from this list
@@ -224,28 +244,27 @@ function EditWalletRow({ wallet, walletSummaries, currentUser, can, onRefresh, s
         </div>
 
         <div className="grid grid-cols-2 gap-2">
-          <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-2.5">
-            <div className="text-[10px] text-gray-500 dark:text-gray-400 font-semibold flex items-center gap-1">
-              <i className="fa-solid fa-money-bill-wave text-emerald-600"></i> Current Cash
-            </div>
-            <div className="text-sm font-bold text-slate-800 dark:text-gray-100 mt-1 tabular-nums">
-              {summary ? money(summary.cash) : "—"}
-            </div>
-          </div>
-          <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-2.5">
-            <div className="text-[10px] text-gray-500 dark:text-gray-400 font-semibold flex items-center gap-1">
-              <i className="fa-solid fa-building-columns text-emerald-600"></i> Current Bank
-            </div>
-            <div className="text-sm font-bold text-slate-800 dark:text-gray-100 mt-1 tabular-nums">
-              {summary ? money(summary.bank) : "—"}
-            </div>
-          </div>
+          {accountIds.map((id) => {
+            const m = accountMeta(id);
+            return (
+              <div key={id} className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-2.5">
+                <div className="text-[10px] text-gray-500 dark:text-gray-400 font-semibold flex items-center gap-1">
+                  <i className={`fa-solid ${m.icon} text-emerald-600`}></i> Current {m.name}
+                </div>
+                <div className="text-sm font-bold text-slate-800 dark:text-gray-100 mt-1 tabular-nums">
+                  {summary ? money(summary?.accounts?.[id] || 0) : "—"}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-gray-200 dark:border-gray-800 grid grid-cols-2 gap-x-4 gap-y-2.5">
           <DetailCell label="Total Balance" value={summary ? money(summary.totalBalance) : "—"} />
-          <DetailCell label="Opening Cash" value={money(wallet.OpeningCash)} />
-          <DetailCell label="Opening Bank" value={money(wallet.OpeningBank)} />
+          {accountIds.map((id) => {
+            const m = accountMeta(id);
+            return <DetailCell key={id} label={`Opening ${m.name}`} value={money(m.opening)} />;
+          })}
           <DetailCell label="Wallet ID" value={String(wallet.WalletID)} />
         </div>
 

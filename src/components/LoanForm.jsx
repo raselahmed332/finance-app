@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import Select from "./Select.jsx";
+import AccountSelect from "./AccountSelect.jsx";
 import Popup from "./Popup.jsx";
 import {
   formatMoney, isValidPhone, knownPeople, loanTypeMeta, normalizePhone, remainingOf,
@@ -7,6 +8,7 @@ import {
 } from "../utils/loan.js";
 import LoanAddForm from "./LoanAddForm.jsx";
 import { Field } from "./FormField.jsx";
+import { accountName } from "../utils/accounts.js";
 
 function StepIndicator({ step }) {
   const steps = ["তথ্য দিন", "বিস্তারিত দিন", "নিশ্চিত করুন"];
@@ -275,7 +277,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
             <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">বাকি</span><span className="font-bold text-amber-600">{formatMoney(remainingOf(l), cur)}</span></div>
             <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">তারিখ</span><span className="font-bold">{added.date || l?.loanDate}</span></div>
             <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">ওয়ালেট</span><span className="font-bold">{added.walletName || l?.walletName || "—"}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">Wallet Account</span><span className="font-bold">{added.account || l?.account}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">Wallet Account</span><span className="font-bold">{accountName(added.walletId || l?.walletId, added.account || l?.account)}</span></div>
             {added.note && <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">নোট</span><span className="font-bold text-right">{added.note}</span></div>}
           </div>
         </div>
@@ -317,7 +319,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
             <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">কারেন্সি</span><span className="font-bold">{l?.currency}</span></div>
             <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">তারিখ</span><span className="font-bold">{l?.loanDate}</span></div>
             <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">ওয়ালেট</span><span className="font-bold">{l?.walletName || selectedWallet?.WalletName || "—"}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">Wallet Account</span><span className="font-bold">{l?.account}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">Wallet Account</span><span className="font-bold">{accountName(l?.walletId, l?.account)}</span></div>
             {l?.dueDate && <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">ডিউ তারিখ</span><span className="font-bold">{l.dueDate}</span></div>}
             {l?.note && <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">নোট</span><span className="font-bold text-right">{l.note}</span></div>}
           </div>
@@ -400,10 +402,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
               </Field>
 
               <Field label="Wallet Account" error={errors.account}>
-                <Select value={account} onChange={setAccount}>
-                  <option value="Cash">Cash</option>
-                  <option value="Bank">Bank</option>
-                </Select>
+                <AccountSelect walletId={walletId} value={account} onChange={setAccount} />
               </Field>
             </div>
 
@@ -449,7 +448,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
               <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">পরিমাণ</span><span className="font-bold text-emerald-600">{currency} {formatMoneyText(amount, currency)}</span></div>
               <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">কারেন্সি</span><span className="font-bold">{currency}</span></div>
               <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">Wallet</span><span className="font-bold">{selectedWallet?.WalletName || "—"}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">Wallet Account</span><span className="font-bold">{account}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">Wallet Account</span><span className="font-bold">{accountName(walletId, account)}</span></div>
               <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">তারিখ</span><span className="font-bold">{loanDate}</span></div>
               {dueDate && <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">ডিউ তারিখ</span><span className="font-bold">{dueDate}</span></div>}
               {note && <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">নোট</span><span className="font-bold text-right">{note}</span></div>}

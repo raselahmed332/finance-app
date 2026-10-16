@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Select from "./Select.jsx";
+import AccountSelect from "./AccountSelect.jsx";
 import Popup from "./Popup.jsx";
 import { useToast } from "./Toast.jsx";
 
@@ -38,7 +39,7 @@ export default function EditTransactionForm({ transaction, onSave, onCancel }) {
       <form onSubmit={handleSubmit} className="space-y-3">
         <input type="date" value={form.date || ''} onChange={(e) => change('date', e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" required />
         <div className="grid grid-cols-2 gap-2"><Select value={form.type || 'Expense'} onChange={change.bind(null, 'type')}><option>Income</option><option>Expense</option></Select><input value={form.currency || ''} readOnly className="border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-xl px-3 py-2 text-sm text-gray-500 dark:text-gray-400" /></div>
-        <Select value={form.account || 'Cash'} onChange={change.bind(null, 'account')}><option>Cash</option><option>Bank</option></Select>
+        <AccountSelect walletId={transaction.WalletID} value={form.account || 'Cash'} onChange={change.bind(null, 'account')} />
         <input value={form.sourceCategory || ''} onChange={(e) => change('sourceCategory', e.target.value)} placeholder="Category / Source" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" required />
         <input value={form.whereVendor || ''} onChange={(e) => change('whereVendor', e.target.value)} placeholder="Where / Vendor" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" />
         <input value={form.description || ''} onChange={(e) => change('description', e.target.value)} placeholder="Description" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" />

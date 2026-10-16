@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { api } from "../api.js";
 import Popup from "./Popup.jsx";
 import { useToast } from "./Toast.jsx";
+import { accountName } from "../utils/accounts.js";
 
 export default function EditTransferForm({ transaction, currentUser, onSave, onCancel }) {
   const [loading, setLoading] = useState(true);
@@ -97,7 +98,7 @@ export default function EditTransferForm({ transaction, currentUser, onSave, onC
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-gray-700 rounded-xl p-3 space-y-2">
           <div className="text-xs font-bold text-slate-700 dark:text-gray-200 uppercase tracking-wider">From (কোথা থেকে)</div>
-          <div className="text-xs text-slate-600 dark:text-gray-300">{pair.out.walletName} — {pair.out.account}</div>
+          <div className="text-xs text-slate-600 dark:text-gray-300">{pair.out.walletName} — {accountName(pair.out.walletId, pair.out.account)}</div>
           <div>
             <label className="block text-[11px] text-gray-500 dark:text-gray-400 font-medium mb-1">Amount</label>
             <div className="relative flex items-center">
@@ -115,7 +116,7 @@ export default function EditTransferForm({ transaction, currentUser, onSave, onC
 
         <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-gray-700 rounded-xl p-3 space-y-2">
           <div className="text-xs font-bold text-slate-700 dark:text-gray-200 uppercase tracking-wider">To (কোথায়)</div>
-          <div className="text-xs text-slate-600 dark:text-gray-300">{pair.in.walletName} — {pair.in.account}</div>
+          <div className="text-xs text-slate-600 dark:text-gray-300">{pair.in.walletName} — {accountName(pair.in.walletId, pair.in.account)}</div>
           <div>
             <label className="block text-[11px] text-gray-500 dark:text-gray-400 font-medium mb-1">Amount Received</label>
             <div className="relative flex items-center">

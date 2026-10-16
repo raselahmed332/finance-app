@@ -7,6 +7,7 @@ import {
 import LoanRepaymentForm from "../components/LoanRepaymentForm.jsx";
 import LoanAddForm from "../components/LoanAddForm.jsx";
 import { useConfirm } from "../components/ConfirmDialog.jsx";
+import { accountName } from "../utils/accounts.js";
 
 function DetailRow({ label, value, bold }) {
   return (
@@ -94,16 +95,16 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
   const timeline = useMemo(() => {
     const items = [];
     if (loan) {
-      items.push({ key: "initial", date: loan.loanDate, title: meta.ledgerLabel, amount: loan.amount, walletName: loan.walletName, account: loan.account, currency: loan.currency, initial: true });
+      items.push({ key: "initial", date: loan.loanDate, title: meta.ledgerLabel, amount: loan.amount, walletName: loan.walletName, walletId: loan.walletId, account: loan.account, currency: loan.currency, initial: true });
     }
     (additions || []).slice().sort((a, b) => String(a.date).localeCompare(String(b.date))).forEach((ad, i) => {
-      items.push({ key: ad.id || "a" + i, date: ad.date, title: meta.additionLabel, amount: ad.amount, walletName: ad.walletName, account: ad.account, currency: ad.currency || loan?.currency, initial: false, addition: true });
+      items.push({ key: ad.id || "a" + i, date: ad.date, title: meta.additionLabel, amount: ad.amount, walletName: ad.walletName, walletId: ad.walletId, account: ad.account, currency: ad.currency || loan?.currency, initial: false, addition: true });
     });
     (payments || []).slice().sort((a, b) => String(a.date).localeCompare(String(b.date))).forEach((p, i) => {
       // `payment` lets the row render edit/delete for repayments. Additions keep
       // their own controls in the "হাওলাতের বিস্তারিত" card above, so this
       // timeline row stays read-only for them.
-      items.push({ key: p.id || "p" + i, date: p.date, title: p.title || meta.repaymentTitle, amount: p.amount, walletName: p.walletName, account: p.account, currency: p.currency || loan?.currency, initial: false, payment: p });
+      items.push({ key: p.id || "p" + i, date: p.date, title: p.title || meta.repaymentTitle, amount: p.amount, walletName: p.walletName, walletId: p.walletId, account: p.account, currency: p.currency || loan?.currency, initial: false, payment: p });
     });
     return items.sort((a, b) => String(a.date).localeCompare(String(b.date)));
   }, [loan, payments, additions, meta]);
@@ -229,7 +230,7 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
         <DetailRow label="ডিউ তারিখ" value={loan.dueDate ? fmtDate(loan.dueDate) : "—"} />
         <DetailRow label="কারেন্সি" value={loan.currency} />
         <DetailRow label="ওয়ালেট" value={loan.walletName || loan.walletId} />
-        <DetailRow label="ওয়ালেট অ্যাকাউন্ট" value={loan.account || "—"} />
+        <DetailRow label="ওয়ালেট অ্যাকাউন্ট" value={loan.account ? accountName(loan.walletId, loan.account) : "—"} />
         {loan.note && <DetailRow label="নোট" value={loan.note} />}
       </div>
 
@@ -258,7 +259,7 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
             <div key={ad.id} className="flex items-center justify-between py-1.5 border-t border-gray-50 dark:border-gray-800">
               <div className="flex-1 min-w-0 pr-2">
                 <div className="text-[11px] font-semibold text-slate-700 dark:text-gray-200">{meta.additionLabel}</div>
-                <div className="text-[10px] text-gray-400 dark:text-gray-500 truncate">{fmtDate(ad.date)} • {ad.walletName || "—"} ({ad.account || "—"})</div>
+                <div className="text-[10px] text-gray-400 dark:text-gray-500 truncate">{fmtDate(ad.date)} • {ad.walletName || "—"} ({ad.account ? accountName(ad.walletId, ad.account) : "—"})</div>
                 {ad.note && <div className="text-[10px] text-gray-400 dark:text-gray-500 truncate">{ad.note}</div>}
               </div>
               <div className="text-right flex items-center gap-2 flex-shrink-0">
@@ -354,7 +355,7 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
                     {formatMoney(item.amount, item.currency)}
                   </div>
                   <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
-                    Wallet: <span className="font-semibold">{item.walletName || "—"}</span> • Account: <span className="font-semibold">{item.account || "—"}</span>
+                    Wallet: <span className="font-semibold">{item.walletName || "—"}</span> • Account: <span className="font-semibold">{item.account ? accountName(item.walletId, item.account) : "—"}</span>
                   </div>
                   {item.payment?.note && (
                     <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 truncate">{item.payment.note}</div>

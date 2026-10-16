@@ -165,6 +165,16 @@ export const api = {
   addSavingsFlexWithdrawal: (data) => callApi("addSavingsFlexWithdrawal", [data]),
   deleteSavingsFlexTransaction: (txnId, type, adminUsername) => callApi("deleteSavingsFlexTransaction", [txnId, type, adminUsername]),
 
+  // Accounts (types + per-wallet financial accounts)
+  getAccountTypes: (username) => callApi("getAccountTypes", [username]),
+  getFinancialAccounts: (username, walletId) => callApi("getFinancialAccounts", [username, walletId]),
+  addAccountType: (data, adminUsername) => callApi("addAccountType", [data, adminUsername]),
+  updateAccountType: (accountTypeId, data, adminUsername) => callApi("updateAccountType", [accountTypeId, data, adminUsername]),
+  deleteAccountType: (accountTypeId, adminUsername) => callApi("deleteAccountType", [accountTypeId, adminUsername]),
+  addFinancialAccount: (data, adminUsername) => callApi("addFinancialAccount", [data, adminUsername]),
+  updateFinancialAccount: (accountId, data, adminUsername) => callApi("updateFinancialAccount", [accountId, data, adminUsername]),
+  deleteFinancialAccount: (accountId, data, adminUsername) => callApi("deleteFinancialAccount", [accountId, data, adminUsername]),
+
   // Currencies
   getCurrencies: (username) => callApi("getCurrencies", [username]),
   addCurrency: (data, adminUsername) => callApi("addCurrency", [data, adminUsername]),
@@ -231,6 +241,7 @@ export const ADDITIONAL_PERMISSIONS = [
 // ADMIN_ONLY_ACTIONS in backend/Database.gs.
 export const ADMIN_ONLY_ACTIONS = [
   "CHANGE_USER_ROLE", "CHANGE_USER_PASSWORD", "CREATE_ADMIN", "MANAGE_CURRENCIES",
+  "MANAGE_ACCOUNTS",
 ];
 
 export const GRANTABLE_PERMISSIONS = ADDITIONAL_PERMISSIONS;
@@ -245,7 +256,7 @@ export const PERMISSION_LABELS = {
   // Defaults (auto via wallet access)
   VIEW_DASHBOARD: "ড্যাশবোর্ড দেখা",
   ADD_EXPENSE: "খরচ যোগ করা",
-  BANK_OPERATIONS: "ব্যাংক অপারেশন (Cash ↔ Bank)",
+  BANK_OPERATIONS: "ব্যাংক অপারেশন (একই Wallet-এর অ্যাকাউন্টে স্থানান্তর)",
   VIEW_TRANSACTIONS: "লেনদেন দেখা",
   VIEW_REPORTS: "রিপোর্ট দেখা",
   VIEW_LOANS: "হাওলাত দেখা",
@@ -275,6 +286,7 @@ export const PERMISSION_LABELS = {
   VIEW_AUDIT_LOG: "Audit Log দেখা",
   MANAGE_CATEGORIES: "ক্যাটাগরি ম্যানেজ করা",
   MANAGE_CURRENCIES: "কারেন্সি ম্যানেজ করা",
+  MANAGE_ACCOUNTS: "অ্যাকাউন্ট ম্যানেজ করা",
   // Admin-only
   CHANGE_USER_ROLE: "ইউজার Role পরিবর্তন",
   CHANGE_USER_PASSWORD: "ইউজার PIN রিসেট",
