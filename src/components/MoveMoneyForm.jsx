@@ -11,7 +11,7 @@ import { todayStr, pickDefaultWalletId } from "../utils/loan.js";
 // TRANSFER_MONEY). This is a UI-level merge only: both backend writers, both
 // permissions, both row formats (Bank Operation `_1/_2` and Transfer `_OUT/_IN`)
 // and all validation/rollback/duplicate detection stay exactly as they were.
-export default function MoveMoneyForm({ wallets, currentUser, onSave, onCancel, can }) {
+export default function MoveMoneyForm({ wallets, currentUser, onSave, onCancel, can, embedded }) {
   const toast = useToast();
   const canTransfer = can ? can("TRANSFER_MONEY") : true;
   const canBankOp = can ? can("BANK_OPERATIONS") : true;
@@ -94,16 +94,18 @@ export default function MoveMoneyForm({ wallets, currentUser, onSave, onCancel, 
   };
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow-sm border border-gray-200 dark:border-gray-800 space-y-4">
-      <div className="flex items-center justify-between pb-3">
-        <button onClick={onCancel} className="text-gray-500 hover:text-slate-800 dark:text-gray-400 dark:hover:text-gray-200">
-          <i className="fa-solid fa-arrow-left text-lg"></i>
-        </button>
-        <h3 className="font-bold text-slate-800 dark:text-gray-100 text-base text-center flex-1 text-blue-600 dark:text-blue-400">
-          Transfer (ট্রান্সফার)
-        </h3>
-        <div className="w-5"></div>
-      </div>
+    <div className={embedded ? "space-y-4" : "bg-white dark:bg-gray-900 rounded-2xl p-4 shadow-sm border border-gray-200 dark:border-gray-800 space-y-4"}>
+      {!embedded && (
+        <div className="flex items-center justify-between pb-3">
+          <button onClick={onCancel} className="text-gray-500 hover:text-slate-800 dark:text-gray-400 dark:hover:text-gray-200">
+            <i className="fa-solid fa-arrow-left text-lg"></i>
+          </button>
+          <h3 className="font-bold text-slate-800 dark:text-gray-100 text-base text-center flex-1 text-blue-600 dark:text-blue-400">
+            Transfer (ট্রান্সফার)
+          </h3>
+          <div className="w-5"></div>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-gray-700 rounded-xl p-3 space-y-2">

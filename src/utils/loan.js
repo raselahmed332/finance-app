@@ -35,6 +35,21 @@ export function fmtDate(str) {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
+const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+// Server "now" timestamps are stored as "dd-MMM-yyyy HH:mm" (e.g.
+// "24-Sep-2026 14:30"). Loan and savings cards display them like a date
+// ("24 Sep 2026") without the time.
+export function fmtUpdated(ts) {
+  if (!ts) return "—";
+  const s = String(ts).trim();
+  const d = /^(\d{1,2})-([A-Za-z]{3})-(\d{4})/.exec(s);
+  if (d) return `${d[1]} ${d[2]} ${d[3]}`;
+  const when = new Date(s);
+  if (!Number.isNaN(when.getTime())) return `${when.getDate()} ${MONTHS_SHORT[when.getMonth()]} ${when.getFullYear()}`;
+  return s;
+}
+
 export function startOfWeekStr(today) {
   const t = today ? new Date(today + "T00:00:00") : new Date();
   const day = t.getDay();

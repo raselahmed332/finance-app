@@ -22,7 +22,7 @@ A Bengali-language personal finance app for tracking income, expense, transfers,
 
 **Backup & restore** — download the full dataset as JSON and restore it, with validation before anything is written. A restore that fails mid-write rolls back automatically.
 
-**Audit log** — every mutation is recorded with user, target, and detail. Includes a broken-transfer-pair integrity checker.
+**Audit log** — every mutation is recorded with user, target, and detail. Includes a broken-transfer-pair integrity checker. The log is auto-pruned to a **rolling two-calendar-month window**: a daily trigger deletes anything older than the same day two months back (e.g. on 16-Oct it removes records before 16-Aug). The read endpoint applies the same cutoff, so the screen never shows a record outside the window, and an Admin can run **Cleanup now** by hand. Rows whose date cannot be parsed are always kept, and the window can be widened or narrowed by editing `AUDIT_RETENTION_MONTHS` in `backend/AuditRetention.gs`.
 
 **Roles & permissions** — Admin, Sub-Admin, User. Actions are enforced in this order: **Wallet Access → Permission → Action**. Granting a wallet to a user automatically grants the default actions for that wallet; anything beyond that is an explicit, separately grantable permission. Four actions are Admin-only and can never be granted away: change role, change password, create admin, manage currencies. Separately from permissions, **only an Admin may assign the `Admin` or `Sub-Admin` role** — a non-Admin with `ADD_USER` can create plain users but cannot mint another privileged account, and cannot change an existing Admin.
 
@@ -51,6 +51,7 @@ amar-hisab-react/
     Money.gs                  cent-exact amount parsing and arithmetic
     Reports.gs                report aggregation
     Audit.gs                  audit log reads, integrity check
+    AuditRetention.gs         audit-log two-calendar-month auto-pruning + trigger
     Cache.gs                  ledger cache invalidation
     tests/                     zero-dependency node:test suite (not deployed)
   finance-app/               ← this repo, the React front end
@@ -73,6 +74,7 @@ amar-hisab-react/
 3. **Deploy → New deployment → Web app**.
 4. Execute as **Me**, Who has access: **Anyone**.
 5. Copy the Web app URL (ends in `/exec`).
+6. **(Optional) Turn on audit-log retention cleanup.** Run `installAuditCleanupTrigger_` once from the Apps Script editor (select it in the function dropdown → **Run**; approve the authorization prompt). This installs a daily trigger for `scheduledAuditCleanup`, which deletes audit rows older than two calendar months. It is idempotent — running it again creates no duplicate trigger. Admins can also trigger a one-off cleanup from the Audit Log screen's **Cleanup now** button.
 
 ### Step 2 — Point the frontend at the backend
 
@@ -141,8 +143,9 @@ npm run dev     # http://localhost:5173
 | `npm run cap:assets` | Regenerate launcher icons + splash from `assets/` |
 | `npm run android:debug` | Sync + build an installable debug APK |
 | `npm run android:release` | Sync + build a signed release APK (needs `android/keystore.properties`) |
+| `npm test` | Run the frontend unit tests (`node --test tests`) |
 
-There is no test, lint, or typecheck script for the frontend.
+There is no lint or typecheck script for the frontend.
 
 ---
 
@@ -244,8 +247,20 @@ node --test tests/*.test.js
 | `tests/loans-wallet.test.js` | loan wallet lock, addition wallet pinning, detail-row scoping |
 | `tests/loans-payment-idempotency.test.js` | payment validation/idempotency ordering |
 | `tests/transactions-transfer.test.js` | transfer raw-amount validation |
+| `tests/audit-retention.test.js` | two-month cutoff, safe/idempotent deletion, trigger idempotency |
+| `tests/loans-sort.test.js` | loan ordering by parsed `updatedAt`, timestamp parsing |
 
 `tests/load-backend.js` and `tests/stubs.js` are the harness, not tests.
+
+### Frontend tests
+
+A small zero-dependency `node:test` suite covers the shared pure date helpers
+(`src/utils/timestamps.js`) used by the loan ordering and audit retention:
+
+```bash
+cd finance-app
+npm test
+```
 
 ---
 

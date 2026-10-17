@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api.js";
-import { formatMoney, fmtDate } from "../utils/loan.js";
+import { formatMoney, fmtDate, fmtUpdated } from "../utils/loan.js";
 import { accountName } from "../utils/accounts.js";
 
 const TYPE_META = {
@@ -40,7 +40,7 @@ function Stat({ label, value, strong }) {
   );
 }
 
-function PlanCard({ plan, onOpen }) {
+function PlanCard({ plan, onOpen, creatorName }) {
   const type = String(plan.Type).toUpperCase();
   const meta = TYPE_META[type] || { label: type, icon: "fa-piggy-bank", accent: "emerald" };
   const summary = plan.Summary || {};
@@ -91,16 +91,33 @@ function PlanCard({ plan, onOpen }) {
         )}
       </div>
 
-      {type === "FIXED" && plan.Fixed?.ClosedDate && (
-        <div className="mt-2 text-[10px] text-gray-500 dark:text-gray-400">
-          বন্ধ: {fmtDate(plan.Fixed.ClosedDate)}
+      <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-gray-100 dark:border-slate-700">
+        <div className="text-[10px] text-gray-400 dark:text-gray-500 flex items-center gap-2 min-w-0">
+          {plan.StartDate && <span className="shrink-0"><i className="fa-solid fa-calendar-day me-1"></i>{fmtUpdated(plan.StartDate)}</span>}
+          {type === "FIXED" && plan.Fixed?.ClosedDate && (
+            <span className="truncate"><i className="fa-solid fa-lock me-1"></i>{fmtDate(plan.Fixed.ClosedDate)}</span>
+          )}
         </div>
-      )}
+        <div className="text-right ml-2 flex items-center justify-end gap-x-2 flex-wrap">
+          {creatorName && (
+            <span className="text-[9px] text-gray-400 dark:text-gray-500 flex items-center gap-1">
+              <i className="fa-solid fa-user-pen"></i>
+              <span className="font-semibold text-gray-500 dark:text-gray-400">{creatorName}</span>
+            </span>
+          )}
+          {plan.UpdatedAt && (
+            <span className="text-[9px] text-gray-400 dark:text-gray-500 flex items-center gap-1">
+              <i className="fa-solid fa-clock-rotate-left"></i>
+              <span className="font-semibold text-gray-500 dark:text-gray-400">{fmtUpdated(plan.UpdatedAt)}</span>
+            </span>
+          )}
+        </div>
+      </div>
     </button>
   );
 }
 
-export default function SavingsDashboardView({ currentUser, onOpenDetails, canCreate, onAdd }) {
+export default function SavingsDashboardView({ currentUser, onOpenDetails, canCreate, onAdd, users }) {
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -128,6 +145,14 @@ export default function SavingsDashboardView({ currentUser, onOpenDetails, canCr
       })
       .finally(() => setLoading(false));
   }, [currentUser]);
+
+  const userMap = useMemo(() => {
+    const map = {};
+    (Array.isArray(users) ? users : []).forEach((u) => {
+      map[u.Username] = u.FullName || u.Username;
+    });
+    return map;
+  }, [users]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -168,7 +193,7 @@ export default function SavingsDashboardView({ currentUser, onOpenDetails, canCr
         )}
       </div>
 
-      <div className="flex gap-1.5 overflow-x-auto pb-1">
+      <div className="grid grid-cols-2 gap-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl text-xs font-bold">
         {TABS.map((t) => {
           const active = tab === t.value;
           return (
@@ -176,11 +201,11 @@ export default function SavingsDashboardView({ currentUser, onOpenDetails, canCr
               key={t.value}
               type="button"
               onClick={() => setTab(t.value)}
-              className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${active ? "bg-emerald-600 text-white shadow-sm" : "bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-slate-600 dark:text-gray-300"}`}
+              className={`py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${active ? "bg-emerald-600 text-white shadow-sm" : "text-gray-600 dark:text-gray-400"}`}
             >
               <i className={`fa-solid ${t.icon} text-[10px]`}></i>
               <span>{t.label}</span>
-              <span className={`text-[9px] font-bold px-1.5 rounded-full ${active ? "bg-white/25 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300"}`}>
+              <span className={`text-[9px] font-bold px-1.5 rounded-full ${active ? "bg-white/25 text-white" : "bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-300"}`}>
                 {counts[t.value]}
               </span>
             </button>
@@ -238,7 +263,7 @@ export default function SavingsDashboardView({ currentUser, onOpenDetails, canCr
               </h2>
               <div className="space-y-2">
                 {s.items.map((p) => (
-                  <PlanCard key={p.PlanID} plan={p} onOpen={onOpenDetails} />
+                  <PlanCard key={p.PlanID} plan={p} onOpen={onOpenDetails} creatorName={userMap[p.CreatedBy]} />
                 ))}
               </div>
             </section>

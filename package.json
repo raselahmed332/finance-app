@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "test": "node --test \"tests/**/*.test.js\"",
     "build": "vite build",
     "build:android": "vite build --mode android",
     "preview": "vite preview",

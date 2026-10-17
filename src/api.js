@@ -206,6 +206,7 @@ export const api = {
 
   // Audit log
   getAuditLog: (username, opts) => callApi("getAuditLog", [username, opts]),
+  runAuditCleanup: (username) => callApi("runAuditCleanup", [username]),
   findBrokenTransferPairs: (username) => callApi("findBrokenTransferPairs", [username]),
 };
 

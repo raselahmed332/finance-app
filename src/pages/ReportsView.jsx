@@ -7,6 +7,44 @@ import Popup from "../components/Popup.jsx";
 import { todayStr } from "../utils/loan.js";
 import { accountName } from "../utils/accounts.js";
 
+// Place a captured statement onto A4 pages. A statement taller than one page is
+// sliced into page-height slices (never scaled down to fit a single page and
+// never truncated), so a long report stays readable and loses no rows.
+function addCanvasAsPages(pdf, canvas, orientation) {
+  const isLandscape = orientation === 'landscape';
+  const pageW = isLandscape ? 297 : 210;
+  const pageH = isLandscape ? 210 : 297;
+  const margin = 10;
+  const usableW = pageW - margin * 2;
+  const usableH = pageH - margin * 2;
+  const fullImgH = canvas.height * (usableW / canvas.width);
+
+  // Everything fits on one page — no slicing needed.
+  if (fullImgH <= usableH) {
+    pdf.addImage(canvas, 'PNG', margin, margin, usableW, fullImgH);
+    return;
+  }
+
+  // Pixel height of one page's worth of the capture.
+  const slicePx = Math.max(1, Math.floor(canvas.width * (usableH / usableW)));
+  let y = 0;
+  let first = true;
+  while (y < canvas.height) {
+    const h = Math.min(slicePx, canvas.height - y);
+    const slice = document.createElement('canvas');
+    slice.width = canvas.width;
+    slice.height = h;
+    const ctx = slice.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, slice.width, slice.height);
+    ctx.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
+    if (!first) pdf.addPage();
+    pdf.addImage(slice, 'PNG', margin, margin, usableW, h * (usableW / canvas.width));
+    first = false;
+    y += h;
+  }
+}
+
 export default function ReportsView({ wallets, currentUser, users }) {
   const [walletId, setWalletId] = useState(wallets[0]?.WalletID || '');
   const [account, setAccount] = useState('All');
@@ -22,8 +60,17 @@ export default function ReportsView({ wallets, currentUser, users }) {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
+  // The generated statement PDF, kept so Preview / Download / Share all reuse
+  // one build instead of regenerating. { url, blob, filename }.
+  const [pdfPreview, setPdfPreview] = useState(null);
+  const pdfUrlRef = useRef(null);
   const chartRef = useRef(null);
   const chartInstance = useRef(null);
+
+  // Release the object URL when this view unmounts.
+  useEffect(() => () => {
+    if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
+  }, []);
 
   // Wallets may load asynchronously after this view mounts — if the selected id
   // is blank or is no longer available, fall back to the first available wallet
@@ -52,14 +99,14 @@ export default function ReportsView({ wallets, currentUser, users }) {
     return map;
   }, [users]);
 
-  // Rasterise ONLY the statement card (#report-print) and save it as a PDF.
-  // We capture the rendered DOM instead of building the PDF from text because
-  // the statement contains Bengali, which needs the browser's text shaping.
-  // The heavy libs are imported lazily so they stay out of the main bundle.
-  const downloadStatementPdf = async () => {
+  // Rasterise ONLY the statement card (#report-print) and build an A4 multi-page
+  // PDF blob. We capture the rendered DOM instead of building the PDF from text
+  // because the statement contains Bengali, which needs the browser's text
+  // shaping. The heavy libs are imported lazily so they stay out of the main
+  // bundle. Returns { blob, filename } or null.
+  const buildStatementPdf = async () => {
     const el = document.getElementById('report-print');
-    if (!el || pdfBusy) return;
-    setPdfBusy(true);
+    if (!el) return null;
 
     // html2canvas measures the element's LIVE size, so a scroll-capped box would
     // clip the export to the visible rows ("full table" missing). Temporarily
@@ -111,42 +158,78 @@ export default function ReportsView({ wallets, currentUser, users }) {
         ignoreElements: (n) => n.classList && n.classList.contains('no-print'),
         onclone: (doc) => { doc.documentElement.classList.remove('dark'); },
       });
-      const img = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({
-        orientation: canvas.width > canvas.height ? 'landscape' : 'portrait',
-        unit: 'px',
-        format: [canvas.width, canvas.height],
-        compress: true,
-      });
-      pdf.addImage(img, 'PNG', 0, 0, canvas.width, canvas.height);
+
+      // A4 pages (mm) so every row survives: long statements paginate instead of
+      // being squashed onto one unreadable sheet.
+      const orientation = canvas.width > canvas.height ? 'landscape' : 'portrait';
+      const pdf = new jsPDF({ orientation, unit: 'mm', format: 'a4', compress: true });
+      addCanvasAsPages(pdf, canvas, orientation);
 
       const filename = `report_${selectedWallet?.WalletName || ''}${account !== 'All' ? '_' + account : ''}_${period === 'custom' ? `custom_${customFrom}_to_${customTo}` : period}_${todayStr()}.pdf`;
-
-      // On phones, prefer the native share sheet ("Save to Files"/Downloads):
-      // iOS Safari ignores the anchor download attribute for blob URLs.
-      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-      if (isMobile && typeof File !== 'undefined' && navigator.canShare) {
-        const file = new File([pdf.output('blob')], filename, { type: 'application/pdf' });
-        if (navigator.canShare({ files: [file] })) {
-          try {
-            await navigator.share({ files: [file], title: filename });
-            return;
-          } catch (e) {
-            if (e && e.name === 'AbortError') return; // user closed the sheet
-          }
-        }
-      }
-      pdf.save(filename);
-    } catch (e) {
-      console.error('PDF export failed', e);
-      alert('PDF তৈরি করা যায়নি। আবার চেষ্টা করুন।');
+      return { blob: pdf.output('blob'), filename };
     } finally {
       restore.reverse().forEach(([node, prev]) => {
         if (prev === null) node.removeAttribute('style');
         else node.setAttribute('style', prev);
       });
       window.scrollTo(0, scrollY);
+    }
+  };
+
+  const closePdfPreview = () => {
+    if (pdfUrlRef.current) {
+      URL.revokeObjectURL(pdfUrlRef.current);
+      pdfUrlRef.current = null;
+    }
+    setPdfPreview(null);
+  };
+
+  // Build the PDF and open it in an in-app preview (with Download / Share).
+  const openPdfPreview = async () => {
+    if (pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      const result = await buildStatementPdf();
+      if (!result) return;
+      if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
+      const url = URL.createObjectURL(result.blob);
+      pdfUrlRef.current = url;
+      setPdfPreview({ url, blob: result.blob, filename: result.filename });
+    } catch (e) {
+      console.error('PDF export failed', e);
+      alert('PDF তৈরি করা যায়নি। আবার চেষ্টা করুন।');
+    } finally {
       setPdfBusy(false);
+    }
+  };
+
+  const downloadPdf = () => {
+    if (!pdfPreview) return;
+    const a = document.createElement('a');
+    a.href = pdfPreview.url;
+    a.download = pdfPreview.filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  // Native share where supported (Android/iOS share sheet), otherwise fall back
+  // to a normal download so the action always works.
+  const sharePdf = async () => {
+    if (!pdfPreview) return;
+    const { blob, filename } = pdfPreview;
+    try {
+      if (typeof File !== 'undefined' && navigator.canShare) {
+        const file = new File([blob], filename, { type: 'application/pdf' });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: filename });
+          return;
+        }
+      }
+      downloadPdf();
+    } catch (e) {
+      if (e && e.name === 'AbortError') return; // user closed the share sheet
+      downloadPdf();
     }
   };
 
@@ -489,12 +572,12 @@ export default function ReportsView({ wallets, currentUser, users }) {
                   <i className="fa-solid fa-file-csv text-emerald-600"></i> Export CSV
                 </button>
                 <button
-                  onClick={downloadStatementPdf}
+                  onClick={openPdfPreview}
                   disabled={pdfBusy}
                   className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl py-2 text-xs font-semibold text-slate-700 dark:text-gray-200 flex items-center justify-center gap-1.5 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-60"
                 >
                   <i className={`fa-solid ${pdfBusy ? 'fa-spinner fa-spin' : 'fa-file-pdf'} text-rose-600`}></i>
-                  {pdfBusy ? 'তৈরি হচ্ছে...' : 'Download PDF'}
+                  {pdfBusy ? 'তৈরি হচ্ছে...' : 'PDF'}
                 </button>
               </div>
             )}
@@ -553,6 +636,39 @@ export default function ReportsView({ wallets, currentUser, users }) {
             আপ্লাই করুন
           </button>
         </div>
+      </Popup>
+
+      <Popup
+        open={!!pdfPreview}
+        onClose={closePdfPreview}
+        title="PDF প্রিভিউ"
+        maxWidth="max-w-lg"
+      >
+        {pdfPreview && (
+          <>
+            <div className="w-full h-[55vh] rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-800">
+              <iframe
+                src={pdfPreview.url}
+                title={pdfPreview.filename}
+                className="w-full h-full"
+              ></iframe>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={downloadPdf}
+                className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl py-2.5 text-xs font-semibold text-slate-700 dark:text-gray-200 flex items-center justify-center gap-1.5 hover:bg-gray-50 dark:hover:bg-gray-800"
+              >
+                <i className="fa-solid fa-download text-emerald-600"></i> Download
+              </button>
+              <button
+                onClick={sharePdf}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl py-2.5 text-xs font-bold flex items-center justify-center gap-1.5"
+              >
+                <i className="fa-solid fa-share-nodes"></i> Share
+              </button>
+            </div>
+          </>
+        )}
       </Popup>
     </div>
   );

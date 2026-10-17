@@ -8,6 +8,10 @@ export default function AuditLogView({ currentUser, onCancel }) {
   const [total, setTotal] = useState(0);
   const [checking, setChecking] = useState(false);
   const [checkResult, setCheckResult] = useState(null);
+  // Retention window reported by the server (months + cutoff + last cleanup).
+  const [retention, setRetention] = useState(null);
+  const [cleaning, setCleaning] = useState(false);
+  const [cleanResult, setCleanResult] = useState(null);
   // A failed load must not read as an empty log. Showing "কোনো এন্ট্রি নেই।"
   // and a 0 count after an error tells the reader the ledger is untouched when
   // its audit trail was simply never fetched.
@@ -21,8 +25,10 @@ export default function AuditLogView({ currentUser, onCancel }) {
     api.getAuditLog(currentUser.username, { page: p, pageSize: 20 }).then((res) => {
       if (res.status === 'SUCCESS') {
         setEntries(res.entries);
+        setPage(res.page);
         setTotalPages(res.totalPages);
         setTotal(res.total);
+        setRetention(res.retention || null);
       } else {
         setLoadError((res && res.message) || 'অডিট লগ লোড করা যায়নি।');
         setEntries([]);
@@ -60,6 +66,24 @@ export default function AuditLogView({ currentUser, onCancel }) {
     });
   };
 
+  const handleCleanup = () => {
+    setCleaning(true);
+    setCleanResult(null);
+    api.runAuditCleanup(currentUser.username).then((res) => {
+      setCleaning(false);
+      if (res.status === 'SUCCESS') {
+        setCleanResult({ ok: true, deleted: res.deleted, skipped: res.skipped, cutoff: res.cutoff });
+        // Re-read so the list reflects the deletions; reset to page 1 if needed.
+        if (page === 1) load(1); else setPage(1);
+      } else {
+        setCleanResult({ error: res.message || 'Cleanup ব্যর্থ হয়েছে।' });
+      }
+    }).catch((err) => {
+      setCleaning(false);
+      setCleanResult({ error: String(err) });
+    });
+  };
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -70,11 +94,42 @@ export default function AuditLogView({ currentUser, onCancel }) {
         <span className="text-xs bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-full font-semibold">{loadError ? '—' : `${total} টি`}</span>
       </div>
 
+      <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl px-3 py-2 text-[11px] text-amber-800 dark:text-amber-200 flex items-start gap-1.5">
+        <i className="fa-solid fa-clock-rotate-left mt-0.5"></i>
+        <span>
+          Audit Log সর্বশেষ {retention ? retention.months : 2} মাসের রেকর্ড সংরক্ষণ করে
+          {retention && retention.cutoff ? <> — {retention.cutoff} এর আগের রেকর্ড স্বয়ংক্রিয়ভাবে মুছে যায়।</> : '।'}
+        </span>
+      </div>
+
+      {isAdmin && retention && retention.lastCleanup && (
+        <div className="text-[10px] text-gray-400 dark:text-gray-500 -mt-1.5 px-1">
+          সর্বশেষ ক্লিনআপ: {retention.lastCleanup.runAt || '—'} ({retention.lastCleanup.deleted || 0} টি মুছেছে)
+        </div>
+      )}
+
       {isAdmin && (
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3.5 shadow-2xs space-y-2">
           <button onClick={handleCheckIntegrity} disabled={checking} className="w-full bg-slate-800 disabled:opacity-50 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5">
             <i className="fa-solid fa-shield-halved"></i> {checking ? 'পরীক্ষা করা হচ্ছে...' : 'Check Transfer Pair Integrity'}
           </button>
+          <button onClick={handleCleanup} disabled={cleaning} className="w-full bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5">
+            <i className="fa-solid fa-broom"></i> {cleaning ? 'পরিষ্কার করা হচ্ছে...' : 'Cleanup now'}
+          </button>
+          {cleanResult && (
+            cleanResult.error ? (
+              <div className="text-xs text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-lg px-2.5 py-2">
+                <i className="fa-solid fa-triangle-exclamation me-1"></i> {cleanResult.error}
+              </div>
+            ) : (
+              <div className="text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg px-2.5 py-2">
+                <i className="fa-solid fa-circle-check me-1"></i>
+                {cleanResult.skipped
+                  ? 'আরেকটি ক্লিনআপ চলছে — পরে আবার চেষ্টা করুন।'
+                  : `Cleanup সম্পন্ন — ${cleanResult.deleted} টি পুরনো এন্ট্রি মুছে ফেলা হয়েছে।`}
+              </div>
+            )
+          )}
         {checkResult && (
           checkResult.error ? (
             <div className="text-xs text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-lg px-2.5 py-2">

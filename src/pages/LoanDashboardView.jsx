@@ -1,9 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api.js";
 import {
-  formatMoney, fmtDate, statusOf, STATUS_META, dateInRange,
+  formatMoney, fmtDate, fmtUpdated, statusOf, STATUS_META, dateInRange,
   STATUS_CHOICES, DATE_CHOICES, avatarClass, initialOf, loanTypeMeta, remainingOf, totalAmountOf,
 } from "../utils/loan.js";
+import { parseServerTimestamp } from "../utils/timestamps.js";
+
+// Newest activity first. updatedAt is a "dd-MMM-yyyy HH:mm" string, so it must
+// be parsed before comparing (string order breaks across months/years). Loans
+// without a usable timestamp sort last.
+function byUpdatedDesc(a, b) {
+  const av = parseServerTimestamp(a.updatedAt);
+  const bv = parseServerTimestamp(b.updatedAt);
+  const aOk = !Number.isNaN(av);
+  const bOk = !Number.isNaN(bv);
+  if (aOk && bOk) return bv - av;
+  if (aOk) return -1;
+  if (bOk) return 1;
+  return 0;
+}
 
 function SumRow({ label, value, accent }) {
   return (
@@ -50,19 +65,6 @@ function SummaryCard({ meta, total, remaining }) {
   );
 }
 
-// Server timestamps are stored as "dd-MMM-yyyy HH:mm" (e.g. "24-Sep-2026 14:30");
-// display them like the loan date (e.g. "24 Sep 2026"), no time.
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-function fmtUpdated(ts) {
-  if (!ts) return "—";
-  const s = String(ts).trim();
-  const d = /^(\d{1,2})-([A-Za-z]{3})-(\d{4})/.exec(s);
-  if (d) return `${d[1]} ${d[2]} ${d[3]}`;
-  const when = new Date(s);
-  if (!isNaN(when.getTime())) return `${when.getDate()} ${MONTHS[when.getMonth()]} ${when.getFullYear()}`;
-  return s;
-}
-
 function LoanCard({ loan, onSelect, creatorName }) {
   const meta = loanTypeMeta(loan.type);
   const status = statusOf(loan);
@@ -107,9 +109,10 @@ function LoanCard({ loan, onSelect, creatorName }) {
       </div>
 
       <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-gray-100 dark:border-gray-800">
-        <div className="text-[10px] text-gray-400 dark:text-gray-500 flex items-center gap-2">
-          <span><i className="fa-solid fa-calendar-day me-1"></i>{fmtDate(loan.loanDate)}</span>
-          {loan.dueDate && <span><i className="fa-solid fa-hourglass-half me-1"></i>{fmtDate(loan.dueDate)}</span>}
+        <div className="text-[10px] text-gray-400 dark:text-gray-500 flex items-center gap-2 min-w-0">
+          <span className="truncate max-w-[45%]"><i className="fa-solid fa-wallet me-1"></i>{loan.walletName || "—"}</span>
+          <span className="shrink-0"><i className="fa-solid fa-calendar-day me-1"></i>{fmtDate(loan.loanDate)}</span>
+          {loan.dueDate && <span className="shrink-0"><i className="fa-solid fa-hourglass-half me-1"></i>{fmtDate(loan.dueDate)}</span>}
         </div>
         <div className="text-right ml-2 flex items-center justify-end gap-x-2 flex-wrap">
           {creatorName && (
@@ -312,7 +315,7 @@ export default function LoanDashboardView({ currentUser, loans, onLoansChange, c
       if (filters.remaining === "due" && remaining <= 0) return false;
       if (filters.remaining === "done" && remaining > 0) return false;
       return true;
-    });
+    }).sort(byUpdatedDesc);
   }, [list, search, filters]);
 
   const activeFilterCount = useMemo(() => {

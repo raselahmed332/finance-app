@@ -10,6 +10,7 @@ import {
 import { api, session, onAuthFailure, AUTH_FAILURE_CODES } from "./api.js";
 import { useToast } from "./components/Toast.jsx";
 import { useConfirm } from "./components/ConfirmDialog.jsx";
+import Popup from "./components/Popup.jsx";
 import { loadCurrencies } from "./utils/currency.js";
 import { setAccounts as setAccountsRegistry, resetAccounts } from "./utils/accounts.js";
 import { todayStr } from "./utils/loan.js";
@@ -73,6 +74,9 @@ export default function App() {
   const toast = useToast();
   const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState("home");
+  // Income / Expense / Transfer are entered in a popup overlay rather than a
+  // full page. null = closed; otherwise the form key.
+  const [formModal, setFormModal] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [usersList, setUsersList] = useState([]);
   const [wallets, setWallets] = useState([]);
@@ -183,6 +187,7 @@ export default function App() {
     setFilterUser("All");
     setFilterAccount("All");
     setActiveTab("home");
+    setFormModal(null);
   }, []);
 
   // Hard logout: drops the token and every user-scoped list. Used both for an
@@ -403,6 +408,8 @@ export default function App() {
     return Array.from(byId.values());
   };
 
+  const closeForm = useCallback(() => setFormModal(null), []);
+
   const handleSaveTransaction = (formData) => {
     setLoading(true);
     return api
@@ -414,7 +421,6 @@ export default function App() {
             res.transactions || (res.transaction ? [res.transaction] : []);
           if (newTxns.length)
             setTransactions((prev) => upsertTxns(prev, newTxns));
-          setActiveTab("home");
         }
         setLoading(false);
         return res;
@@ -425,6 +431,14 @@ export default function App() {
         throw err;
       });
   };
+
+  // The modal forms close themselves on a successful save; a failed save stays
+  // open so the user can correct the input without retyping it.
+  const handleModalSave = (formData) =>
+    handleSaveTransaction(formData).then((res) => {
+      if (res && res.status === "SUCCESS") setFormModal(null);
+      return res;
+    });
 
   const handleDeleteTxn = async (id, walletId) => {
     const ok = await confirm({
@@ -970,37 +984,6 @@ export default function App() {
               />
             )}
 
-            {can("ADD_INCOME") && activeTab === "income" && (
-              <IncomeForm
-                wallets={wallets}
-                categories={categories}
-                currentUser={currentUser}
-                onSave={handleSaveTransaction}
-                onCancel={() => setActiveTab("home")}
-              />
-            )}
-
-            {can("ADD_EXPENSE") && activeTab === "expense" && (
-              <ExpenseForm
-                wallets={wallets}
-                categories={categories}
-                currentUser={currentUser}
-                onSave={handleSaveTransaction}
-                onCancel={() => setActiveTab("home")}
-              />
-            )}
-
-            {(can("BANK_OPERATIONS") || can("TRANSFER_MONEY")) &&
-              (activeTab === "transfer" || activeTab === "bank") && (
-              <MoveMoneyForm
-                wallets={wallets}
-                currentUser={currentUser}
-                can={can}
-                onSave={handleSaveTransaction}
-                onCancel={() => setActiveTab("home")}
-              />
-            )}
-
             {can("VIEW_TRANSACTIONS") && activeTab === "transactions" && (
               <TransactionsView
                 transactions={transactions}
@@ -1204,6 +1187,7 @@ export default function App() {
             {canSavings && activeTab === "savings" && (
               <SavingsDashboardView
                 currentUser={currentUser}
+                users={usersList}
                 canCreate={canCreateSavings}
                 onAdd={() => setActiveTab("savings-add")}
                 onOpenDetails={(planId) =>
@@ -1351,7 +1335,7 @@ export default function App() {
         <div className="fixed bottom-20 left-0 right-0 max-w-[480px] md:max-w-[1000px] mx-auto px-4 flex flex-col items-end gap-2.5 z-40 pointer-events-none">
           {can("ADD_INCOME") && (
             <button
-              onClick={() => setActiveTab("income")}
+              onClick={() => setFormModal("income")}
               aria-label="Income"
               title="Income (আয়)"
               className="pointer-events-auto w-12 h-12 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/40 flex items-center justify-center active:scale-95 transition-transform"
@@ -1361,7 +1345,7 @@ export default function App() {
           )}
           {can("ADD_EXPENSE") && (
             <button
-              onClick={() => setActiveTab("expense")}
+              onClick={() => setFormModal("expense")}
               aria-label="Expense"
               title="Expense (খরচ)"
               className="pointer-events-auto w-12 h-12 rounded-full bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-600/40 flex items-center justify-center active:scale-95 transition-transform"
@@ -1371,6 +1355,46 @@ export default function App() {
           )}
         </div>
       )}
+
+      {/* Income / Expense / Transfer popups */}
+      <Suspense fallback={null}>
+        {can("ADD_INCOME") && formModal === "income" && (
+          <Popup open title="Income (আয় যোগ করুন)" onClose={closeForm} maxWidth="max-w-md">
+            <IncomeForm
+              embedded
+              wallets={wallets}
+              categories={categories}
+              currentUser={currentUser}
+              onSave={handleModalSave}
+              onCancel={closeForm}
+            />
+          </Popup>
+        )}
+        {can("ADD_EXPENSE") && formModal === "expense" && (
+          <Popup open title="Expense (খরচ যোগ করুন)" onClose={closeForm} maxWidth="max-w-md">
+            <ExpenseForm
+              embedded
+              wallets={wallets}
+              categories={categories}
+              currentUser={currentUser}
+              onSave={handleModalSave}
+              onCancel={closeForm}
+            />
+          </Popup>
+        )}
+        {(can("TRANSFER_MONEY") || can("BANK_OPERATIONS")) && formModal === "transfer" && (
+          <Popup open title="Transfer (ট্রান্সফার)" onClose={closeForm} maxWidth="max-w-md">
+            <MoveMoneyForm
+              embedded
+              wallets={wallets}
+              currentUser={currentUser}
+              can={can}
+              onSave={handleModalSave}
+              onCancel={closeForm}
+            />
+          </Popup>
+        )}
+      </Suspense>
 
       {/* Bottom Nav */}
       <nav className="app-bottom-nav fixed bottom-0 left-0 right-0 max-w-[480px] md:max-w-[1000px] mx-auto bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 flex justify-around items-center py-2 z-40 shadow-lg">
@@ -1399,9 +1423,9 @@ export default function App() {
         )}
         {(can("TRANSFER_MONEY") || can("BANK_OPERATIONS")) && (
           <button
-            onClick={() => setActiveTab("transfer")}
+            onClick={() => setFormModal("transfer")}
             className={`flex flex-col items-center text-xs font-medium ${
-              activeTab === "transfer" || activeTab === "bank"
+              formModal === "transfer"
                 ? "text-emerald-600"
                 : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"
             }`}
