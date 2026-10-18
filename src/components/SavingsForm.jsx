@@ -92,6 +92,9 @@ export default function SavingsForm({ can, wallets, currentUser, onSave, onCance
   const selectedWallet = (wallets || []).find((w) => String(w.WalletID) === String(walletId));
   const currency = selectedWallet?.Currency || "";
   const meta = SAVINGS_TYPE_META[type];
+  // Rounds are derived from the member count when members exist (one round per member).
+  const derivedRounds = type === "GROUP" && members.length > 0 ? members.length : null;
+  const effectiveRounds = derivedRounds || rounds;
 
   const changeWallet = (id) => {
     setWalletId(id);
@@ -134,7 +137,8 @@ export default function SavingsForm({ can, wallets, currentUser, onSave, onCance
       else if (!Number.isFinite(c) || c <= 0) e.contribution = "পরিমাণ ০-এর বেশি হতে হবে।";
       else delete e.contribution;
       const r = parseInt(rounds, 10);
-      if (!rounds || rounds === "") e.rounds = "রাউন্ড সংখ্যা লিখুন।";
+      if (derivedRounds) delete e.rounds;
+      else if (!rounds || rounds === "") e.rounds = "রাউন্ড সংখ্যা লিখুন।";
       else if (!Number.isFinite(r) || r < 1 || r > 1000) e.rounds = "রাউন্ড ১ থেকে ১০০০ এর মধ্যে দিন।";
       else delete e.rounds;
     } else if (type === "FIXED") {
@@ -173,7 +177,7 @@ export default function SavingsForm({ can, wallets, currentUser, onSave, onCance
     };
     if (type === "GROUP") {
       payload.contribution = contribution;
-      payload.rounds = rounds;
+      payload.rounds = effectiveRounds;
       payload.frequency = frequency;
       payload.groupNote = groupNote.trim();
       payload.members = members.map((m) => ({ name: m }));
@@ -225,7 +229,7 @@ export default function SavingsForm({ can, wallets, currentUser, onSave, onCance
         <div className="bg-slate-50 dark:bg-slate-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3 text-xs text-slate-800 dark:text-gray-100 space-y-1.5">
           <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">ধরন</span><span className="font-bold">{meta.label}</span></div>
           <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">নাম</span><span className="font-bold text-right">{p.Name || name}</span></div>
-          {type === "GROUP" && <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">কিস্তি</span><span className="font-bold">{cur} {moneyText(contribution)} × {rounds}</span></div>}
+          {type === "GROUP" && <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">কিস্তি</span><span className="font-bold">{cur} {moneyText(contribution)} × {effectiveRounds}</span></div>}
           {type === "FIXED" && <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">পরিমাণ</span><span className="font-bold">{cur} {moneyText(amount)} / {durationMonths} মাস</span></div>}
           <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">Wallet</span><span className="font-bold">{p.WalletName || selectedWallet?.WalletName || "—"}</span></div>
           <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">Wallet Account</span><span className="font-bold">{accountName(p.WalletID, p.Account || account)}</span></div>
@@ -306,14 +310,25 @@ export default function SavingsForm({ can, wallets, currentUser, onSave, onCance
 
               {type === "GROUP" && (
                 <>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Field label={`কিস্তির পরিমাণ (${currency || "..."})`} error={errors.contribution}>
-                      <input type="number" step="any" min="0.01" value={contribution} onChange={(e) => setContribution(e.target.value)} placeholder="0.00" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm font-semibold focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-900 dark:text-gray-100" />
-                    </Field>
-                    <Field label="রাউন্ড সংখ্যা" error={errors.rounds}>
-                      <input type="number" step="1" min="1" value={rounds} onChange={(e) => setRounds(e.target.value)} placeholder="যেমন: ১০" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-900 dark:text-gray-100" />
-                    </Field>
-                  </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Field label={`কিস্তির পরিমাণ (${currency || "..."})`} error={errors.contribution}>
+                  <input type="number" step="any" min="0.01" value={contribution} onChange={(e) => setContribution(e.target.value)} placeholder="0.00" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm font-semibold focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-900 dark:text-gray-100" />
+                </Field>
+                {derivedRounds ? (
+                  <Field label="রাউন্ড">
+                    <div className="w-full border border-gray-200 dark:border-slate-600 rounded-xl px-3 py-2 text-sm bg-gray-50 dark:bg-slate-700 text-gray-500 dark:text-gray-400">
+                      {derivedRounds} <span className="text-[10px]">(সদস্য সংখ্যা)</span>
+                    </div>
+                  </Field>
+                ) : (
+                  <Field label="রাউন্ড সংখ্যা" error={errors.rounds}>
+                    <input type="number" min="1" value={rounds} onChange={(e) => setRounds(e.target.value)} placeholder="0" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-900 dark:text-gray-100" />
+                  </Field>
+                )}
+              </div>
+              {members.length === 0 && (
+                <div className="text-[10px] text-gray-500 dark:text-gray-400 -mt-1">সদস্য যোগ করলে রাউন্ড স্বয়ংক্রিয়ভাবে সদস্য সংখ্যার সমান হয়ে যাবে।</div>
+              )}
 
                   <Field label="ফ্রিকোয়েন্সি">
                     <Select value={frequency} onChange={setFrequency}>
@@ -387,7 +402,7 @@ export default function SavingsForm({ can, wallets, currentUser, onSave, onCance
                 {type === "GROUP" && (
                   <>
                     <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">কিস্তি</span><span className="font-bold">{currency} {moneyText(contribution)}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">রাউন্ড</span><span className="font-bold">{rounds}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">রাউন্ড</span><span className="font-bold">{effectiveRounds}</span></div>
                     <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">ফ্রিকোয়েন্সি</span><span className="font-bold">{(FREQUENCIES.find((f) => f.value === frequency) || {}).label || frequency}</span></div>
                     <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">সদস্য</span><span className="font-bold">{members.length}</span></div>
                   </>

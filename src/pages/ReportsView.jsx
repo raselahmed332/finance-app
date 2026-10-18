@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { api } from "../api.js";
 import Chart from "chart.js/auto";
 import { downloadCsv } from "../utils/csvExport.js";
+import { saveBlob, shareBlob, isNative } from "../utils/files.js";
 import Select from "../components/Select.jsx";
 import Popup from "../components/Popup.jsx";
 import { todayStr } from "../utils/loan.js";
@@ -205,32 +206,14 @@ export default function ReportsView({ wallets, currentUser, users }) {
 
   const downloadPdf = () => {
     if (!pdfPreview) return;
-    const a = document.createElement('a');
-    a.href = pdfPreview.url;
-    a.download = pdfPreview.filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    saveBlob(pdfPreview.filename, pdfPreview.blob);
   };
 
-  // Native share where supported (Android/iOS share sheet), otherwise fall back
-  // to a normal download so the action always works.
+  // Native share sheet on the Android/iOS shell, Web Share API on supported
+  // browsers, and an ordinary download everywhere else.
   const sharePdf = async () => {
     if (!pdfPreview) return;
-    const { blob, filename } = pdfPreview;
-    try {
-      if (typeof File !== 'undefined' && navigator.canShare) {
-        const file = new File([blob], filename, { type: 'application/pdf' });
-        if (navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: filename });
-          return;
-        }
-      }
-      downloadPdf();
-    } catch (e) {
-      if (e && e.name === 'AbortError') return; // user closed the share sheet
-      downloadPdf();
-    }
+    await shareBlob(pdfPreview.filename, pdfPreview.blob, pdfPreview.filename);
   };
 
   // Accounts available to filter by: the wallet's registered accounts (from the
@@ -646,13 +629,21 @@ export default function ReportsView({ wallets, currentUser, users }) {
       >
         {pdfPreview && (
           <>
-            <div className="w-full h-[55vh] rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-800">
-              <iframe
-                src={pdfPreview.url}
-                title={pdfPreview.filename}
-                className="w-full h-full"
-              ></iframe>
-            </div>
+            {isNative() ? (
+              <div className="w-full rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 px-4 py-6 text-center">
+                <i className="fa-solid fa-file-pdf text-3xl text-rose-500"></i>
+                <p className="mt-2 text-xs font-semibold text-slate-700 dark:text-gray-200 break-all">{pdfPreview.filename}</p>
+                <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">PDF তৈরি হয়েছে। ডাউনলোড বা শেয়ার করুন।</p>
+              </div>
+            ) : (
+              <div className="w-full h-[55vh] rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-800">
+                <iframe
+                  src={pdfPreview.url}
+                  title={pdfPreview.filename}
+                  className="w-full h-full"
+                ></iframe>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={downloadPdf}

@@ -162,6 +162,7 @@ export const api = {
   addSavingsFixedPayment: (data) => callApi("addSavingsFixedPayment", [data]),
   closeSavingsFixedPlan: (data) => callApi("closeSavingsFixedPlan", [data]),
   addSavingsFlexDeposit: (data) => callApi("addSavingsFlexDeposit", [data]),
+  closeSavingsFlexPlan: (data) => callApi("closeSavingsFlexPlan", [data]),
   addSavingsFlexWithdrawal: (data) => callApi("addSavingsFlexWithdrawal", [data]),
   deleteSavingsFlexTransaction: (txnId, type, adminUsername) => callApi("deleteSavingsFlexTransaction", [txnId, type, adminUsername]),
 

@@ -837,7 +837,7 @@ function FinancialAccountsManager({ currentUser, can, showAlert, wallets }) {
   };
 
   const handleRetire = async (a) => {
-    const ok = await confirm({ message: `"${a.Name}" অ্যাকাউন্ট নিষ্ক্রিয় করবেন? পুরনো লেনদেন অক্ষত থাকবে, শুধু নতুন এন্ট্রিতে দেখাবে না।` });
+    const ok = await confirm({ message: `"${a.Name}" অ্যাকাউন্ট মুছবেন? কোনো লেনদেন ও ব্যালেন্স না থাকলে ডাটাবেস থেকে স্থায়ীভাবে মুছে যাবে। লেনদেন/ব্যালেন্স থাকলে নিষ্ক্রিয় হবে এবং এই পেজে দেখাবে — এখান থেকেই আবার সক্রিয় করা যাবে।` });
     if (!ok) return;
     api.deleteFinancialAccount(a.AccountID, { walletId: selectedWalletId }, currentUser.username).then((res) => {
       showAlert(res.message, res.status === 'ERROR' ? 'error' : 'success');

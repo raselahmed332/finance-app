@@ -173,6 +173,10 @@ export default function SavingsDetailsView({ planId, currentUser, wallets, can, 
       base.closureDate = todayStr();
       base.closureAmount = "";
       base.closureNote = "";
+    } else if (kind === "close-flex") {
+      base.closureDate = todayStr();
+      base.closureAmount = plan?.Summary?.Balance ? String(plan.Summary.Balance) : "";
+      base.closureNote = "";
     } else if (kind === "add-member" || kind === "edit-member") {
       base.memberName = extra.memberName || "";
     } else if (kind === "deposit" || kind === "withdraw") {
@@ -226,6 +230,12 @@ export default function SavingsDetailsView({ planId, currentUser, wallets, can, 
         closureNote: form.closureNote, account: form.account,
       }));
     }
+    if (kind === "close-flex") {
+      return run(api.closeSavingsFlexPlan({
+        user, planId, closureDate: form.closureDate, closureAmount: form.closureAmount,
+        closureNote: form.closureNote, account: form.account,
+      }));
+    }
     if (kind === "deposit") {
       return run(api.addSavingsFlexDeposit({
         user, planId, amount: form.amount, date: form.date, account: form.account,
@@ -263,6 +273,10 @@ export default function SavingsDetailsView({ planId, currentUser, wallets, can, 
 
   const saveOrder = () => {
     run(api.setSavingsGroupRecipientOrder({ user: currentUser.username, planId, order: orderIds }));
+  };
+
+  const toggleSelf = (member) => {
+    run(api.updateSavingsGroupMember({ memberId: member.MemberID, isSelf: !member.IsSelf }, currentUser.username));
   };
 
   const moveOrder = (idx, dir) => {
@@ -315,11 +329,11 @@ export default function SavingsDetailsView({ planId, currentUser, wallets, can, 
 
           {type === "GROUP" && (
             <GroupSection
-              plan={plan} details={details} currency={currency} money={money}
+              plan={plan} details={details} money={money}
               canManage={canManage} canTxn={canTxn} canAddMember={canAddMember} closed={closed}
               orderIds={orderIds} membersById={membersById} alreadyReceived={alreadyReceived} openRounds={openRounds}
               onMoveOrder={moveOrder} onSaveOrder={saveOrder} onOpenModal={openModal}
-              onRemoveMember={removeMember}
+              onRemoveMember={removeMember} onToggleSelf={toggleSelf}
             />
           )}
           {type === "FIXED" && (
@@ -332,7 +346,7 @@ export default function SavingsDetailsView({ planId, currentUser, wallets, can, 
           {type === "FLEXIBLE" && (
             <FlexSection
               plan={plan} details={details} currency={currency} money={money}
-              canTxn={canTxn} canManageTxn={canManageTxn} closed={closed}
+              canTxn={canTxn} canManage={canManage} canManageTxn={canManageTxn} closed={closed}
               onOpenModal={openModal} onDelete={deleteFlexTxn}
             />
           )}
@@ -341,7 +355,7 @@ export default function SavingsDetailsView({ planId, currentUser, wallets, can, 
 
       <ModalPopup
         modal={modal} form={form} set={set} busy={busy}
-        currency={currency} account={plan?.Account} walletId={plan?.WalletID}
+        currency={currency} account={plan?.Account} walletId={plan?.WalletID} plan={plan}
         members={details?.members || []} openRounds={openRounds} money={money}
         alreadyReceived={alreadyReceived}
         onClose={() => (busy ? null : setModal(null))} onSubmit={submitModal}
@@ -352,7 +366,7 @@ export default function SavingsDetailsView({ planId, currentUser, wallets, can, 
 
 /* ---------------- GROUP ---------------- */
 
-function GroupSection({ plan, details, money, canManage, canTxn, canAddMember, closed, orderIds, membersById, alreadyReceived, openRounds, onMoveOrder, onSaveOrder, onOpenModal, onRemoveMember }) {
+function GroupSection({ plan, details, money, canManage, canTxn, canAddMember, closed, orderIds, membersById, alreadyReceived, openRounds, onMoveOrder, onSaveOrder, onOpenModal, onRemoveMember, onToggleSelf }) {
   const group = plan.Group || {};
   const summary = plan.Summary || {};
   const obligations = details?.obligations || [];
@@ -389,6 +403,13 @@ function GroupSection({ plan, details, money, canManage, canTxn, canAddMember, c
         </div>
       )}
 
+      {canManage && !closed && orderedMembers.length > 0 && !orderedMembers.some((m) => m.IsSelf) && (
+        <div className="text-[11px] rounded-xl p-2.5 border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 flex items-start gap-2">
+          <i className="fa-solid fa-circle-info mt-0.5"></i>
+          <span>নিচের তালিকা থেকে একজন সদস্যকে <b>আমি</b> হিসেবে চিহ্নিত করুন। শুধু চিহ্নিত সদস্যের কিস্তি আপনার Wallet থেকে কাটবে এবং তার পেআউট Wallet-এ যোগ হবে।</span>
+        </div>
+      )}
+
       {/* Members */}
       <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl p-3">
         <div className="flex items-center justify-between mb-2">
@@ -414,11 +435,19 @@ function GroupSection({ plan, details, money, canManage, canTxn, canAddMember, c
                   <span className="w-6 h-6 rounded-full bg-slate-100 dark:bg-gray-700 text-slate-600 dark:text-gray-300 text-[10px] font-bold flex items-center justify-center shrink-0">{idx + 1}</span>
                   <span className="text-xs font-semibold text-slate-700 dark:text-gray-200 truncate">
                     {m.MemberName}
+                    {m.IsSelf && <span className="ms-1.5 text-[9px] font-bold text-sky-600 dark:text-sky-400">আমি</span>}
                     {alreadyReceived[String(m.MemberID)] && <span className="ms-1.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400">✓ গ্রহণ করেছেন</span>}
                   </span>
                 </div>
                 {canManage && !closed && (
                   <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => onToggleSelf(m)}
+                      title="আমার অ্যাকাউন্ট হিসেবে চিহ্নিত করুন"
+                      className={`h-6 px-1.5 rounded border text-[9px] font-bold ${m.IsSelf ? "border-sky-400 text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-900/30" : "border-gray-200 dark:border-slate-600 text-gray-500"}`}
+                    >
+                      আমি
+                    </button>
                     <button onClick={() => onMoveOrder(idx, -1)} disabled={idx === 0} className="w-6 h-6 rounded border border-gray-200 dark:border-slate-600 text-gray-500 disabled:opacity-30"><i className="fa-solid fa-chevron-up text-[9px]"></i></button>
                     <button onClick={() => onMoveOrder(idx, 1)} disabled={idx === orderedMembers.length - 1} className="w-6 h-6 rounded border border-gray-200 dark:border-slate-600 text-gray-500 disabled:opacity-30"><i className="fa-solid fa-chevron-down text-[9px]"></i></button>
                     <button onClick={() => onOpenModal("edit-member", { memberId: m.MemberID, memberName: m.MemberName })} className="w-6 h-6 rounded border border-gray-200 dark:border-slate-600 text-gray-500"><i className="fa-solid fa-pen text-[9px]"></i></button>
@@ -566,11 +595,17 @@ function FixedSection({ plan, details, money, canManage, canTxn, closed, onGener
 
 /* ---------------- FLEXIBLE ---------------- */
 
-function FlexSection({ plan, details, money, canTxn, canManageTxn, closed, onOpenModal, onDelete }) {
+function FlexSection({ plan, details, money, canTxn, canManage, canManageTxn, closed, onOpenModal, onDelete }) {
   const summary = plan.Summary || {};
   const deposits = (details?.deposits || []).map((d) => ({ ...d, _kind: "deposit", _id: d.DepositID }));
   const withdrawals = (details?.withdrawals || []).map((w) => ({ ...w, _kind: "withdrawal", _id: w.WithdrawalID }));
-  const txns = [...deposits, ...withdrawals].sort((a, b) => (String(b.Date) > String(a.Date) ? 1 : String(b.Date) < String(a.Date) ? -1 : 0));
+  const txns = [...deposits, ...withdrawals].sort((a, b) => {
+    const da = String(a.Date || ""), db = String(b.Date || "");
+    if (db !== da) return db > da ? 1 : -1;
+    const ca = String(a.CreatedAt || ""), cb = String(b.CreatedAt || "");
+    if (cb !== ca) return cb > ca ? 1 : -1;
+    return String(b._id).localeCompare(String(a._id));
+  });
 
   return (
     <div className="space-y-4">
@@ -589,6 +624,15 @@ function FlexSection({ plan, details, money, canTxn, canManageTxn, closed, onOpe
             <i className="fa-solid fa-arrow-up me-1"></i> উত্তোলন
           </button>
         </div>
+      )}
+
+      {canManage && !closed && (
+        <button
+          onClick={() => onOpenModal("close-flex")}
+          className="w-full border border-rose-300 dark:border-rose-800 text-rose-600 dark:text-rose-400 font-bold py-2.5 rounded-xl text-xs"
+        >
+          <i className="fa-solid fa-lock me-1"></i> সঞ্চয় বন্ধ করুন
+        </button>
       )}
 
       <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl p-3">
@@ -629,7 +673,7 @@ function FlexSection({ plan, details, money, canTxn, canManageTxn, closed, onOpe
 
 /* ---------------- MODAL ---------------- */
 
-function ModalPopup({ modal, form, set, busy, currency, walletId, members, openRounds, money, alreadyReceived, onClose, onSubmit }) {
+function ModalPopup({ modal, form, set, busy, currency, walletId, plan, members, openRounds, money, alreadyReceived, onClose, onSubmit }) {
   if (!modal) return null;
   const kind = modal.kind;
 
@@ -640,15 +684,18 @@ function ModalPopup({ modal, form, set, busy, currency, walletId, members, openR
     payout: "পেউআউট / গ্রহণ",
     "pay-installment": "কিস্তি পরিশোধ",
     "close-fixed": "পরিকল্পনা বন্ধ করুন",
+    "close-flex": "সঞ্চয় বন্ধ করুন",
     deposit: "সঞ্চয়ে জমা",
     withdraw: "সঞ্চয় উত্তোলন",
   };
 
   const isAmount = ["contribution", "payout", "pay-installment", "deposit", "withdraw"].includes(kind);
-  const showDate = kind !== "add-member" && kind !== "edit-member" && kind !== "close-fixed";
-  const showAccount = isAmount;
+  const showDate = kind !== "add-member" && kind !== "edit-member" && kind !== "close-fixed" && kind !== "close-flex";
+  const showAccount = isAmount || kind === "close-flex";
 
   const availableRecipients = (members || []).filter((m) => !alreadyReceived[String(m.MemberID)] || String(m.MemberID) === String(form.recipientMemberId));
+  const selectedMember = (members || []).find((m) => String(m.MemberID) === String(form.memberId));
+  const selectedRecipient = (members || []).find((m) => String(m.MemberID) === String(form.recipientMemberId));
 
   return (
     <Popup open title={titles[kind] || "সঞ্চয়"} onClose={onClose}>
@@ -673,8 +720,11 @@ function ModalPopup({ modal, form, set, busy, currency, walletId, members, openR
               </Select>
             </Field>
             <Field label="রাউন্ড">
-              <input type="number" min="1" value={form.round || ""} onChange={(e) => set({ round: e.target.value })} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" />
+              <input type="number" min="1" max={members?.length || undefined} value={form.round || ""} onChange={(e) => set({ round: e.target.value })} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" />
             </Field>
+            <div className={`text-[10px] rounded-xl p-2 ${selectedMember?.IsSelf ? "bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-300" : "bg-slate-50 dark:bg-slate-700/40 text-slate-500 dark:text-gray-400"}`}>
+              {selectedMember?.IsSelf ? "এই সদস্য 'আমি' — Wallet থেকে টাকা কাটা হবে।" : "এই সদস্য 'আমি' নয় — শুধু রেকর্ড হবে, Wallet থেকে টাকা কাটা হবে না।"}
+            </div>
           </>
         )}
 
@@ -695,6 +745,9 @@ function ModalPopup({ modal, form, set, busy, currency, walletId, members, openR
                 {availableRecipients.map((m) => <option key={m.MemberID} value={m.MemberID}>{m.MemberName}</option>)}
               </Select>
             </Field>
+            <div className={`text-[10px] rounded-xl p-2 ${selectedRecipient?.IsSelf ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-300" : "bg-slate-50 dark:bg-slate-700/40 text-slate-500 dark:text-gray-400"}`}>
+              {selectedRecipient?.IsSelf ? "গ্রহণকারী 'আমি' — টাকা Wallet-এ যোগ হবে।" : "গ্রহণকারী 'আমি' নয় — Wallet-এ টাকা যোগ হবে না, শুধু রেকর্ড হবে।"}
+            </div>
           </>
         )}
 
@@ -735,6 +788,23 @@ function ModalPopup({ modal, form, set, busy, currency, walletId, members, openR
             </Field>
             <Field label={`ফেরত পরিমাণ (ঐচ্ছিক, ${currency})`}>
               <input type="number" step="any" min="0" value={form.closureAmount || ""} onChange={(e) => set({ closureAmount: e.target.value })} placeholder="0.00" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" />
+            </Field>
+            <Field label="নোট (ঐচ্ছিক)">
+              <input type="text" value={form.closureNote || ""} onChange={(e) => set({ closureNote: e.target.value })} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" />
+            </Field>
+          </>
+        )}
+
+        {kind === "close-flex" && (
+          <>
+            <div className="text-[11px] rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 p-2.5">
+              বন্ধ করলে অবশিষ্ট সঞ্চয় ব্যালেন্স ({money(plan?.Summary?.Balance || 0)}) ওয়ালেটে ফেরত যাবে।
+            </div>
+            <Field label="বন্ধের তারিখ">
+              <input type="date" value={form.closureDate || ""} onChange={(e) => set({ closureDate: e.target.value })} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" />
+            </Field>
+            <Field label={`ফেরত পরিমাণ (${currency})`}>
+              <input type="number" step="any" min="0" value={form.closureAmount || ""} readOnly className="w-full border border-gray-200 dark:border-slate-600 rounded-xl px-3 py-2 text-sm bg-gray-50 dark:bg-slate-700 text-gray-500 dark:text-gray-400" />
             </Field>
             <Field label="নোট (ঐচ্ছিক)">
               <input type="text" value={form.closureNote || ""} onChange={(e) => set({ closureNote: e.target.value })} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" />
