@@ -62,36 +62,36 @@ export default function LoginScreen({ onLogin }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+    <div className="min-h-screen bg-slate-900 dark:bg-gray-950 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 w-full max-w-sm shadow-2xl border border-transparent dark:border-gray-800">
         <div className="text-center mb-6">
-          <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-2xl mx-auto mb-2">
+          <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center text-2xl mx-auto mb-2">
             <i className="fa-solid fa-wallet"></i>
           </div>
-          <h2 className="text-xl font-bold text-slate-800">মাই পার্সোনাল হিসাব</h2>
-          <p className="text-xs text-gray-500">আপনার ব্যক্তিগত ও ফ্যামিলি আয়-ব্যয় ম্যানেজার</p>
+          <h2 className="text-xl font-bold text-slate-800 dark:text-gray-100">মাই পার্সোনাল হিসাব</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400">আপনার ব্যক্তিগত ও ফ্যামিলি আয়-ব্যয় ম্যানেজার</p>
         </div>
 
         <form onSubmit={handleLoginSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">ইউজারনেম (Username)</label>
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">ইউজারনেম (Username)</label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="Enter username"
-              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder:text-slate-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               required
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">পিন (PIN)</label>
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">পিন (PIN)</label>
             <div className="relative">
               <input
                 type={showPin ? "text" : "password"}
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
-                className="w-full border border-gray-300 rounded-xl px-3 py-2 pr-10 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 pr-10 text-sm text-slate-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder:text-slate-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 placeholder="****"
                 required
               />
@@ -100,14 +100,14 @@ export default function LoginScreen({ onLogin }) {
                 onClick={() => setShowPin(!showPin)}
                 tabIndex={-1}
                 title={showPin ? "পিন লুকান" : "পিন দেখান"}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-emerald-600 px-1.5 py-1"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-emerald-600 dark:hover:text-emerald-400 px-1.5 py-1"
               >
                 <i className={`fa-solid ${showPin ? "fa-eye-slash" : "fa-eye"} text-sm`}></i>
               </button>
             </div>
           </div>
 
-          <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none">
+          <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300 cursor-pointer select-none">
             <input
               type="checkbox"
               checked={remember}
@@ -115,7 +115,7 @@ export default function LoginScreen({ onLogin }) {
               className="accent-emerald-600 w-4 h-4"
             />
             <span>
-              <i className="fa-solid fa-bookmark me-1 text-emerald-600 text-[10px]"></i>
+              <i className="fa-solid fa-bookmark me-1 text-emerald-600 dark:text-emerald-400 text-[10px]"></i>
               মনে রাখুন (Remember Username)
             </span>
           </label>
