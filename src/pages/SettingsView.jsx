@@ -10,7 +10,7 @@ import { loadAccounts } from "../utils/accounts.js";
 // Shared input look for every form control on this screen so the two manager
 // cards read as one design system.
 const INPUT_CLS =
-  "w-full border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-slate-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-colors";
+  "w-full border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-colors";
 
 const LABEL_CLS = "block text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1";
 
