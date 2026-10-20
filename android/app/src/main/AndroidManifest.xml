@@ -33,4 +33,7 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- In-app self-update: lets this app hand a downloaded APK to Android's
+         package installer. The user still approves every install. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 </manifest>

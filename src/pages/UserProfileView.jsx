@@ -7,6 +7,13 @@ import Popup from "../components/Popup.jsx";
 import { useToast } from "../components/Toast.jsx";
 import TransactionCard from "../components/TransactionCard.jsx";
 import { compareNewestFirst } from "../utils/sortTransactions.js";
+import {
+  isNativeAndroid,
+  getInstalledVersion,
+  checkForUpdate,
+  downloadUpdate,
+  openDownloadedApk,
+} from "../utils/updater.js";
 
 const DEFAULT_WALLET_KEY = "hisab_default_wallet";
 
@@ -225,6 +232,59 @@ export default function UserProfileView({ currentUser, transactions, wallets, da
                 <MenuButton icon="fa-user-pen" label="Edit Profile" sub="নাম, ছবি, ডিফল্ট Wallet" onClick={() => { setEditName(currentUser.fullName || currentUser.username || ''); setActiveCard('edit'); setMenuOpen(false); }} />
                 <MenuButton icon="fa-key" label="Change Password" sub="PIN পরিবর্তন করুন" onClick={() => { setCurrentPin(''); setNewPin(''); setConfirmPin(''); setActiveCard('password'); setMenuOpen(false); }} />
                 {can?.('BACKUP_RESTORE') && <MenuButton icon="fa-download" label="Backup & Restore" sub="ব্যাকআপ ডাউনলোড/রিস্টোর" onClick={() => { setMenuOpen(false); setActiveTab('backup'); }} />}
+                {isNativeAndroid() && (
+                  <MenuButton
+                    icon="fa-rotate"
+                    label="Check for updates"
+                    sub="নতুন APK আপডেট চেক করুন"
+                    onClick={async () => {
+                      setMenuOpen(false);
+                      try {
+                        const installed = await getInstalledVersion();
+                        let msg = "আপডেট চেক করা হচ্ছে...";
+                        const toastId = Date.now();
+                        toast(msg, "success");
+                        const check = await checkForUpdate();
+                        if (!check.hasUpdate) {
+                          if (installed) {
+                            toast(`আপনি সর্বশেষ ভার্সন ব্যবহার করছেন (${installed.versionName})`, "success");
+                          } else {
+                            toast("আপনি সর্বশেষ ভার্সন ব্যবহার করছেন", "success");
+                          }
+                          return;
+                        }
+                        const r = check.release;
+                        const ok = await (async () => {
+                          // use confirm dialog via window? Or better use existing confirm from context
+                          // but this is in a component; easier to use browser confirm? But better import useConfirm - wait, Profile doesn't have it
+                          // Let us use native confirm via simple approach: show via toast + allow user to proceed? Or just trigger download if desired? No, per requirement need to ask user
+                          // UserProfileView doesn't get confirm; App does. But we can use window.confirm in native? Or better just download and install after simple confirm
+                          return window.confirm(
+                            `নতুন ভার্সন ${r.versionName} পাওয়া গেছে (বর্তমান: ${installed?.versionName || "-"}).\nএখনই আপডেট করতে চান?`,
+                          );
+                        })();
+                        if (!ok) return;
+                        toast("আপডেট ডাউনলোড হচ্ছে...", "success");
+                        const dl = await downloadUpdate(r, (p) => {
+                          if (p.percent != null) {
+                            // replace by re-showing? toast is transient; keep simple
+                          }
+                        });
+                        toast("ডাউনলোড সম্পন্ন। Android ইনস্টলার খোলা হচ্ছে...", "success");
+                        await openDownloadedApk(dl.uri);
+                      } catch (e) {
+                        const code = e?.code || "";
+                        if (code === "RATE_LIMITED") {
+                          toast("GitHub রেট লিমিট হয়েছে, কিছুক্ষণ পরে চেষ্টা করুন।", "error");
+                        } else if (code === "NETWORK" || /network/i.test(String(e?.message || e))) {
+                          toast("ইন্টারনেট সংযোগ নেই অথবা GitHub পৌঁছাতে পারছে না।", "error");
+                        } else {
+                          toast("আপডেট চেক করতে ব্যর্থ হয়েছে।", "error");
+                        }
+                      }
+                    }}
+                  />
+                )}
                 <div className="border-t border-gray-100 dark:border-gray-800 my-1"></div>
                 <MenuButton danger icon="fa-right-from-bracket" label="Log Out" sub="সেশন শেষ করুন" onClick={handleLogout} />
               </div>

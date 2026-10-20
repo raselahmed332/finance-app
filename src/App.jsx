@@ -16,6 +16,7 @@ import { setAccounts as setAccountsRegistry, resetAccounts } from "./utils/accou
 import { todayStr } from "./utils/loan.js";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import { registerNativeBackButton } from "./utils/native.js";
+import { isNativeAndroid, checkAndPromptForUpdate } from "./utils/updater.js";
 
 const LoginScreen = lazy(() => import("./pages/LoginScreen.jsx"));
 const DashboardView = lazy(() => import("./pages/DashboardView.jsx"));
@@ -300,6 +301,63 @@ export default function App() {
   useEffect(() => {
     if (!currentUser) return;
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.username]);
+
+  // Automatic update check: runs once per signed-in session, inside the Android
+  // shell only. It is deliberately fire-and-forget so login, rendering and the
+  // dashboard are never delayed or blocked. A declined prompt is remembered for
+  // the session so navigating around never re-asks. Silent on "up to date" and
+  // on any failure (offline, rate limit, malformed release, ...).
+  const updateCheckSession = useRef(0);
+  useEffect(() => {
+    if (!currentUser) return undefined;
+    if (!isNativeAndroid()) return undefined;
+
+    const epoch = sessionEpoch.current;
+    let cancelled = false;
+    updateCheckSession.current += 1;
+
+    checkAndPromptForUpdate({
+      confirmUpdate: (release, installed) =>
+        confirm({
+          title: "নতুন আপডেট পাওয়া গেছে",
+          message: `Amar Hisab-এর নতুন ভার্সন ${release.versionName} পাওয়া গেছে।\nবর্তমান: ${installed.versionName}\nনতুন: ${release.versionName}`,
+          detail: "এখন আপডেট করলে ডেটা অপরিবর্তিত থাকবে।",
+          confirmLabel: "এখনই আপডেট",
+          cancelLabel: "পরে",
+          danger: false,
+        }),
+      notify: ({ phase, percent }) => {
+        if (cancelled || sessionEpoch.current !== epoch) return;
+        if (phase === "downloading") {
+          showAlert(
+            percent != null
+              ? `আপডেট ডাউনলোড হচ্ছে... ${percent}%`
+              : "আপডেট ডাউনলোড হচ্ছে...",
+            "success",
+          );
+        } else if (phase === "installing") {
+          showAlert("ডাউনলোড সম্পন্ন। Android ইনস্টলার খোলা হচ্ছে...", "success");
+        }
+      },
+    }).then((result) => {
+      if (cancelled || sessionEpoch.current !== epoch) return;
+      if (result.status === "ERROR" && result.error) {
+        // Only surface a download/install problem the user actively started.
+        const code = result.error.code;
+        if (
+          code &&
+          !["NETWORK", "OFFLINE", "NO_VERSION", "NOT_NATIVE"].includes(code)
+        ) {
+          showAlert(result.error.message || "আপডেট করা সম্ভব হয়নি।", "error");
+        }
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.username]);
 
