@@ -26,6 +26,32 @@
   }
 }
 
+/* ---------------------------------------------------------------------------
+   Form controls: guarantee a visible font in BOTH themes.
+   Most inputs/selects/textareas only declare a dark-mode text colour
+   (dark:text-gray-100) while using bg-white in light mode. On Android WebView,
+   and whenever the OS is in dark mode but the app is in LIGHT theme, the
+   native control defaults to white text -> white text on a white field.
+   Setting an explicit light-mode text colour and color-scheme fixes every
+   form field app-wide without per-field classes. Fields that DO declare their
+   own text-* colour still win (checked/normal utilities have higher
+   specificity than these element selectors).
+--------------------------------------------------------------------------- */
+.app-input,
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+  color: #1f2937; /* slate-800 */
+  color-scheme: light;
+}
+
+.dark .app-input,
+.dark input:not([type="checkbox"]):not([type="radio"]),
+.dark select,
+.dark textarea {
+  color-scheme: dark;
+}
+
 @keyframes toastIn {
   from {
     opacity: 0;
