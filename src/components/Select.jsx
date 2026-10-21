@@ -81,7 +81,7 @@ export default function Select({ value, onChange, children, className = "", ...p
         }}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="w-full flex items-center justify-between border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-gray-900 dark:text-gray-100 text-left"
+        className="w-full flex items-center justify-between border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-gray-900 text-slate-800 dark:text-gray-100 text-left"
       >
         <span className="truncate">{label || "Select..."}</span>
         <svg className={`w-3 h-3 ml-2 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">

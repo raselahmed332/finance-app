@@ -28,27 +28,29 @@
 
 /* ---------------------------------------------------------------------------
    Form controls: guarantee a visible font in BOTH themes.
-   Most inputs/selects/textareas only declare a dark-mode text colour
-   (dark:text-gray-100) while using bg-white in light mode. On Android WebView,
-   and whenever the OS is in dark mode but the app is in LIGHT theme, the
-   native control defaults to white text -> white text on a white field.
-   Setting an explicit light-mode text colour and color-scheme fixes every
-   form field app-wide without per-field classes. Fields that DO declare their
-   own text-* colour still win (checked/normal utilities have higher
-   specificity than these element selectors).
+   Several inputs/selects/textareas declare no text colour of their own, so
+   they inherit whatever ancestor colour is active. On Android WebView, and
+   when the OS is in dark mode while the app is in light theme (or the page
+   background changes under them), that inherited/native default can match the
+   field background -> invisible text.
+   These element selectors have specificity (0,0,1): they beat Tailwind
+   Preflight's `input{color:inherit}` (also 0,0,1) because they come later, but
+   they lose to any per-field `text-*` / `dark:text-*` utility (0,1,0). So they
+   only fill the gap for fields that declare no colour of their own.
 --------------------------------------------------------------------------- */
-.app-input,
 input:not([type="checkbox"]):not([type="radio"]),
 select,
-textarea {
-  color: #1f2937; /* slate-800 */
+textarea,
+.app-input {
+  color: #1f2937; /* slate-800, readable on white light-theme fields */
   color-scheme: light;
 }
 
-.dark .app-input,
-.dark input:not([type="checkbox"]):not([type="radio"]),
-.dark select,
-.dark textarea {
+:where(.dark) input:not([type="checkbox"]):not([type="radio"]),
+:where(.dark) select,
+:where(.dark) textarea,
+:where(.dark) .app-input {
+  color: #f3f4f6; /* gray-100, readable on dark-theme fields */
   color-scheme: dark;
 }
 
