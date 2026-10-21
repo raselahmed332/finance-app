@@ -961,17 +961,19 @@ export default function App() {
 
   if (!currentUser) {
     return (
-      <LoginScreen
-        onLogin={(user, token) => {
-          sessionEpoch.current += 1;
-          resetUiState();
-          session.save(token);
-          setCurrentUser(user);
-          // Currency registry for dropdowns and money formatting. Fire-and-forget
-          // for the same reason as the session-restore path above.
-          loadCurrencies(user.username);
-        }}
-      />
+      <Suspense fallback={<PageFallback />}>
+        <LoginScreen
+          onLogin={(user, token) => {
+            sessionEpoch.current += 1;
+            resetUiState();
+            session.save(token);
+            setCurrentUser(user);
+            // Currency registry for dropdowns and money formatting. Fire-and-forget
+            // for the same reason as the session-restore path above.
+            loadCurrencies(user.username);
+          }}
+        />
+      </Suspense>
     );
   }
 
