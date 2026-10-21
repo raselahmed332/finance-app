@@ -39,7 +39,7 @@ public class MainActivity extends BridgeActivity {
   }
 
   @Override
-  protected void onResume() {
+  public void onResume() {
     super.onResume();
     isPaused = false;
     pendingHideAfterReveal = false;
@@ -48,14 +48,14 @@ public class MainActivity extends BridgeActivity {
   }
 
   @Override
-  protected void onPause() {
+  public void onPause() {
     super.onPause();
     isPaused = true;
     hideHandler.removeCallbacks(hideRunnable);
   }
 
   @Override
-  protected void onDestroy() {
+  public void onDestroy() {
     super.onDestroy();
     hideHandler.removeCallbacks(hideRunnable);
   }
