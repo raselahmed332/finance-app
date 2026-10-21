@@ -1,0 +1,30 @@
+import java.util.Properties
+import java.io.FileInputStream
+import java.io.FileOutputStream
+
+task bumpVersion {
+    doLast {
+        def versionPropsFile = file("version.properties")
+        if (!versionPropsFile.exists()) {
+            versionPropsFile.createNewFile()
+        }
+        def props = new Properties()
+        versionPropsFile.withInputStream { props.load(it) }
+        def versionCode = props.getProperty("VERSION_CODE", "0").toInteger() + 1
+        def versionName = props.getProperty("VERSION_NAME", "1.0")
+        def parts = versionName.split("\\.")
+        if (parts.length == 0) {
+            versionName = "1.0"
+        } else if (parts.length == 1) {
+            versionName = parts[0] + ".1"
+        } else {
+            def last = parts[parts.length - 1].toInteger() + 1
+            parts[parts.length - 1] = last.toString()
+            versionName = parts.join(".")
+        }
+        props.setProperty("VERSION_CODE", versionCode.toString())
+        props.setProperty("VERSION_NAME", versionName)
+        versionPropsFile.withOutputStream { props.store(it, null) }
+        println "Bumped to versionCode=" + versionCode + ", versionName=" + versionName
+    }
+}

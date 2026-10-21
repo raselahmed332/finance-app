@@ -4,6 +4,7 @@ import { todayStr } from "../utils/loan.js";
 import { formatMoney } from "../utils/currency.js";
 import Select from "../components/Select.jsx";
 import Popup from "../components/Popup.jsx";
+import UpdateDialog from "../components/UpdateDialog.jsx";
 import { useToast } from "../components/Toast.jsx";
 import TransactionCard from "../components/TransactionCard.jsx";
 import { compareNewestFirst } from "../utils/sortTransactions.js";
@@ -13,6 +14,7 @@ import {
   checkForUpdate,
   downloadUpdate,
   openDownloadedApk,
+  openInstallPermissionSettings,
 } from "../utils/updater.js";
 
 const DEFAULT_WALLET_KEY = "hisab_default_wallet";
@@ -66,6 +68,17 @@ export default function UserProfileView({ currentUser, transactions, wallets, da
   const [walletFilter, setWalletFilter] = useState("");
   const [profilePic, setProfilePic] = useState(currentUser.profilePic || null);
   const [menuOpen, setMenuOpen] = useState(false);
+  // Manual self-update flow. A single state machine drives one styled dialog
+  // for every phase: idle -> checking -> update-available -> downloading ->
+  // download-complete / permission-required / error. `busy` guards against a
+  // second check or download starting while one is in flight.
+  const [updateState, setUpdateState] = useState("idle");
+  const [updateRelease, setUpdateRelease] = useState(null);
+  const [updateInstalled, setUpdateInstalled] = useState(null);
+  const [updateProgress, setUpdateProgress] = useState(null);
+  const [updateMessage, setUpdateMessage] = useState("");
+  const [updateBusy, setUpdateBusy] = useState(false);
+  const lastDownloadRef = useRef(null);
   const fileInputRef = useRef(null);
   const editFileInputRef = useRef(null);
   const menuRef = useRef(null);
@@ -196,6 +209,148 @@ export default function UserProfileView({ currentUser, transactions, wallets, da
     onLogout();
   };
 
+  // --- Manual self-update ---------------------------------------------------
+
+  const resetUpdate = () => {
+    setUpdateState("idle");
+    setUpdateProgress(null);
+    setUpdateMessage("");
+    setUpdateBusy(false);
+  };
+
+  // Friendly, non-technical message per failure code. The raw code is kept in
+  // the state model (not shown) so the UI can branch without leaking details.
+  const failUpdate = (err) => {
+    const code = err?.code || "";
+    let message;
+    switch (code) {
+      case "RATE_LIMITED":
+        message = "GitHub রেট লিমিট হয়েছে, কিছুক্ষণ পরে আবার চেষ্টা করুন।";
+        break;
+      case "NETWORK":
+      case "OFFLINE":
+        message = "ইন্টারনেট সংযোগ নেই অথবা GitHub-এ পৌঁছানো যাচ্ছে না।";
+        break;
+      case "INCOMPLETE":
+      case "EMPTY_FILE":
+        message = "ডাউনলোড অসম্পূর্ণ হয়েছে (স্টোরেজ পূর্ণ হতে পারে)। আবার চেষ্টা করুন।";
+        break;
+      case "CHECKSUM_MISMATCH":
+        message = "ডাউনলোড করা ফাইলটি যাচাইয়ের সময় মেলেনি, তাই বাতিল করা হয়েছে।";
+        break;
+      case "NO_FILE":
+      case "FILE_MISSING":
+        message = "ডাউনলোড করা ফাইল পাওয়া যায়নি। আবার ডাউনলোড করুন।";
+        break;
+      case "IN_PROGRESS":
+        message = "একটি ডাউনলোড ইতিমধ্যে চলছে।";
+        break;
+      default:
+        message =
+          "আপডেট করতে সমস্যা হয়েছে। ইন্টারনেট সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।";
+    }
+    setUpdateMessage(message);
+    setUpdateState("error");
+    setUpdateProgress(null);
+    setUpdateBusy(false);
+  };
+
+  const startCheck = async () => {
+    if (updateBusy || !isNativeAndroid()) return;
+    setMenuOpen(false);
+    setUpdateBusy(true);
+    setUpdateState("checking");
+    setUpdateProgress(null);
+    setUpdateMessage("");
+    try {
+      const installed = await getInstalledVersion();
+      setUpdateInstalled(installed);
+      const check = await checkForUpdate();
+
+      if (check.error && check.status === "ERROR") {
+        failUpdate(check.error);
+        return;
+      }
+      if (!check.hasUpdate) {
+        resetUpdate();
+        toast.success(
+          installed?.versionName
+            ? `আপনি সর্বশেষ ভার্সন ব্যবহার করছেন (${installed.versionName})`
+            : "আপনি সর্বশেষ ভার্সন ব্যবহার করছেন",
+        );
+        return;
+      }
+
+      setUpdateRelease(check.release);
+      setUpdateState("update-available");
+      setUpdateBusy(false);
+    } catch (err) {
+      failUpdate(err);
+    }
+  };
+
+  const startDownload = async () => {
+    if (updateBusy || !updateRelease) return;
+    setUpdateBusy(true);
+    setUpdateState("downloading");
+    setUpdateProgress({ bytes: 0, contentLength: updateRelease.size || 0, percent: 0 });
+    setUpdateMessage("");
+    try {
+      const result = await downloadUpdate(updateRelease, (p) => {
+        // Real progress only; the dialog derives a percentage from
+        // bytes/contentLength when the plugin does not supply one.
+        setUpdateProgress({
+          bytes: p.bytes,
+          contentLength: p.contentLength,
+          percent: p.percent,
+        });
+      });
+      lastDownloadRef.current = result;
+      // Reflect the finished file so a retry can skip re-downloading.
+      setUpdateProgress({
+        bytes: result.size,
+        contentLength: result.size,
+        percent: 100,
+      });
+      setUpdateState("download-complete");
+      await launchInstaller(result);
+    } catch (err) {
+      failUpdate(err);
+    }
+  };
+
+  const launchInstaller = async (download) => {
+    const dl = download || lastDownloadRef.current;
+    if (!dl) {
+      setUpdateMessage("ডাউনলোড করা ফাইল পাওয়া যায়নি। আবার ডাউনলোড করুন।");
+      setUpdateState("error");
+      setUpdateBusy(false);
+      return;
+    }
+    setUpdateState("download-complete");
+    try {
+      await openDownloadedApk(dl.uri, { size: dl.size });
+      // Native call succeeded: Android's own install confirmation is now
+      // showing. Collapse our dialog so it does not sit behind the installer.
+      setUpdateBusy(false);
+      resetUpdate();
+    } catch (err) {
+      if (err?.code === "NEEDS_PERMISSION") {
+        setUpdateMessage(
+          "Android-এ Amar Hisab থেকে অ্যাপ ইনস্টল করার অনুমতি চালু করুন, তারপর আবার চেষ্টা করুন।",
+        );
+        setUpdateState("permission-required");
+        setUpdateBusy(false);
+        return;
+      }
+      failUpdate(err);
+    }
+  };
+
+  const handleOpenInstallSettings = async () => {
+    await openInstallPermissionSettings();
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -237,52 +392,7 @@ export default function UserProfileView({ currentUser, transactions, wallets, da
                     icon="fa-rotate"
                     label="Check for updates"
                     sub="নতুন APK আপডেট চেক করুন"
-                    onClick={async () => {
-                      setMenuOpen(false);
-                      try {
-                        const installed = await getInstalledVersion();
-                        let msg = "আপডেট চেক করা হচ্ছে...";
-                        const toastId = Date.now();
-                        toast(msg, "success");
-                        const check = await checkForUpdate();
-                        if (!check.hasUpdate) {
-                          if (installed) {
-                            toast(`আপনি সর্বশেষ ভার্সন ব্যবহার করছেন (${installed.versionName})`, "success");
-                          } else {
-                            toast("আপনি সর্বশেষ ভার্সন ব্যবহার করছেন", "success");
-                          }
-                          return;
-                        }
-                        const r = check.release;
-                        const ok = await (async () => {
-                          // use confirm dialog via window? Or better use existing confirm from context
-                          // but this is in a component; easier to use browser confirm? But better import useConfirm - wait, Profile doesn't have it
-                          // Let us use native confirm via simple approach: show via toast + allow user to proceed? Or just trigger download if desired? No, per requirement need to ask user
-                          // UserProfileView doesn't get confirm; App does. But we can use window.confirm in native? Or better just download and install after simple confirm
-                          return window.confirm(
-                            `নতুন ভার্সন ${r.versionName} পাওয়া গেছে (বর্তমান: ${installed?.versionName || "-"}).\nএখনই আপডেট করতে চান?`,
-                          );
-                        })();
-                        if (!ok) return;
-                        toast("আপডেট ডাউনলোড হচ্ছে...", "success");
-                        const dl = await downloadUpdate(r, (p) => {
-                          if (p.percent != null) {
-                            // replace by re-showing? toast is transient; keep simple
-                          }
-                        });
-                        toast("ডাউনলোড সম্পন্ন। Android ইনস্টলার খোলা হচ্ছে...", "success");
-                        await openDownloadedApk(dl.uri);
-                      } catch (e) {
-                        const code = e?.code || "";
-                        if (code === "RATE_LIMITED") {
-                          toast("GitHub রেট লিমিট হয়েছে, কিছুক্ষণ পরে চেষ্টা করুন।", "error");
-                        } else if (code === "NETWORK" || /network/i.test(String(e?.message || e))) {
-                          toast("ইন্টারনেট সংযোগ নেই অথবা GitHub পৌঁছাতে পারছে না।", "error");
-                        } else {
-                          toast("আপডেট চেক করতে ব্যর্থ হয়েছে।", "error");
-                        }
-                      }
-                    }}
+                    onClick={startCheck}
                   />
                 )}
                 <div className="border-t border-gray-100 dark:border-gray-800 my-1"></div>
@@ -347,6 +457,20 @@ export default function UserProfileView({ currentUser, transactions, wallets, da
           </>
         )}
       </Popup>
+
+      <UpdateDialog
+        open={updateState !== "idle"}
+        state={updateState}
+        release={updateRelease}
+        installed={updateInstalled}
+        progress={updateProgress}
+        message={updateMessage}
+        onUpdate={startDownload}
+        onLater={resetUpdate}
+        onClose={resetUpdate}
+        onOpenInstaller={() => launchInstaller()}
+        onOpenSettings={handleOpenInstallSettings}
+      />
 
       {/* Avatar Card */}
       <div className="bg-white dark:bg-gray-900 rounded-2xl overflow-hidden shadow-sm">

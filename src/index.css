@@ -37,6 +37,22 @@
   }
 }
 
+/* Indeterminate progress bar, used by the updater's download dialog when the
+   server does not report a total file size. Never shown alongside a real
+   percentage. */
+@keyframes indeterminateBar {
+  0% {
+    margin-left: -35%;
+  }
+  100% {
+    margin-left: 100%;
+  }
+}
+
+.indeterminate-bar {
+  animation: indeterminateBar 1.2s ease-in-out infinite;
+}
+
 /* Print / PDF: only the statement (marked with #report-print) is printed, not
    the surrounding app chrome, filters, cards or the chart. */
 @media print {

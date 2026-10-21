@@ -15,6 +15,21 @@ import { Filesystem, Directory } from "@capacitor/filesystem";
 import { FileTransfer } from "@capacitor/file-transfer";
 import { FileOpener } from "@capacitor-community/file-opener";
 
+// Human-readable byte size (binary units, matching Android's installer).
+export function formatBytes(bytes) {
+  const n = Number(bytes);
+  if (!Number.isFinite(n) || n <= 0) return "0 KB";
+  const units = ["B", "KB", "MB", "GB"];
+  let value = n;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  const decimals = unit <= 1 ? 0 : 1;
+  return `${value.toFixed(decimals)} ${units[unit]}`;
+}
+
 // --- Release source ---------------------------------------------------------
 //
 // The release tag must be exactly `v<versionCode>`, and the tag number must
@@ -425,8 +440,10 @@ export async function downloadUpdate(release, onProgress) {
       verified = true;
     }
 
-    // Promote the verified file to its real name.
+    // Promote the verified file to its real name. After this the `.part` file
+    // no longer exists, so the path we hand back MUST be the final name.
     await safeDelete(APK_FILE_NAME, Directory.Cache);
+    let finalPath = actualPath;
     try {
       await Filesystem.rename({
         from: APK_PART_NAME,
@@ -438,7 +455,22 @@ export async function downloadUpdate(release, onProgress) {
       // path we already validated.
     }
 
-    return { verified, sha256, uri: actualPath, size };
+    // Re-stat the promoted file so the returned uri/size describe what is
+    // actually on disk right now, not the pre-rename `.part`. This is what the
+    // installer will open.
+    try {
+      const stat = await Filesystem.stat({
+        path: APK_FILE_NAME,
+        directory: Directory.Cache,
+      });
+      finalPath = stat.uri || finalPath;
+      size = Number(stat.size) || size;
+    } catch {
+      // rename failed - the validated `.part` file is still on disk.
+      finalPath = actualPath;
+    }
+
+    return { verified, sha256, uri: finalPath, size };
   } finally {
     downloading = false;
   }
@@ -450,27 +482,77 @@ export function isDownloading() {
 
 // --- Installer --------------------------------------------------------------
 
+// Reduce any of the URI shapes Capacitor / Android may hand us down to the one
+// shape `@capacitor-community/file-opener` expects.
+//
+// The plugin's Android code branches on the string it receives:
+//   - starts with `content://` -> used directly via ACTION_VIEW (content
+//     provider already owns read access).
+//   - anything else            -> treated as a filesystem path and wrapped by
+//     the plugin's own FileProvider (`<applicationId>.file.opener.provider`),
+//     whose `file_opener_paths.xml` covers the app cache dir. That is exactly
+//     where we downloaded the APK, so a plain absolute path works.
+//
+// A `file://` URI is therefore decoded to its plain path; a `content://` URI is
+// passed through untouched. A bare path is passed through as-is.
+export function toFileOpenerPath(uri) {
+  const raw = String(uri || "").trim();
+  if (!raw) return "";
+  if (raw.startsWith("content://")) return raw;
+  if (raw.startsWith("file://")) {
+    // file:///data/... -> /data/...  ; also tolerates file://localhost/...
+    let path = raw.replace(/^file:\/\//, "");
+    if (path.startsWith("localhost/")) path = path.slice("localhost".length);
+    try {
+      return decodeURIComponent(path);
+    } catch {
+      return path;
+    }
+  }
+  return raw;
+}
+
 // Hand the downloaded APK to Android's package installer. The OS shows its own
 // confirmation UI; this only opens it.
 //
-// FileOpener distinguishes `file://` from `content://`:
-//   - `content://`  -> used directly via ACTION_VIEW (works for our cache file
-//                      when granted through a content provider).
-//   - anything else -> treated as a filesystem path and wrapped by the plugin's
-//                      own FileProvider. We therefore reduce a `file://` URI to
-//                      a plain path so the plugin can build a grantable URI that
-//                      Android's installer accepts.
-export async function openDownloadedApk(uri) {
+// Throws UpdateError with a specific code so the UI can react:
+//   NO_FILE        - the downloaded APK cannot be found on disk
+//   EMPTY_FILE     - it exists but is zero bytes
+//   NEEDS_PERMISSION - Android blocked the install for lack of the
+//                      "install unknown apps" grant
+//   OPEN_FAILED    - the native call failed for any other reason
+export async function openDownloadedApk(uri, { size: knownSize } = {}) {
   if (!isNativeAndroid()) {
     throw new UpdateError("NOT_NATIVE", "Installation is only available in the app.");
   }
-  const raw = String(uri || "");
-  if (!raw) {
+
+  const filePath = toFileOpenerPath(uri);
+  if (!filePath) {
     throw new UpdateError("OPEN_FAILED", "The downloaded file location is unknown.");
   }
-  const filePath = raw.startsWith("file://")
-    ? decodeURIComponent(raw.slice("file://".length))
-    : raw;
+
+  // The file opener wraps a plain path with the plugin FileProvider; a
+  // content:// uri is used directly. Either way, refuse to open nothing.
+  if (!filePath.startsWith("content://")) {
+    try {
+      const stat = await Filesystem.stat({
+        path: filePath.startsWith("file://") ? filePath : filePath,
+      });
+      const size = Number(stat.size) || 0;
+      if (size === 0 && !(knownSize > 0)) {
+        throw new UpdateError("EMPTY_FILE", "The downloaded app file is empty.");
+      }
+    } catch (err) {
+      if (err instanceof UpdateError) throw err;
+      // stat failed: it may still be a valid content uri or a path stat() can't
+      // reach but the plugin can. Only fail hard if we clearly downloaded to
+      // cache and it is gone.
+      if (/not.?found|does not exist|ENOENT/i.test(String(err?.message || ""))) {
+        throw new UpdateError("NO_FILE", "The downloaded app file was not found.");
+      }
+    }
+  }
+
   try {
     await FileOpener.open({
       filePath,
@@ -478,12 +560,41 @@ export async function openDownloadedApk(uri) {
       openWithDefault: true,
     });
   } catch (err) {
+    const message = String(err?.message || err || "");
+    // Android returns this when REQUEST_INSTALL_PACKAGES has not been granted
+    // for this app. Surface it as a distinct state so the UI can walk the user
+    // through enabling it instead of showing a dead-end error.
+    if (
+      /REQUEST_INSTALL_PACKAGES|install.*unknown|not allowed|permission/i.test(
+        message,
+      ) ||
+      String(err?.code || "") === "6"
+    ) {
+      throw new UpdateError("NEEDS_PERMISSION", message || "Install permission required.");
+    }
+    if (/not found|does not exist/i.test(message) || String(err?.code || "") === "9") {
+      throw new UpdateError("NO_FILE", "The downloaded app file was not found.");
+    }
     throw new UpdateError(
       "OPEN_FAILED",
-      String(err?.message || err) ||
-        "Android could not open the installer. Check the install permission.",
+      message || "Android could not open the installer.",
     );
   }
+}
+
+// Open Android's per-app "install unknown apps" settings screen so the user can
+// grant the permission themselves. Never grants anything automatically.
+export function openInstallPermissionSettings() {
+  if (!isNativeAndroid()) return Promise.resolve(false);
+  // No dedicated Capacitor API; the OS settings intent is launched through the
+  // App plugin's openUrl, which maps to ACTION_VIEW. The `package:` uri opens
+  // this app's install-permission page on API 26+.
+  const pkg = "com.amarhisab.app";
+  const url = `package:${pkg}`;
+  return CapApp.openUrl({ url }).then(
+    () => true,
+    () => false,
+  );
 }
 
 // --- Orchestration ----------------------------------------------------------
@@ -516,7 +627,7 @@ export async function checkAndPromptForUpdate({ confirmUpdate, notify } = {}) {
       if (typeof notify === "function") notify({ phase: "downloading", ...p });
     });
     if (typeof notify === "function") notify({ phase: "installing" });
-    await openDownloadedApk(result.uri);
+    await openDownloadedApk(result.uri, { size: result.size });
     return { status: "INSTALLER_OPENED", release: check.release, download: result };
   } catch (err) {
     return { status: "ERROR", release: check.release, error: err };
