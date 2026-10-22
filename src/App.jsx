@@ -15,7 +15,7 @@ import { loadCurrencies } from "./utils/currency.js";
 import { setAccounts as setAccountsRegistry, resetAccounts } from "./utils/accounts.js";
 import { todayStr } from "./utils/loan.js";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
-import { registerNativeBackButton } from "./utils/native.js";
+import { registerNativeBackButton, hideSplashScreen } from "./utils/native.js";
 import { isNativeAndroid, checkAndPromptForUpdate } from "./utils/updater.js";
 
 const LoginScreen = lazy(() => import("./pages/LoginScreen.jsx"));
@@ -244,7 +244,13 @@ export default function App() {
   // signs the user out immediately, from anywhere in the app.
   useEffect(() => onAuthFailure(() => forceLogout()), [forceLogout]);
 
-  const loadData = useCallback(() => {
+  useEffect(() => {
+    if (!checkingAuth) {
+      hideSplashScreen();
+    }
+  }, [checkingAuth]);
+
+  useEffect(() => {
     if (!currentUser) return;
     setLoading(true);
     const epoch = sessionEpoch.current;
@@ -953,15 +959,25 @@ export default function App() {
 
   if (checkingAuth) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <img src="/pwa-512x512.png" alt="Amar Hisab" className="w-20 h-20 object-contain" onError={(e)=>{e.currentTarget.style.display='none';}} />
+          <div className="w-6 h-6 border-2 border-[#00E676] border-t-transparent rounded-full animate-spin"></div>
+        </div>
       </div>
     );
   }
 
   if (!currentUser) {
     return (
-      <Suspense fallback={<PageFallback />}>
+      <Suspense fallback={
+        <div className="min-h-screen bg-black flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <img src="/pwa-512x512.png" alt="Amar Hisab" className="w-20 h-20 object-contain" onError={(e)=>{e.currentTarget.style.display='none';}} />
+            <div className="w-6 h-6 border-2 border-[#00E676] border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        </div>
+      }>
         <LoginScreen
           onLogin={(user, token) => {
             sessionEpoch.current += 1;

@@ -48,6 +48,19 @@ export function handleOverlayBack() {
 // Safe to call on web and safe to call more than once.
 // ---------------------------------------------------------------------------
 let uiReady = false;
+let splashHidden = false;
+
+export async function hideSplashScreen() {
+  if (!isNative()) return;
+  if (splashHidden) return;
+  splashHidden = true;
+  try {
+    await SplashScreen.hide();
+  } catch {
+    /* plugin unavailable - non-fatal */
+  }
+}
+
 
 export async function initNativeUi() {
   if (!isNative() || uiReady) return;
@@ -71,14 +84,8 @@ export async function initNativeUi() {
     /* plugin unavailable - non-fatal */
   }
 
-  // The splash screen is configured with launchAutoHide/launchShowDuration in
-  // capacitor.config.json; hiding explicitly once React is mounted avoids a
-  // flash of an empty webview on slower devices.
-  try {
-    await SplashScreen.hide();
-  } catch {
-    /* plugin unavailable - non-fatal */
-  }
+  // Splash is managed by React readiness to ensure branded loading shows
+  // after native splash until auth/bootstrap completes.
 }
 
 // ---------------------------------------------------------------------------
