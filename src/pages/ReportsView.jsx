@@ -2,16 +2,17 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { api } from "../api.js";
 import Chart from "chart.js/auto";
 import { downloadCsv } from "../utils/csvExport.js";
-import { saveBlob, shareBlob, isNative } from "../utils/files.js";
+import { downloadBlob, shareBlob, isNative } from "../utils/files.js";
 import Select from "../components/Select.jsx";
 import Popup from "../components/Popup.jsx";
 import { todayStr } from "../utils/loan.js";
 import { accountName } from "../utils/accounts.js";
+import { EmptyState, LoadingState, PageHeader, Segmented, Stat } from "../ui/index.jsx";
 
-// Place a captured statement onto A4 pages. A statement taller than one page is
-// sliced into page-height slices (never scaled down to fit a single page and
-// never truncated), so a long report stays readable and loses no rows.
-function addCanvasAsPages(pdf, canvas, orientation) {
+// Add the captured statement to the PDF one page at a time. The same page
+// images preview it in native WebViews, which do not reliably render PDF blobs
+// in an iframe. Processing serially avoids retaining all page canvases at once.
+async function addCanvasPagesToPdf(pdf, canvas, orientation, makePreview) {
   const isLandscape = orientation === 'landscape';
   const pageW = isLandscape ? 297 : 210;
   const pageH = isLandscape ? 210 : 297;
@@ -19,17 +20,25 @@ function addCanvasAsPages(pdf, canvas, orientation) {
   const usableW = pageW - margin * 2;
   const usableH = pageH - margin * 2;
   const fullImgH = canvas.height * (usableW / canvas.width);
+  const previewBlobs = [];
+  let pageIndex = 0;
+
+  const addPage = async (page) => {
+    if (pageIndex) pdf.addPage();
+    pdf.addImage(page, 'PNG', margin, margin, usableW, page.height * (usableW / page.width));
+    if (makePreview) previewBlobs.push(await canvasToBlob(page));
+    pageIndex += 1;
+  };
 
   // Everything fits on one page — no slicing needed.
   if (fullImgH <= usableH) {
-    pdf.addImage(canvas, 'PNG', margin, margin, usableW, fullImgH);
-    return;
+    await addPage(canvas);
+    return previewBlobs;
   }
 
   // Pixel height of one page's worth of the capture.
   const slicePx = Math.max(1, Math.floor(canvas.width * (usableH / usableW)));
   let y = 0;
-  let first = true;
   while (y < canvas.height) {
     const h = Math.min(slicePx, canvas.height - y);
     const slice = document.createElement('canvas');
@@ -39,11 +48,19 @@ function addCanvasAsPages(pdf, canvas, orientation) {
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, slice.width, slice.height);
     ctx.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
-    if (!first) pdf.addPage();
-    pdf.addImage(slice, 'PNG', margin, margin, usableW, h * (usableW / canvas.width));
-    first = false;
+    await addPage(slice);
     y += h;
   }
+  return previewBlobs;
+}
+
+function canvasToBlob(canvas) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error('Could not create report preview image'));
+    }, 'image/png');
+  });
 }
 
 export default function ReportsView({ wallets, currentUser, users }) {
@@ -65,12 +82,14 @@ export default function ReportsView({ wallets, currentUser, users }) {
   // one build instead of regenerating. { url, blob, filename }.
   const [pdfPreview, setPdfPreview] = useState(null);
   const pdfUrlRef = useRef(null);
+  const previewUrlsRef = useRef([]);
   const chartRef = useRef(null);
   const chartInstance = useRef(null);
 
   // Release the object URL when this view unmounts.
   useEffect(() => () => {
     if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
+    previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
   }, []);
 
   // Wallets may load asynchronously after this view mounts — if the selected id
@@ -164,10 +183,10 @@ export default function ReportsView({ wallets, currentUser, users }) {
       // being squashed onto one unreadable sheet.
       const orientation = canvas.width > canvas.height ? 'landscape' : 'portrait';
       const pdf = new jsPDF({ orientation, unit: 'mm', format: 'a4', compress: true });
-      addCanvasAsPages(pdf, canvas, orientation);
+      const previewBlobs = await addCanvasPagesToPdf(pdf, canvas, orientation, isNative());
 
       const filename = `report_${selectedWallet?.WalletName || ''}${account !== 'All' ? '_' + account : ''}_${period === 'custom' ? `custom_${customFrom}_to_${customTo}` : period}_${todayStr()}.pdf`;
-      return { blob: pdf.output('blob'), filename };
+      return { blob: pdf.output('blob'), filename, previewBlobs };
     } finally {
       restore.reverse().forEach(([node, prev]) => {
         if (prev === null) node.removeAttribute('style');
@@ -182,6 +201,8 @@ export default function ReportsView({ wallets, currentUser, users }) {
       URL.revokeObjectURL(pdfUrlRef.current);
       pdfUrlRef.current = null;
     }
+    previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    previewUrlsRef.current = [];
     setPdfPreview(null);
   };
 
@@ -193,9 +214,12 @@ export default function ReportsView({ wallets, currentUser, users }) {
       const result = await buildStatementPdf();
       if (!result) return;
       if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
+      previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
       const url = URL.createObjectURL(result.blob);
+      const previewUrls = result.previewBlobs.map((blob) => URL.createObjectURL(blob));
       pdfUrlRef.current = url;
-      setPdfPreview({ url, blob: result.blob, filename: result.filename });
+      previewUrlsRef.current = previewUrls;
+      setPdfPreview({ url, blob: result.blob, filename: result.filename, previewUrls });
     } catch (e) {
       console.error('PDF export failed', e);
       alert('PDF তৈরি করা যায়নি। আবার চেষ্টা করুন।');
@@ -204,9 +228,15 @@ export default function ReportsView({ wallets, currentUser, users }) {
     }
   };
 
-  const downloadPdf = () => {
+  const downloadPdf = async () => {
     if (!pdfPreview) return;
-    saveBlob(pdfPreview.filename, pdfPreview.blob);
+    try {
+      await downloadBlob(pdfPreview.filename, pdfPreview.blob);
+    } catch (error) {
+      if (error?.code === 'SAVE_CANCELLED') return;
+      console.error('PDF download failed', error);
+      alert('PDF ডাউনলোড করা যায়নি। আবার চেষ্টা করুন।');
+    }
   };
 
   // Native share sheet on the Android/iOS shell, Web Share API on supported
@@ -374,20 +404,18 @@ export default function ReportsView({ wallets, currentUser, users }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="font-bold text-slate-800 dark:text-gray-100 text-base">Reports (রিপোর্ট)</h3>
-      </div>
+      <PageHeader title="Reports" subtitle="রিপোর্ট ও স্টেটমেন্ট" icon="fa-chart-pie" />
 
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Wallet</label>
+          <label className="label">Wallet</label>
           <Select value={walletId} onChange={setWalletId}>
             {wallets.length === 0 && <option value="">কোনো Wallet এক্সেস নেই</option>}
             {wallets.map(w => <option key={w.WalletID} value={w.WalletID}>{w.WalletName} ({w.Currency})</option>)}
           </Select>
         </div>
         <div>
-          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Account</label>
+          <label className="label">Account</label>
           <Select value={account} onChange={setAccount}>
             <option value="All">সব Account</option>
             {reportAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -396,109 +424,131 @@ export default function ReportsView({ wallets, currentUser, users }) {
       </div>
 
       <div>
-        <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Period</label>
-        <div className="grid grid-cols-5 gap-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl text-[11px] font-bold">
-          {[['daily', 'Daily'], ['weekly', 'Weekly'], ['monthly', 'Monthly'], ['yearly', 'Yearly'], ['custom', 'Custom']].map(([val, label]) => (
-            <button key={val} onClick={() => changePeriod(val)} className={`py-1.5 rounded-lg transition-all ${period === val ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-600 dark:text-gray-400'}`}>
-              {label}
-            </button>
-          ))}
-        </div>
+        <label className="label">Period</label>
+        <Segmented
+          className="w-full"
+          value={period}
+          onChange={changePeriod}
+          options={[
+            { value: 'daily', label: 'Daily' },
+            { value: 'weekly', label: 'Weekly' },
+            { value: 'monthly', label: 'Monthly' },
+            { value: 'yearly', label: 'Yearly' },
+            { value: 'custom', label: 'Custom' },
+          ]}
+        />
       </div>
 
       <div>
-        <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Select {period === 'daily' ? 'Date' : period === 'weekly' ? 'Any date in the week' : period === 'yearly' ? 'Year' : period === 'custom' ? 'Date Range' : 'Month'}</label>
+        <label className="label">Select {period === 'daily' ? 'Date' : period === 'weekly' ? 'Any date in the week' : period === 'yearly' ? 'Year' : period === 'custom' ? 'Date Range' : 'Month'}</label>
         {period === 'custom' ? (
           <button
             onClick={openCustom}
-            className="w-full flex items-center justify-between border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs font-semibold bg-white dark:bg-gray-900 dark:text-gray-100"
+            className="select-trigger font-semibold"
           >
             <span className="truncate">{customFrom} থেকে {customTo}</span>
-            <span className="shrink-0 ms-2 text-gray-400 dark:text-gray-500 flex items-center gap-1.5">
-              <i className="fa-solid fa-sliders"></i> পরিবর্তন
+            <span className="shrink-0 text-ink-3 flex items-center gap-1.5">
+              <i className="fa-solid fa-sliders" /> পরিবর্তন
             </span>
           </button>
         ) : period === 'yearly' ? (
-          <input type="number" value={periodValue} onChange={(e) => setPeriodValue(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs font-semibold bg-white dark:bg-gray-900 dark:text-gray-100" />
+          <input type="number" value={periodValue} onChange={(e) => setPeriodValue(e.target.value)} className="input font-semibold" />
         ) : period === 'monthly' ? (
-          <input type="month" value={periodValue} onChange={(e) => setPeriodValue(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs font-semibold bg-white dark:bg-gray-900 dark:text-gray-100" />
+          <input type="month" value={periodValue} onChange={(e) => setPeriodValue(e.target.value)} className="input font-semibold" />
         ) : (
-          <input type="date" value={periodValue} onChange={(e) => setPeriodValue(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs font-semibold bg-white dark:bg-gray-900 dark:text-gray-100" />
+          <input type="date" value={periodValue} onChange={(e) => setPeriodValue(e.target.value)} className="input font-semibold" />
         )}
       </div>
 
-      {loading && <div className="text-center text-xs text-gray-400 dark:text-gray-500 py-4">লোড হচ্ছে...</div>}
+      {loading && <div className="card"><LoadingState label="রিপোর্ট লোড হচ্ছে..." /></div>}
 
       {!loading && data && (
         <>
           <div className="grid grid-cols-2 gap-2">
-            <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 rounded-xl p-3">
-              <div className="text-[10px] font-bold text-emerald-800 dark:text-emerald-300">Total Income</div>
-              <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-1">{selectedWallet?.Currency} {data.totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-            </div>
-            <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-100 dark:border-rose-800 rounded-xl p-3">
-              <div className="text-[10px] font-bold text-rose-800 dark:text-rose-300">Total Expense</div>
-              <div className="text-sm font-bold text-rose-600 dark:text-rose-400 mt-1">{selectedWallet?.Currency} {data.totalExpense.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-            </div>
+            <Stat
+              label="Total Income"
+              icon="fa-arrow-down"
+              tone="success"
+              value={`${selectedWallet?.Currency} ${data.totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            />
+            <Stat
+              label="Total Expense"
+              icon="fa-arrow-up"
+              tone="danger"
+              value={`${selectedWallet?.Currency} ${data.totalExpense.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            />
           </div>
 
-          <div className="bg-violet-50 dark:bg-violet-900/20 border border-violet-100 dark:border-violet-800 rounded-xl p-3">
-            <div className="text-[10px] font-bold text-violet-800 dark:text-violet-300"><i className="fa-solid fa-hand-holding-dollar me-1"></i>Loan (হাওলাত)</div>
+          <div className="card-info p-3">
+            <div className="text-[10px] font-bold text-info">
+              <i className="fa-solid fa-hand-holding-dollar me-1" />Loan (হাওলাত)
+            </div>
             <div className="flex items-center justify-between mt-1">
-              <span className="text-[10px] text-violet-600 dark:text-violet-400">মোট আসা</span>
-              <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{selectedWallet?.Currency} {data.loanIn.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              <span className="text-[10px] text-ink-2">মোট আসা</span>
+              <span className="text-sm font-bold tnum" style={{ color: "var(--ah-success)" }}>
+                {selectedWallet?.Currency} {data.loanIn.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
             </div>
             <div className="flex items-center justify-between mt-0.5">
-              <span className="text-[10px] text-violet-600 dark:text-violet-400">মোট যাওয়া</span>
-              <span className="text-sm font-bold text-rose-600 dark:text-rose-400">{selectedWallet?.Currency} {data.loanOut.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              <span className="text-[10px] text-ink-2">মোট যাওয়া</span>
+              <span className="text-sm font-bold tnum" style={{ color: "var(--ah-danger)" }}>
+                {selectedWallet?.Currency} {data.loanOut.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
             </div>
           </div>
 
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl p-3 text-center">
+          <div className="card-info p-3 text-center">
             {/* This figure is Income - Expense for the selected period, NOT a
                 balance: transfers and loan movements are deliberately excluded
                 from it. Labelling it "Net Balance" showed a number that
                 disagreed with the per-account figure right below it. */}
-            <div className="text-[11px] font-bold text-blue-800 dark:text-blue-300">Income − Expense (এই সময়ে)</div>
-            <div className="text-lg font-extrabold text-blue-700 dark:text-blue-400 mt-0.5">{selectedWallet?.Currency} {data.netChange.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-            <div className="text-[10px] text-blue-600 dark:text-blue-400 mt-1">{data.transactionCount} টি লেনদেন</div>
+            <div className="text-[11px] font-bold text-info">Income − Expense (এই সময়ে)</div>
+            <div className="text-lg font-extrabold tnum mt-0.5" style={{ color: "var(--ah-info)" }}>
+              {selectedWallet?.Currency} {data.netChange.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+            <div className="text-[10px] text-ink-2 mt-1">{data.transactionCount} টি লেনদেন</div>
           </div>
 
-          <div className="bg-white dark:bg-gray-900 rounded-xl p-3 border border-gray-200 dark:border-gray-800">
+          <div className="card p-3">
             {/* Per-account net MOVEMENT over the period (inflows minus outflows,
                 including transfers and loan effects) — not the account's
                 current balance, which also depends on opening balances and
                 every other period. */}
-            <div className="text-xs font-bold text-slate-800 dark:text-gray-100 mb-2">Net Movement by Account (এই সময়ে)</div>
+            <div className="text-xs font-bold text-ink mb-2">Net Movement by Account (এই সময়ে)</div>
             <div className="grid grid-cols-2 gap-2">
               {Object.entries(data.accountBreakdown || {}).map(([acc, bal]) => (
-                <div key={acc} className="bg-slate-50 dark:bg-slate-900 rounded-lg p-2 text-center">
-                  <div className="text-[10px] text-gray-500 dark:text-gray-400">{acc}</div>
-                  <div className={`text-xs font-bold mt-1 ${bal >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{selectedWallet?.Currency} {bal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                <div key={acc} className="card-inset p-2 text-center">
+                  <div className="text-[10px] text-ink-3">{acc}</div>
+                  <div
+                    className="text-xs font-bold mt-1 tnum"
+                    style={{ color: bal >= 0 ? "var(--ah-success)" : "var(--ah-danger)" }}
+                  >
+                    {selectedWallet?.Currency} {bal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-200 dark:border-gray-800 shadow-2xs">
-            <div className="text-xs font-bold text-slate-800 dark:text-gray-100 mb-3">Expense by Category</div>
+          <div className="card p-4">
+            <div className="text-xs font-bold text-ink mb-3">Expense by Category</div>
             <div className="max-w-[280px] mx-auto">
               <canvas ref={chartRef}></canvas>
             </div>
           </div>
 
-          <div id="report-print" className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-200 dark:border-gray-800 shadow-2xs">
+          <div id="report-print" className="card p-4">
             <div id="report-pdf-header" className="hidden print:block mb-3">
-              <div className="text-base font-bold text-slate-900">{selectedWallet?.WalletName} — Statement</div>
-              <div className="text-[11px] text-gray-600">
+              <div className="text-base font-bold text-ink">{selectedWallet?.WalletName} — Statement</div>
+              <div className="text-[11px] text-ink-2">
                 {selectedWallet?.Currency} · {periodLabel} · {accountLabel} · {todayStr()}
               </div>
             </div>
-            <div className="text-xs font-bold text-slate-800 dark:text-gray-100 mb-2">Statement (লেনদেনের তালিকা)</div>
+            <div className="text-xs font-bold text-ink mb-2">Statement (লেনদেনের তালিকা)</div>
             <div className="report-scroll overflow-auto -mx-1 max-h-[85vh]">
               <table className="w-full text-left text-[11px]">
-                <thead className="sticky top-0 z-10 bg-white dark:bg-gray-900">
-                  <tr className="text-[9px] uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                <thead className="sticky top-0 z-10 bg-[var(--ah-surface)]">
+                  <tr className="text-[9px] uppercase tracking-wide text-ink-3">
                     <th className="px-1 pb-1.5 font-semibold">তারিখ</th>
                     <th className="px-1 pb-1.5 font-semibold">Type</th>
                     <th className="px-1 pb-1.5 font-semibold">Account</th>
@@ -512,16 +562,16 @@ export default function ReportsView({ wallets, currentUser, users }) {
                 </thead>
                 <tbody>
                   {(data.rows || []).map((t, i) => (
-                    <tr key={i} className="border-t border-gray-100 dark:border-gray-800">
-                      <td className="px-1 py-1.5 whitespace-nowrap text-gray-500 dark:text-gray-400">{t.Date}</td>
-                      <td className="px-1 py-1.5 whitespace-nowrap font-semibold text-slate-700 dark:text-gray-200">{t.Type}</td>
-                      <td className="px-1 py-1.5 whitespace-nowrap text-gray-500 dark:text-gray-400">{accountLabelOf(t.Account)}</td>
-                      <td className="px-1 py-1.5 text-gray-500 dark:text-gray-400">{t.SourceCategory || "—"}</td>
-                      <td className="px-1 py-1.5 text-gray-500 dark:text-gray-400">{t.WhereVendor || "—"}</td>
-                      <td className="px-1 py-1.5 text-gray-500 dark:text-gray-400 max-w-[180px] truncate">{t.Description || "—"}</td>
-                      <td className="px-1 py-1.5 text-gray-500 dark:text-gray-400 max-w-[160px] truncate">{t.Note || "—"}</td>
-                      <td className="px-1 py-1.5 text-gray-500 dark:text-gray-400">{userMap[t.User] || t.User || "—"}</td>
-                      <td className={`px-1 py-1.5 whitespace-nowrap text-right font-bold ${t.Type === 'Income' || t.Type === 'Transfer In' || t.Type === 'Loan In' || t.Type === 'Loan Repaid' || t.Type === 'Savings Withdrawal' || t.Type === 'Savings Payout' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                    <tr key={i} className="border-t border-[var(--ah-border)]">
+                      <td className="px-1 py-1.5 whitespace-nowrap text-ink-3">{t.Date}</td>
+                      <td className="px-1 py-1.5 whitespace-nowrap font-semibold text-ink">{t.Type}</td>
+                      <td className="px-1 py-1.5 whitespace-nowrap text-ink-3">{accountLabelOf(t.Account)}</td>
+                      <td className="px-1 py-1.5 text-ink-3">{t.SourceCategory || "—"}</td>
+                      <td className="px-1 py-1.5 text-ink-3">{t.WhereVendor || "—"}</td>
+                      <td className="px-1 py-1.5 text-ink-3 max-w-[180px] truncate">{t.Description || "—"}</td>
+                      <td className="px-1 py-1.5 text-ink-3 max-w-[160px] truncate">{t.Note || "—"}</td>
+                      <td className="px-1 py-1.5 text-ink-3">{userMap[t.User] || t.User || "—"}</td>
+                      <td className={`px-1 py-1.5 whitespace-nowrap text-right font-bold ${t.Type === 'Income' || t.Type === 'Transfer In' || t.Type === 'Loan In' || t.Type === 'Loan Repaid' || t.Type === 'Savings Withdrawal' || t.Type === 'Savings Payout' ? 'text-[var(--ah-success)]' : 'text-[var(--ah-danger)]'}`}>
                         {Number(t.Amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
                     </tr>
@@ -529,9 +579,9 @@ export default function ReportsView({ wallets, currentUser, users }) {
                 </tbody>
                 {(data.rows || []).length > 0 && (
                   <tfoot>
-                    <tr className="border-t border-gray-200 dark:border-gray-700">
-                      <td className="px-1 py-2 font-bold text-slate-800 dark:text-gray-100" colSpan="8">মোট লেনদেন ({data.transactionCount})</td>
-                      <td className={`px-1 py-2 text-right font-bold ${data.netChange >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                    <tr className="border-t border-[var(--ah-border)]">
+                      <td className="px-1 py-2 font-bold text-ink" colSpan="8">মোট লেনদেন ({data.transactionCount})</td>
+                      <td className={`px-1 py-2 text-right font-bold ${data.netChange >= 0 ? 'text-[var(--ah-success)]' : 'text-[var(--ah-danger)]'}`}>
                         {data.netChange.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
                     </tr>
@@ -541,7 +591,7 @@ export default function ReportsView({ wallets, currentUser, users }) {
             </div>
 
             {(data.rows || []).length === 0 ? (
-              <div className="px-1 pt-3 text-center text-gray-400 dark:text-gray-500">এই সময়ে কোনো লেনদেন নেই।</div>
+              <div className="px-1 pt-3 text-center text-ink-3">এই সময়ে কোনো লেনদেন নেই।</div>
             ) : (
               <div className="grid grid-cols-2 gap-2 no-print mt-3">
                 <button
@@ -550,16 +600,19 @@ export default function ReportsView({ wallets, currentUser, users }) {
                     ['Date', 'Type', 'Currency', 'Account', 'Category', 'Vendor', 'Description', 'Amount', 'Note', 'User'],
                     (data.rows || []).map(t => [t.Date, t.Type, t.Currency, accountLabelOf(t.Account), t.SourceCategory, t.WhereVendor, t.Description, t.Amount, t.Note, userMap[t.User] || t.User]),
                   )}
-                  className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl py-2 text-xs font-semibold text-slate-700 dark:text-gray-200 flex items-center justify-center gap-1.5 hover:bg-gray-50 dark:hover:bg-gray-800"
+                  className="btn btn-secondary"
                 >
-                  <i className="fa-solid fa-file-csv text-emerald-600"></i> Export CSV
+                  <i className="fa-solid fa-file-csv" style={{ color: "var(--ah-success)" }} /> Export CSV
                 </button>
                 <button
                   onClick={openPdfPreview}
                   disabled={pdfBusy}
-                  className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl py-2 text-xs font-semibold text-slate-700 dark:text-gray-200 flex items-center justify-center gap-1.5 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-60"
+                  className="btn btn-secondary"
                 >
-                  <i className={`fa-solid ${pdfBusy ? 'fa-spinner fa-spin' : 'fa-file-pdf'} text-rose-600`}></i>
+                  <i
+                    className={`fa-solid ${pdfBusy ? 'fa-spinner fa-spin' : 'fa-file-pdf'}`}
+                    style={{ color: "var(--ah-danger)" }}
+                  />
                   {pdfBusy ? 'তৈরি হচ্ছে...' : 'PDF'}
                 </button>
               </div>
@@ -569,7 +622,13 @@ export default function ReportsView({ wallets, currentUser, users }) {
       )}
 
       {!loading && !report && walletId && (
-        <div className="text-center py-8 text-gray-400 dark:text-gray-500 text-xs">এই সময়ের জন্য কোনো ডেটা নেই।</div>
+        <div className="card">
+          <EmptyState
+            icon="fa-chart-pie"
+            title="এই সময়ের জন্য কোনো ডেটা নেই"
+            text="অন্য সময় বা অন্য Wallet বেছে নিন।"
+          />
+        </div>
       )}
 
       <Popup
@@ -579,43 +638,37 @@ export default function ReportsView({ wallets, currentUser, users }) {
         maxWidth="max-w-sm"
       >
         <div className="grid grid-cols-1 gap-2">
-          <label className="block">
-            <span className="text-[10px] text-gray-500 dark:text-gray-400 mb-0.5 block">থেকে</span>
+          <div>
+            <label className="label">থেকে</label>
             <input
               type="date"
               value={customDraft.from}
               onChange={(e) => setCustomDraft((p) => ({ ...p, from: e.target.value }))}
-              className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs font-semibold bg-white dark:bg-gray-900 dark:text-gray-100"
+              className="input font-semibold"
             />
-          </label>
-          <label className="block">
-            <span className="text-[10px] text-gray-500 dark:text-gray-400 mb-0.5 block">পর্যন্ত</span>
+          </div>
+          <div>
+            <label className="label">পর্যন্ত</label>
             <input
               type="date"
               value={customDraft.to}
               onChange={(e) => setCustomDraft((p) => ({ ...p, to: e.target.value }))}
-              className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs font-semibold bg-white dark:bg-gray-900 dark:text-gray-100"
+              className="input font-semibold"
             />
-          </label>
+          </div>
           {customDraft.from && customDraft.to && customDraft.from > customDraft.to && (
-            <div className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+            <div className="err">
+              <i className="fa-solid fa-circle-exclamation" />
               "থেকে" তারিখ "পর্যন্ত" তারিখের পরে হতে পারে না।
             </div>
           )}
         </div>
 
         <div className="grid grid-cols-2 gap-2">
-          <button
-            onClick={clearCustomRange}
-            className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-bold py-2.5 rounded-xl text-xs"
-          >
+          <button onClick={clearCustomRange} className="btn btn-secondary">
             ক্লিয়ার
           </button>
-          <button
-            onClick={applyCustomRange}
-            disabled={invalidCustomDraft}
-            className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold py-2.5 rounded-xl text-xs"
-          >
+          <button onClick={applyCustomRange} disabled={invalidCustomDraft} className="btn btn-primary">
             আপ্লাই করুন
           </button>
         </div>
@@ -630,13 +683,20 @@ export default function ReportsView({ wallets, currentUser, users }) {
         {pdfPreview && (
           <>
             {isNative() ? (
-              <div className="w-full rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 px-4 py-6 text-center">
-                <i className="fa-solid fa-file-pdf text-3xl text-rose-500"></i>
-                <p className="mt-2 text-xs font-semibold text-slate-700 dark:text-gray-200 break-all">{pdfPreview.filename}</p>
-                <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">PDF তৈরি হয়েছে। ডাউনলোড বা শেয়ার করুন।</p>
+              <div className="w-full max-h-[55vh] overflow-y-auto rounded-xl border border-[var(--ah-border)] bg-[var(--ah-surface-3)]">
+                {pdfPreview.previewUrls.map((url, index) => (
+                  <div key={url} className="bg-white">
+                    {index > 0 && <p className="px-3 py-1 text-center text-[10px] text-ink-3">Page {index + 1}</p>}
+                    <img
+                      src={url}
+                      alt={`${pdfPreview.filename} page ${index + 1}`}
+                      className="block h-auto w-full"
+                    />
+                  </div>
+                ))}
               </div>
             ) : (
-              <div className="w-full h-[55vh] rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-800">
+              <div className="w-full h-[55vh] rounded-xl overflow-hidden border border-[var(--ah-border)] bg-[var(--ah-surface-3)]">
                 <iframe
                   src={pdfPreview.url}
                   title={pdfPreview.filename}
@@ -645,17 +705,11 @@ export default function ReportsView({ wallets, currentUser, users }) {
               </div>
             )}
             <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={downloadPdf}
-                className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl py-2.5 text-xs font-semibold text-slate-700 dark:text-gray-200 flex items-center justify-center gap-1.5 hover:bg-gray-50 dark:hover:bg-gray-800"
-              >
-                <i className="fa-solid fa-download text-emerald-600"></i> Download
+              <button onClick={downloadPdf} className="btn btn-secondary">
+                <i className="fa-solid fa-download" style={{ color: "var(--ah-success)" }} /> Download
               </button>
-              <button
-                onClick={sharePdf}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl py-2.5 text-xs font-bold flex items-center justify-center gap-1.5"
-              >
-                <i className="fa-solid fa-share-nodes"></i> Share
+              <button onClick={sharePdf} className="btn btn-primary">
+                <i className="fa-solid fa-share-nodes" /> Share
               </button>
             </div>
           </>

@@ -1,16 +1,15 @@
 // Cross-platform file delivery.
 //
-// On the web we trigger a normal browser download (blob URL + <a download>).
-// Inside the Capacitor shell the WebView cannot start a `blob:` download, so we
-// write the bytes to the app cache with the Filesystem plugin and hand the file
-// to the OS share/save sheet via the Share plugin. Both paths never throw at the
-// call site — they fall back to the other method if a plugin is unavailable.
+// Web downloads use a blob URL and an anchor. Native sharing stages the file in
+// the app cache for the OS share sheet; Android downloads use the system
+// document picker because a WebView cannot download a `blob:` URL directly.
 
-import { Capacitor } from "@capacitor/core";
+import { Capacitor, registerPlugin } from "@capacitor/core";
 import { Filesystem, Directory } from "@capacitor/filesystem";
 import { Share } from "@capacitor/share";
 
 export const isNative = () => Capacitor.isNativePlatform();
+const PdfSaver = registerPlugin("PdfSaver");
 
 function blobToBase64(blob) {
   return new Promise((resolve, reject) => {
@@ -61,6 +60,34 @@ export async function saveBlob(filename, blob) {
     }
   }
   webDownload(filename, blob);
+}
+
+// Android's WebView cannot download blob URLs directly. Use Android's document
+// picker so the user can save the PDF in Downloads or another chosen location.
+export async function downloadBlob(filename, blob) {
+  if (!isNative() || Capacitor.getPlatform() !== "android") {
+    await saveBlob(filename, blob);
+    return;
+  }
+
+  const safeFilename = filename.replace(/[\\/:*?"<>|]/g, "_");
+  const tempPath = `download-${Date.now()}-${safeFilename}`;
+  const base64 = await blobToBase64(blob);
+  const { uri } = await Filesystem.writeFile({
+    path: tempPath,
+    data: base64,
+    directory: Directory.Cache,
+  });
+
+  try {
+    await PdfSaver.savePdf({ fileUri: uri, fileName: safeFilename });
+  } finally {
+    try {
+      await Filesystem.deleteFile({ path: tempPath, directory: Directory.Cache });
+    } catch (error) {
+      console.error("Could not remove temporary downloaded file", error);
+    }
+  }
 }
 
 // Share a blob: native share sheet on the shell, Web Share API on supported

@@ -7,21 +7,23 @@ const CURRENCY_FLAGS = {
   KWD: "🇰🇼", GBP: "🇬🇧", AED: "🇦🇪",
 };
 
+// One gradient per wallet slot so a list of wallets is easy to scan. Every
+// gradient is dark enough to carry white text in BOTH themes.
 const PALETTES = [
-  { head: "bg-emerald-700", headBadge: "bg-emerald-600/80", tint: "bg-emerald-50/60 dark:bg-emerald-900/20", border: "border-emerald-200 dark:border-emerald-800", text: "text-emerald-800 dark:text-emerald-300", pillText: "text-emerald-200", cashIcon: "text-emerald-600", bankIcon: "text-teal-600" },
-  { head: "bg-indigo-900", headBadge: "bg-indigo-800", tint: "bg-indigo-50/60 dark:bg-indigo-900/20", border: "border-indigo-200 dark:border-indigo-800", text: "text-indigo-900 dark:text-indigo-300", pillText: "text-indigo-200", cashIcon: "text-indigo-600", bankIcon: "text-indigo-600" },
-  { head: "bg-blue-900", headBadge: "bg-blue-800/80", tint: "bg-blue-50/60 dark:bg-blue-900/20", border: "border-blue-200 dark:border-blue-800", text: "text-blue-900 dark:text-blue-300", pillText: "text-blue-200", cashIcon: "text-blue-600", bankIcon: "text-indigo-600" },
-  { head: "bg-purple-800", headBadge: "bg-purple-700/80", tint: "bg-purple-50/60 dark:bg-purple-900/20", border: "border-purple-200 dark:border-purple-800", text: "text-purple-900 dark:text-purple-300", pillText: "text-purple-200", cashIcon: "text-purple-600", bankIcon: "text-purple-600" },
-  { head: "bg-amber-700", headBadge: "bg-amber-600/80", tint: "bg-amber-50/60 dark:bg-amber-900/20", border: "border-amber-200 dark:border-amber-800", text: "text-amber-900 dark:text-amber-300", pillText: "text-amber-200", cashIcon: "text-amber-600", bankIcon: "text-amber-600" },
-  { head: "bg-rose-800", headBadge: "bg-rose-700/80", tint: "bg-rose-50/60 dark:bg-rose-900/20", border: "border-rose-200 dark:border-rose-800", text: "text-rose-900 dark:text-rose-300", pillText: "text-rose-200", cashIcon: "text-rose-600", bankIcon: "text-rose-600" },
+  { head: "linear-gradient(135deg,#0b8f68 0%,#06412f 100%)", badge: "rgba(255,255,255,.16)", tint: "var(--ah-surface-2)", border: "var(--ah-border)", icon: "var(--ah-brand)", iconBg: "var(--ah-brand-soft)" },
+  { head: "linear-gradient(135deg,#3d55cf 0%,#1d2760 100%)", badge: "rgba(255,255,255,.16)", tint: "var(--ah-surface-2)", border: "var(--ah-border)", icon: "var(--ah-info)", iconBg: "var(--ah-info-soft)" },
+  { head: "linear-gradient(135deg,#1f74b8 0%,#0c3357 100%)", badge: "rgba(255,255,255,.16)", tint: "var(--ah-surface-2)", border: "var(--ah-border)", icon: "var(--ah-info)", iconBg: "var(--ah-info-soft)" },
+  { head: "linear-gradient(135deg,#7b3fb5 0%,#391a57 100%)", badge: "rgba(255,255,255,.16)", tint: "var(--ah-surface-2)", border: "var(--ah-border)", icon: "var(--ah-brand)", iconBg: "var(--ah-brand-soft)" },
+  { head: "linear-gradient(135deg,#b4740d 0%,#5a3704 100%)", badge: "rgba(255,255,255,.16)", tint: "var(--ah-surface-2)", border: "var(--ah-border)", icon: "var(--ah-warning)", iconBg: "var(--ah-warning-soft)" },
+  { head: "linear-gradient(135deg,#b8384f 0%,#571422 100%)", badge: "rgba(255,255,255,.16)", tint: "var(--ah-surface-2)", border: "var(--ah-border)", icon: "var(--ah-danger)", iconBg: "var(--ah-danger-soft)" },
 ];
 
 // Icon per account type so cash/bank keep the icons they always had and any
 // custom type (e.g. a wallet) still gets something sensible.
 function iconClass(code, p) {
-  if (code === "BANK") return `fa-solid fa-building-columns ${p.bankIcon}`;
-  if (code === "CASH") return `fa-solid fa-money-bill-wave ${p.cashIcon}`;
-  return `fa-solid fa-wallet ${p.cashIcon}`;
+  if (code === "BANK") return `fa-solid fa-building-columns`;
+  if (code === "CASH") return `fa-solid fa-money-bill-wave`;
+  return `fa-solid fa-wallet`;
 }
 
 export default memo(function WalletCard({ wallet, summary, index, onOpen }) {
@@ -77,17 +79,23 @@ export default memo(function WalletCard({ wallet, summary, index, onOpen }) {
       role={onOpen ? "button" : undefined}
       tabIndex={onOpen ? 0 : undefined}
       onKeyDown={onOpen ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } } : undefined}
-      className={`${p.tint} border ${p.border} rounded-2xl p-3.5 shadow-sm transition-colors ${onOpen ? "cursor-pointer active:scale-[0.99]" : ""}`}
+      className="card p-3.5 transition-colors"
+      style={{ background: p.tint, borderColor: p.border }}
     >
-      <div className={`flex items-center gap-2 mb-2 ${p.text} font-bold text-sm`}>
+      <div className="flex items-center gap-2 mb-2.5 font-bold text-sm text-ink">
         <span className="text-lg">{flag}</span>
         <span className="truncate">{wallet.WalletName} ({wallet.Currency})</span>
       </div>
 
-      <div className={`${p.head} text-white rounded-xl p-3.5 flex justify-between items-start gap-2 shadow-md mb-3`}>
+      <div
+        className="rounded-xl p-3.5 flex justify-between items-start gap-2 mb-3"
+        style={{ background: p.head, boxShadow: "var(--ah-shadow)" }}
+      >
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className={`text-xs ${p.pillText} font-medium`}>মোট ব্যালেন্স</span>
+            <span className="text-xs font-medium" style={{ color: "rgba(255,255,255,.78)" }}>
+              মোট ব্যালেন্স
+            </span>
             <BalanceRevealToggle
               revealed={balance.revealed}
               secondsLeft={balance.secondsLeft}
@@ -95,33 +103,40 @@ export default memo(function WalletCard({ wallet, summary, index, onOpen }) {
               tone="onDark"
             />
           </div>
-          <div className="text-2xl font-bold tracking-wide tabular-nums break-all">{wallet.Currency} {amount(summary.totalBalance)}</div>
+          <div className="text-2xl font-bold tracking-wide tabular-nums break-all" style={{ color: "#fff" }}>
+            {wallet.Currency} {amount(summary.totalBalance)}
+          </div>
         </div>
-        <div className={`${p.headBadge} p-2.5 rounded-lg text-white text-xl shrink-0`}>
-          <i className="fa-solid fa-wallet"></i>
+        <div className="p-2.5 rounded-lg text-xl shrink-0" style={{ background: p.badge, color: "#fff" }}>
+          <i className="fa-solid fa-wallet" />
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-2 mb-3">
         {accountIds.map((id) => (
-          <div key={id} className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl p-2 text-center shadow-2xs">
-            <div className="text-[10px] text-gray-500 dark:text-gray-400 flex items-center justify-center gap-1 font-semibold">
-              <i className={accountIcon(id)}></i> {accountLabel(id)}
+          <div key={id} className="card-flat p-2 text-center">
+            <div className="text-[10px] text-ink-2 flex items-center justify-center gap-1 font-semibold">
+              <i className={accountIcon(id)} style={{ color: p.icon }} /> {accountLabel(id)}
             </div>
-            <div className="text-xs font-bold text-slate-800 dark:text-gray-100 mt-1 tabular-nums">{wallet.Currency} {amount(summary?.accounts?.[id] || 0)}</div>
+            <div className="text-xs font-bold text-ink mt-1 tabular-nums">
+              {wallet.Currency} {amount(summary?.accounts?.[id] || 0)}
+            </div>
           </div>
         ))}
       </div>
 
       {hasOpening && (
-        <button onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }} className="w-full text-[10px] text-gray-400 dark:text-gray-500 text-center mb-3 flex items-center justify-center gap-1 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
-          <i className={`fa-solid fa-chevron-${expanded ? 'up' : 'down'}`}></i>
+        <button
+          onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
+          className="w-full text-[10px] text-ink-3 text-center mb-3 flex items-center justify-center gap-1 transition-colors"
+        >
+          <i className={`fa-solid fa-chevron-${expanded ? "up" : "down"}`} />
           শুরুর ব্যালেন্স
         </button>
       )}
 
       {hasOpening && expanded && (
-        <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl p-2.5 mb-3 text-center text-[11px] text-gray-500 dark:text-gray-400 space-y-1">
+        <div className="card-flat p-2.5 mb-3 text-center text-[11px] text-ink-2 space-y-1">
           {openingAccounts.map((id) => (
             <div key={id}>{accountLabel(id)}: {wallet.Currency} {amount(openingFor(id))}</div>
           ))}
@@ -131,19 +146,21 @@ export default memo(function WalletCard({ wallet, summary, index, onOpen }) {
       {/* Income/expense are the current calendar month; the balance figures
           above stay lifetime because that is the wallet's real standing. */}
       <div className="grid grid-cols-2 gap-2">
-        <div className="bg-white dark:bg-gray-900 border border-emerald-100 dark:border-emerald-800 rounded-xl p-2 px-3">
-          <div className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">এ মাসের আয়</div>
-          <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 tabular-nums">
-            <i className="fa-solid fa-arrow-up text-xs me-1"></i>{wallet.Currency} {summary.income.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+        <div className="card-flat p-2 px-3" style={{ borderColor: "var(--ah-success)" }}>
+          <div className="text-[11px] text-ink-2 font-medium">এ মাসের আয়</div>
+          <div className="text-sm font-bold mt-0.5 tabular-nums" style={{ color: "var(--ah-success)" }}>
+            <i className="fa-solid fa-arrow-up text-xs me-1" />
+            {wallet.Currency} {summary.income.toLocaleString("en-US", { minimumFractionDigits: 2 })}
           </div>
         </div>
-        <div className="bg-white dark:bg-gray-900 border border-red-100 dark:border-red-800 rounded-xl p-2 px-3">
-          <div className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">এ মাসের খরচ</div>
-          <div className="text-sm font-bold text-rose-600 dark:text-rose-400 mt-0.5 tabular-nums">
-            <i className="fa-solid fa-arrow-down text-xs me-1"></i>{wallet.Currency} {summary.expense.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+        <div className="card-flat p-2 px-3" style={{ borderColor: "var(--ah-danger)" }}>
+          <div className="text-[11px] text-ink-2 font-medium">এ মাসের খরচ</div>
+          <div className="text-sm font-bold mt-0.5 tabular-nums" style={{ color: "var(--ah-danger)" }}>
+            <i className="fa-solid fa-arrow-down text-xs me-1" />
+            {wallet.Currency} {summary.expense.toLocaleString("en-US", { minimumFractionDigits: 2 })}
           </div>
         </div>
       </div>
     </div>
   );
-})
+});

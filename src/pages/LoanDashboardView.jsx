@@ -5,6 +5,10 @@ import {
   STATUS_CHOICES, DATE_CHOICES, avatarClass, initialOf, loanTypeMeta, remainingOf, totalAmountOf,
 } from "../utils/loan.js";
 import { parseServerTimestamp } from "../utils/timestamps.js";
+import Popup from "../components/Popup.jsx";
+import {
+  Badge, Button, Card, Chip, EmptyState, ErrorState, Input, LoadingState, PageHeader, Segmented, toneStyle,
+} from "../ui/index.jsx";
 
 // Newest activity first. updatedAt is a "dd-MMM-yyyy HH:mm" string, so it must
 // be parsed before comparing (string order breaks across months/years). Loans
@@ -20,47 +24,79 @@ function byUpdatedDesc(a, b) {
   return 0;
 }
 
-function SumRow({ label, value, accent }) {
-  return (
-    <div className="flex items-center justify-between py-1.5">
-      <span className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">{label}</span>
-      <span className={`text-xs font-bold ${accent}`}>{value}</span>
-    </div>
-  );
-}
+// The status badge colour is derived from the status, not hard-coded per call
+// site, so every screen shows the same colour for the same loan state.
+const STATUS_TONE = { active: "info", partial: "warning", paid: "success", overdue: "danger" };
 
 function SummaryCard({ meta, total, remaining }) {
   const isGiven = meta.short === "দিয়েছি";
-  const accent = isGiven
-    ? { tint: "bg-rose-50 dark:bg-rose-900/20", border: "border-rose-200 dark:border-rose-800", icon: "bg-rose-600", value: "text-rose-600 dark:text-rose-400", remain: "text-slate-800 dark:text-gray-100" }
-    : { tint: "bg-emerald-50 dark:bg-emerald-900/20", border: "border-emerald-200 dark:border-emerald-800", icon: "bg-emerald-600", value: "text-emerald-600 dark:text-emerald-400", remain: "text-slate-800 dark:text-gray-100" };
+  const style = toneStyle(isGiven ? "danger" : "success");
   const curList = Object.keys(remaining);
 
   return (
-    <div className={`${accent.tint} ${accent.border} border rounded-2xl p-3.5 shadow-sm`}>
-      <div className="flex items-center gap-2 mb-1">
-        <div className={`w-8 h-8 rounded-lg ${accent.icon} text-white flex items-center justify-center text-xs shadow-sm`}>
-          <i className={`fa-solid ${isGiven ? "fa-hand-holding-dollar" : "fa-sack-dollar"}`}></i>
+    <Card
+      className="p-3.5"
+      style={{
+        background: style.background,
+        borderColor: isGiven ? "var(--ah-danger-border)" : "var(--ah-success-border)",
+      }}
+    >
+      <div className="flex items-center gap-2 mb-2">
+        <div
+          className="w-8 h-8 rounded-lg text-white flex items-center justify-center text-xs shrink-0"
+          style={{ background: style.color }}
+        >
+          <i className={`fa-solid ${isGiven ? "fa-hand-holding-dollar" : "fa-sack-dollar"}`} />
         </div>
-        <span className="text-sm font-bold text-slate-800 dark:text-gray-100">{meta.label}</span>
+        <span className="text-sm font-bold text-ink truncate">{meta.label}</span>
       </div>
 
       {curList.length === 0 ? (
-        <div className="text-[11px] text-gray-400 dark:text-gray-500 py-2">কোনো হিসাব নেই</div>
+        <div className="text-[11px] text-ink-3 py-1">কোনো হিসাব নেই</div>
       ) : (
-        <>
-          <div className="border-t border-gray-200/60 dark:border-gray-700 mt-1.5 pt-1">
+        <div className="space-y-2">
+          {curList.map((cur) => (
+            <div key={cur} className="flex items-center justify-between gap-2">
+              <span className="text-[11px] font-medium text-ink-2">মোট ({cur})</span>
+              <span className="text-xs font-bold tnum text-ink">{formatMoney(total[cur], cur)}</span>
+            </div>
+          ))}
+          <div className="border-t border-[var(--ah-border)] pt-2 space-y-2">
             {curList.map((cur) => (
-              <SumRow key={cur} label={`মোট (${cur})`} value={formatMoney(total[cur], cur)} accent={accent.value} />
+              <div key={cur} className="flex items-center justify-between gap-2">
+                <span className="text-[11px] font-medium text-ink-2">{meta.outstandingLabel}</span>
+                <span className="text-xs font-bold tnum" style={{ color: style.color }}>
+                  {formatMoney(remaining[cur], cur)}
+                </span>
+              </div>
             ))}
           </div>
-          <div className="border-t border-gray-200/60 dark:border-gray-700 mt-1 pt-1">
-            {curList.map((cur) => (
-              <SumRow key={cur} label={meta.outstandingLabel} value={formatMoney(remaining[cur], cur)} accent={accent.remain} />
-            ))}
-          </div>
-        </>
+        </div>
       )}
+    </Card>
+  );
+}
+
+function MiniStat({ label, value, tone }) {
+  return (
+    <div
+      className="rounded-xl p-2 text-center border"
+      style={
+        tone
+          ? {
+              background: toneStyle(tone).background,
+              borderColor: `var(--ah-${tone}-border)`,
+            }
+          : { background: "var(--ah-surface-inset)", borderColor: "var(--ah-border)" }
+      }
+    >
+      <div className="text-[9px] font-medium text-ink-2">{label}</div>
+      <div
+        className="text-[11px] font-bold tnum mt-0.5"
+        style={tone ? { color: toneStyle(tone).color } : undefined}
+      >
+        {value}
+      </div>
     </div>
   );
 }
@@ -70,63 +106,74 @@ function LoanCard({ loan, onSelect, creatorName }) {
   const status = statusOf(loan);
   const statusMeta = STATUS_META[status];
   const remaining = remainingOf(loan);
+  const isGiven = meta.short === "দিয়েছি";
 
   return (
-    <button onClick={() => onSelect(loan.id)} className="w-full text-left bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-3.5 shadow-2xs hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors">
+    <button
+      type="button"
+      onClick={() => onSelect(loan.id)}
+      className="w-full text-left card p-3.5 hover:border-[var(--ah-brand)] transition-colors"
+    >
       <div className="flex items-center gap-3">
-        <div className={`w-11 h-11 rounded-full ${avatarClass(loan.personName)} text-white flex items-center justify-center text-lg font-bold flex-shrink-0 shadow-sm`}>
+        <div
+          className={`w-11 h-11 rounded-full ${avatarClass(loan.personName)} text-white flex items-center justify-center text-lg font-bold flex-shrink-0`}
+        >
           {initialOf(loan.personName)}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="font-bold text-sm text-slate-800 dark:text-gray-100 truncate">{loan.personName}</div>
-          <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 flex items-center gap-1">
-            <i className="fa-solid fa-phone text-[9px]"></i>
-            {loan.phone || "নাম্বার নেই"}
-            <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ml-1 ${meta.short === "দিয়েছি" ? "bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-400" : "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400"}`}>
-              {meta.short}
-            </span>
+          <div className="font-bold text-sm text-ink truncate">{loan.personName}</div>
+          <div className="text-[11px] text-ink-3 mt-0.5 flex items-center gap-1 min-w-0">
+            <i className="fa-solid fa-phone text-[9px]" />
+            <span className="truncate">{loan.phone || "নাম্বার নেই"}</span>
+            <Badge className="shrink-0" tone={isGiven ? "danger" : "success"}>{meta.short}</Badge>
           </div>
         </div>
         <div className="flex flex-col items-end gap-1 flex-shrink-0">
-          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${statusMeta.bg} ${statusMeta.text}`}>{statusMeta.label}</span>
-          <span className="text-[9px] font-bold text-gray-400 dark:text-gray-500">{loan.currency}</span>
+          <Badge tone={STATUS_TONE[status] || "neutral"}>{statusMeta.label}</Badge>
+          <span className="text-[9px] font-bold text-ink-3">{loan.currency}</span>
         </div>
       </div>
 
       <div className="grid grid-cols-3 gap-2 mt-3">
-        <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-2 text-center border border-gray-100 dark:border-gray-800">
-          <div className="text-[9px] text-gray-500 dark:text-gray-400 font-medium">{meta.totalLabel}</div>
-          <div className="text-[11px] font-bold text-slate-800 dark:text-gray-100 mt-0.5">{formatMoney(totalAmountOf(loan), loan.currency)}</div>
-        </div>
-        <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-2 text-center border border-emerald-100 dark:border-emerald-800">
-          <div className="text-[9px] text-emerald-700 dark:text-emerald-400 font-medium">{meta.repaidLabel}</div>
-          <div className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">{formatMoney(loan.repaid, loan.currency)}</div>
-        </div>
-        <div className={`rounded-xl p-2 text-center border ${remaining > 0 ? "bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-800" : "bg-slate-50 dark:bg-slate-900 border-gray-100 dark:border-gray-800"}`}>
-          <div className="text-[9px] text-amber-700 dark:text-amber-400 font-medium">{meta.remainingLabel}</div>
-          <div className={`text-[11px] font-bold mt-0.5 ${remaining > 0 ? "text-amber-600 dark:text-amber-400" : "text-slate-500 dark:text-gray-400"}`}>{formatMoney(remaining, loan.currency)}</div>
-        </div>
+        <MiniStat label={meta.totalLabel} value={formatMoney(totalAmountOf(loan), loan.currency)} />
+        <MiniStat label={meta.repaidLabel} value={formatMoney(loan.repaid, loan.currency)} tone="success" />
+        <MiniStat
+          label={meta.remainingLabel}
+          value={formatMoney(remaining, loan.currency)}
+          tone={remaining > 0 ? "warning" : null}
+        />
       </div>
 
-      <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-gray-100 dark:border-gray-800">
-        <div className="text-[10px] text-gray-400 dark:text-gray-500 flex items-center gap-2 min-w-0">
-          <span className="truncate max-w-[45%]"><i className="fa-solid fa-wallet me-1"></i>{loan.walletName || "—"}</span>
-          <span className="shrink-0"><i className="fa-solid fa-calendar-day me-1"></i>{fmtDate(loan.loanDate)}</span>
-          {loan.dueDate && <span className="shrink-0"><i className="fa-solid fa-hourglass-half me-1"></i>{fmtDate(loan.dueDate)}</span>}
+      <div className="flex items-center justify-between gap-2 mt-2.5 pt-2 border-t border-[var(--ah-border)]">
+        <div className="text-[10px] text-ink-3 flex items-center gap-2 min-w-0">
+          <span className="truncate max-w-[45%]">
+            <i className="fa-solid fa-wallet me-1" />
+            {loan.walletName || "—"}
+          </span>
+          <span className="shrink-0">
+            <i className="fa-solid fa-calendar-day me-1" />
+            {fmtDate(loan.loanDate)}
+          </span>
+          {loan.dueDate ? (
+            <span className="shrink-0">
+              <i className="fa-solid fa-hourglass-half me-1" />
+              {fmtDate(loan.dueDate)}
+            </span>
+          ) : null}
         </div>
         <div className="text-right ml-2 flex items-center justify-end gap-x-2 flex-wrap">
-          {creatorName && (
-            <span className="text-[9px] text-gray-400 dark:text-gray-500 flex items-center gap-1">
-              <i className="fa-solid fa-user-pen"></i>
-              <span className="font-semibold text-gray-500 dark:text-gray-400">{creatorName}</span>
+          {creatorName ? (
+            <span className="text-[9px] text-ink-3 flex items-center gap-1">
+              <i className="fa-solid fa-user-pen" />
+              <span className="font-semibold">{creatorName}</span>
             </span>
-          )}
-          {loan.updatedAt && (
-            <span className="text-[9px] text-gray-400 dark:text-gray-500 flex items-center gap-1">
-              <i className="fa-solid fa-clock-rotate-left"></i>
-              <span className="font-semibold text-gray-500 dark:text-gray-400">{fmtUpdated(loan.updatedAt)}</span>
+          ) : null}
+          {loan.updatedAt ? (
+            <span className="text-[9px] text-ink-3 flex items-center gap-1">
+              <i className="fa-solid fa-clock-rotate-left" />
+              <span className="font-semibold">{fmtUpdated(loan.updatedAt)}</span>
             </span>
-          )}
+          ) : null}
         </div>
       </div>
     </button>
@@ -150,79 +197,74 @@ function FilterSheet({ open, onClose, onApply, onReset, currencies }) {
 
   if (!open) return null;
 
-  const chip = (active, onClick, label) => (
-    <button type="button" onClick={onClick} className={`px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all ${active ? "bg-emerald-600 text-white shadow-sm" : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"}`}>
-      {label}
-    </button>
-  );
-
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div className="w-full max-w-[480px] bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 max-h-[90vh] overflow-y-auto custom-scrollbar" onClick={(e) => e.stopPropagation()}>
-        <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800">
-          <h4 className="font-bold text-slate-800 dark:text-gray-100 text-base">ফিল্টার</h4>
-          <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 flex items-center justify-center">
-            <i className="fa-solid fa-xmark"></i>
-          </button>
-        </div>
-
-        <div className="p-5 space-y-3">
-          <div>
-            <div className="text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5">STATUS</div>
-            <div className="flex flex-wrap gap-1.5">
-              {STATUS_CHOICES.map((s) => (
-                <span key={s.value}>{chip(status === s.value, () => setStatus(s.value), s.label)}</span>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <div className="text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5">DATE</div>
-            <div className="flex flex-wrap gap-1.5">
-              {DATE_CHOICES.map((d) => (
-                <span key={d.value}>{chip(dateOption === d.value, () => setDateOption(d.value), d.label)}</span>
-              ))}
-            </div>
-          </div>
-          {dateOption === "custom" && (
-            <div className="grid grid-cols-1 gap-2">
-              <label className="block">
-                <span className="text-[10px] text-gray-500 dark:text-gray-400 mb-0.5 block">তারিখ (থেকে)</span>
-                <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" />
-              </label>
-              <label className="block">
-                <span className="text-[10px] text-gray-500 dark:text-gray-400 mb-0.5 block">তারিখ (পর্যন্ত)</span>
-                <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" />
-              </label>
-            </div>
-          )}
-
-          <div>
-            <div className="text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5">CURRENCY</div>
-            <div className="flex flex-wrap gap-1.5">
-              <span>{chip(currency === "all", () => setCurrency("all"), "সব")}</span>
-              {currencies.map((c) => (
-                <span key={c}>{chip(currency === c, () => setCurrency(c), c)}</span>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <div className="text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5">REMAINING</div>
-            <div className="flex flex-wrap gap-1.5">
-              <span>{chip(remaining === "all", () => setRemaining("all"), "সব")}</span>
-              <span>{chip(remaining === "due", () => setRemaining("due"), "টাকা বাকি আছে")}</span>
-              <span>{chip(remaining === "done", () => setRemaining("done"), "সম্পূর্ণ ফেরত হয়েছে")}</span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 pt-2">
-            <button onClick={() => { onReset(); onClose(); }} className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-bold py-2.5 rounded-xl text-xs">রিসেট</button>
-            <button onClick={() => { onApply({ status, dateOption, from, to, currency, remaining }); onClose(); }} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs">ফিল্টার করুন</button>
-          </div>
+    <Popup open={open} title="ফিল্টার" onClose={onClose} maxWidth="max-w-[480px]">
+      <div>
+        <div className="section-title mb-2">STATUS</div>
+        <div className="flex flex-wrap gap-1.5">
+          {STATUS_CHOICES.map((s) => (
+            <Chip key={s.value} active={status === s.value} onClick={() => setStatus(s.value)}>
+              {s.label}
+            </Chip>
+          ))}
         </div>
       </div>
-    </div>
+
+      <div>
+        <div className="section-title mb-2">DATE</div>
+        <div className="flex flex-wrap gap-1.5">
+          {DATE_CHOICES.map((d) => (
+            <Chip key={d.value} active={dateOption === d.value} onClick={() => setDateOption(d.value)}>
+              {d.label}
+            </Chip>
+          ))}
+        </div>
+      </div>
+
+      {dateOption === "custom" ? (
+        <div className="grid grid-cols-1 gap-2">
+          <label className="block">
+            <span className="label">তারিখ (থেকে)</span>
+            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          </label>
+          <label className="block">
+            <span className="label">তারিখ (পর্যন্ত)</span>
+            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          </label>
+        </div>
+      ) : null}
+
+      <div>
+        <div className="section-title mb-2">CURRENCY</div>
+        <div className="flex flex-wrap gap-1.5">
+          <Chip active={currency === "all"} onClick={() => setCurrency("all")}>সব</Chip>
+          {currencies.map((c) => (
+            <Chip key={c} active={currency === c} onClick={() => setCurrency(c)}>{c}</Chip>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <div className="section-title mb-2">REMAINING</div>
+        <div className="flex flex-wrap gap-1.5">
+          <Chip active={remaining === "all"} onClick={() => setRemaining("all")}>সব</Chip>
+          <Chip active={remaining === "due"} onClick={() => setRemaining("due")}>টাকা বাকি আছে</Chip>
+          <Chip active={remaining === "done"} onClick={() => setRemaining("done")}>সম্পূর্ণ ফেরত হয়েছে</Chip>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 pt-2">
+        <Button variant="secondary" onClick={() => { onReset(); onClose(); }}>রিসেট</Button>
+        <Button
+          onClick={() => {
+            onApply({ status, dateOption, from, to, currency, remaining });
+            onClose();
+          }}
+        >
+          ফিল্টার করুন
+        </Button>
+      </div>
+    </Popup>
   );
 }
 
@@ -336,105 +378,114 @@ export default function LoanDashboardView({ currentUser, loans, onLoansChange, c
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="font-bold text-slate-800 dark:text-gray-100 text-base flex items-center gap-2">
-          <i className="fa-solid fa-hand-holding-dollar text-emerald-600"></i> হাওলাত (Loan)
-        </h3>
-        {canAddLoan ? (
-          <button onClick={onAdd} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-sm active:scale-95 transition-transform">
-            <i className="fa-solid fa-plus"></i> হাওলাত যোগ করুন
-          </button>
-        ) : (
-          <span className="text-[10px] text-gray-400 dark:text-gray-500">যোগ করতে অনুমতি নেই</span>
-        )}
-      </div>
+      <PageHeader
+        title="হাওলাত (Loan)"
+        icon="fa-hand-holding-dollar"
+        subtitle="দেওয়া ও নেওয়া হাওলাতের হিসাব"
+        right={
+          canAddLoan ? (
+            <Button size="sm" icon="fa-plus" onClick={onAdd}>হাওলাত যোগ করুন</Button>
+          ) : (
+            <span className="text-[10px] text-ink-3">যোগ করতে অনুমতি নেই</span>
+          )
+        }
+      />
 
-      <div className="grid grid-cols-1 gap-2.5">
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
         <SummaryCard meta={loanTypeMeta("given")} total={givenTotal} remaining={givenRemain} />
         <SummaryCard meta={loanTypeMeta("taken")} total={takenTotal} remaining={takenRemain} />
       </div>
 
-      <div className="grid grid-cols-2 gap-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl text-xs font-bold">
-        {["given", "taken"].map((t) => (
-          <button key={t} onClick={() => setTab(t)} className={`py-2 rounded-lg transition-all ${tab === t ? "bg-emerald-600 text-white shadow-sm" : "text-gray-600 dark:text-gray-400"}`}>
-            {loanTypeMeta(t).label}
-          </button>
-        ))}
-      </div>
+      <Segmented
+        value={tab}
+        onChange={setTab}
+        options={[
+          { value: "given", label: `${loanTypeMeta("given").label} (${given.length})` },
+          { value: "taken", label: `${loanTypeMeta("taken").label} (${taken.length})` },
+        ]}
+      />
 
       <div className="flex gap-2">
         <div className="relative flex-1">
-          <i className="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 dark:text-gray-500 text-xs"></i>
-          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ব্যক্তির নাম দিয়ে খুঁজুন..."
-            className="w-full border border-gray-300 dark:border-gray-700 rounded-xl pl-8 pr-3 py-2 text-xs focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-900 dark:text-gray-100" />
+          <i className="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-ink-3 text-xs" />
+          <Input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="ব্যক্তির নাম দিয়ে খুঁজুন..."
+            className="pl-8"
+          />
         </div>
-        <button onClick={() => setShowFilter(true)} className="relative bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-gray-200 flex items-center gap-1.5 active:scale-95 transition-transform">
-          <i className="fa-solid fa-arrow-up-wide-short text-emerald-600"></i>
+        <Button
+          variant="secondary"
+          onClick={() => setShowFilter(true)}
+          className="relative"
+          icon="fa-arrow-up-wide-short"
+        >
           Filter
-          {activeFilterCount > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-emerald-600 text-white text-[9px] font-bold flex items-center justify-center">{activeFilterCount}</span>
-          )}
-        </button>
+          {activeFilterCount > 0 ? (
+            <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-[var(--ah-brand)] text-white text-[9px] font-bold flex items-center justify-center">
+              {activeFilterCount}
+            </span>
+          ) : null}
+        </Button>
       </div>
 
-      {loading && (
-        <div className="text-center py-10">
-          <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <div className="text-xs text-gray-400 dark:text-gray-500 mt-2">লোড হচ্ছে...</div>
-        </div>
-      )}
+      {loading ? <LoadingState label="লোড হচ্ছে..." /> : null}
 
-      {!loading && loadError && (
-        <div className="text-center py-8 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 px-4">
-          <i className="fa-solid fa-triangle-exclamation text-amber-500 text-lg mb-2"></i>
-          <div className="text-xs text-rose-600 dark:text-rose-400">{loadError}</div>
-          <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">দেখানো তথ্য পুরোনো হতে পারে — অনুগ্রহ করে আবার চেষ্টা করুন।</div>
-          <button onClick={() => setRefreshKey((k) => k + 1)}
-            className="mt-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-xl text-xs">
-            আবার চেষ্টা করুন
-          </button>
-        </div>
-      )}
+      {!loading && loadError ? (
+        <ErrorState
+          title="হাওলাত লোড করা যায়নি"
+          text={`${loadError} দেখানো তথ্য পুরোনো হতে পারে — অনুগ্রহ করে আবার চেষ্টা করুন।`}
+          onRetry={() => setRefreshKey((k) => k + 1)}
+        />
+      ) : null}
 
-      {!loading && !loadError && !hasAnyLoan && (
-        <div className="text-center py-12 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800">
-          <div className="text-5xl mb-3">📒</div>
-          <div className="text-sm font-semibold text-gray-500 dark:text-gray-400">এখনো কোনো হাওলাতের হিসাব নেই</div>
-          <div className="text-xs text-gray-400 dark:text-gray-500 mt-1 mb-4">প্রথম হাওলাত যোগ করে শুরু করুন।</div>
-          {canAddLoan && (
-            <button onClick={onAdd} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 mx-auto shadow-sm">
-              <i className="fa-solid fa-plus"></i> হাওলাত যোগ করুন
-            </button>
-          )}
-        </div>
-      )}
+      {!loading && !loadError && !hasAnyLoan ? (
+        <EmptyState
+          icon="fa-hand-holding-dollar"
+          title="এখনো কোনো হাওলাতের হিসাব নেই"
+          text="প্রথম হাওলাত যোগ করে শুরু করুন।"
+          action={
+            canAddLoan ? (
+              <Button icon="fa-plus" onClick={onAdd}>হাওলাত যোগ করুন</Button>
+            ) : null
+          }
+        />
+      ) : null}
 
-      {!loading && hasAnyLoan && filtered.length === 0 && (
-        <div className="text-center py-10 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800">
-          <div className="text-4xl mb-2">🔍</div>
-          <div className="text-sm font-semibold text-gray-500 dark:text-gray-400">কোনো হাওলাত পাওয়া যায়নি</div>
-          <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">সার্চ বা ফিল্টার পরিবর্তন করুন।</div>
-          {(search || activeFilterCount > 0) && (
-            <button onClick={() => { setSearch(""); setFilters(null); }} className="mt-3 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl px-3 py-1.5">
-              সার্চ ও ফিল্টার রিসেট করুন
-            </button>
-          )}
-        </div>
-      )}
+      {!loading && !loadError && hasAnyLoan && filtered.length === 0 ? (
+        <EmptyState
+          icon="fa-magnifying-glass"
+          title="কোনো হাওলাত পাওয়া যায়নি"
+          text="সার্চ বা ফিল্টার পরিবর্তন করুন।"
+          action={
+            search || activeFilterCount > 0 ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => { setSearch(""); setFilters(null); }}
+              >
+                সার্চ ও ফিল্টার রিসেট করুন
+              </Button>
+            ) : null
+          }
+        />
+      ) : null}
 
-      {!loading && filtered.length > 0 && (
+      {!loading && filtered.length > 0 ? (
         <div className="space-y-2.5">
           {filtered.map((l) => (
             <LoanCard key={l.id} loan={l} onSelect={onSelect} creatorName={userMap[l.createdBy] || l.createdBy} />
           ))}
         </div>
-      )}
+      ) : null}
 
-      {!loading && !loadError && !hasAnyLoan && !can('MANAGE_LOANS') && (
-        <div className="text-center py-6 text-xs text-gray-400 dark:text-gray-500">
+      {!loading && !loadError && !hasAnyLoan && !can("MANAGE_LOANS") ? (
+        <div className="text-center py-6 text-xs text-ink-3">
           নতুন হাওলাত যোগ করতে প্রশাসকের সাথে যোগাযোগ করুন।
         </div>
-      )}
+      ) : null}
 
       <FilterSheet
         open={showFilter}

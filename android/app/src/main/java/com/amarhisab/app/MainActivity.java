@@ -19,6 +19,7 @@ public class MainActivity extends BridgeActivity {
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
+    registerPlugin(PdfSaverPlugin.class);
     super.onCreate(savedInstanceState);
     // Hide system bars on initial launch
     enterImmersiveSticky();
@@ -85,7 +86,7 @@ public class MainActivity extends BridgeActivity {
       View decorView = getWindow().getDecorView();
       WindowInsetsController controller = decorView.getWindowInsetsController();
       if (controller != null) {
-        controller.hide(WindowInsets.Type.navigationBars());
+        controller.hide(WindowInsets.Type.navigationBars() | WindowInsets.Type.statusBars());
         controller.setSystemBarsBehavior(
           WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         );

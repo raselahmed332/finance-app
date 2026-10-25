@@ -14,9 +14,30 @@ import Popup from "./components/Popup.jsx";
 import { loadCurrencies } from "./utils/currency.js";
 import { setAccounts as setAccountsRegistry, resetAccounts } from "./utils/accounts.js";
 import { todayStr } from "./utils/loan.js";
+import {
+  calculateBalancesAfterTransactions,
+  transactionBalanceDelta,
+} from "./utils/transactionBalance.js";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
-import { registerNativeBackButton } from "./utils/native.js";
-import { isNativeAndroid, checkAndPromptForUpdate } from "./utils/updater.js";
+import {
+  hideNativeSplash,
+  registerNativeBackButton,
+} from "./utils/native.js";
+import {
+  isNativeAndroid,
+  checkForUpdate,
+  downloadUpdate,
+  openDownloadedApk,
+  openInstallPermissionSettings,
+} from "./utils/updater.js";
+import UpdateDialog from "./components/UpdateDialog.jsx";
+import {
+  readThemeMode,
+  saveThemeMode,
+  resolveTheme,
+  subscribeTheme,
+  THEME_MODES,
+} from "./utils/theme.js";
 
 const LoginScreen = lazy(() => import("./pages/LoginScreen.jsx"));
 const DashboardView = lazy(() => import("./pages/DashboardView.jsx"));
@@ -54,7 +75,7 @@ const SavingsForm = lazy(() => import("./components/SavingsForm.jsx"));
 function PageFallback() {
   return (
     <div className="flex items-center justify-center py-20">
-      <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+      <div className="w-6 h-6 border-2 border-[var(--ah-brand)] border-t-transparent rounded-full animate-spin"></div>
     </div>
   );
 }
@@ -67,11 +88,16 @@ export default function App() {
   // may use a locally stored object as proof of identity.
   const [currentUser, setCurrentUser] = useState(null);
   const [checkingAuth, setCheckingAuth] = useState(() => session.exists());
-  const [darkMode, setDarkMode] = useState(() => {
-    const saved = localStorage.getItem("hisab_dark");
-    if (saved !== null) return saved === "true";
-    return window.matchMedia("(prefers-color-scheme: dark)").matches;
-  });
+  // Theme: "system" | "light" | "dark". `resolvedTheme` is what is actually on
+  // screen, so the header icon always matches reality even when the OS
+  // preference changes while the app is open.
+  const [themeMode, setThemeMode] = useState(() => readThemeMode());
+  const [resolvedTheme, setResolvedTheme] = useState(() =>
+    resolveTheme(readThemeMode()),
+  );
+  const markLoginReady = useCallback(() => {
+    void hideNativeSplash();
+  }, []);
   const toast = useToast();
   const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState("home");
@@ -92,11 +118,30 @@ export default function App() {
   // after a new login and resurrect the previous user's session/data.
   const sessionEpoch = useRef(0);
   const [pullRefreshing, setPullRefreshing] = useState(false);
+  const [autoUpdateState, setAutoUpdateState] = useState("idle");
+  const [autoUpdateRelease, setAutoUpdateRelease] = useState(null);
+  const [autoUpdateInstalled, setAutoUpdateInstalled] = useState(null);
+  const [autoUpdateProgress, setAutoUpdateProgress] = useState(null);
+  const [autoUpdateMessage, setAutoUpdateMessage] = useState("");
+  const [autoUpdateBusy, setAutoUpdateBusy] = useState(false);
+  const autoUpdateDownloadRef = useRef(null);
+  const resetAutoUpdate = useCallback(() => {
+    setAutoUpdateState("idle");
+    setAutoUpdateRelease(null);
+    setAutoUpdateInstalled(null);
+    setAutoUpdateProgress(null);
+    setAutoUpdateMessage("");
+    setAutoUpdateBusy(false);
+    autoUpdateDownloadRef.current = null;
+  }, []);
 
+  // Apply + persist the chosen theme. In "system" mode the class follows the
+  // OS preference live, so the header icon and the app chrome never disagree.
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", darkMode);
-    localStorage.setItem("hisab_dark", darkMode);
-  }, [darkMode]);
+    saveThemeMode(themeMode);
+  }, [themeMode]);
+
+  useEffect(() => subscribeTheme(setResolvedTheme), []);
 
   // Search & Filter state
   const [searchTerm, setSearchTerm] = useState("");
@@ -191,15 +236,20 @@ export default function App() {
     setFormModal(null);
   }, []);
 
+  useEffect(() => {
+    if (!checkingAuth && currentUser) void hideNativeSplash();
+  }, [checkingAuth, currentUser]);
+
   // Hard logout: drops the token and every user-scoped list. Used both for an
   // explicit sign-out and whenever the backend reports the session is no longer
   // valid.
   const forceLogout = useCallback(() => {
     sessionEpoch.current += 1;
     resetUiState();
+    resetAutoUpdate();
     setCurrentUser(null);
     session.clear();
-  }, [resetUiState]);
+  }, [resetUiState, resetAutoUpdate]);
 
   // Startup handshake. The stored token is the only credential; the signed-in
   // user is whatever the backend says it belongs to.
@@ -306,60 +356,110 @@ export default function App() {
 
   // Automatic update check: runs once per signed-in session, inside the Android
   // shell only. It is deliberately fire-and-forget so login, rendering and the
-  // dashboard are never delayed or blocked. A declined prompt is remembered for
-  // the session so navigating around never re-asks. Silent on "up to date" and
-  // on any failure (offline, rate limit, malformed release, ...).
-  const updateCheckSession = useRef(0);
+  // dashboard are never delayed or blocked. Silent on "up to date" and on any
+  // check failure (offline, rate limit, malformed release, ...).
   useEffect(() => {
     if (!currentUser) return undefined;
     if (!isNativeAndroid()) return undefined;
 
     const epoch = sessionEpoch.current;
     let cancelled = false;
-    updateCheckSession.current += 1;
-
-    checkAndPromptForUpdate({
-      confirmUpdate: (release, installed) =>
-        confirm({
-          title: "নতুন আপডেট পাওয়া গেছে",
-          message: `Amar Hisab-এর নতুন ভার্সন ${release.versionName} পাওয়া গেছে।\nবর্তমান: ${installed.versionName}\nনতুন: ${release.versionName}`,
-          detail: "এখন আপডেট করলে ডেটা অপরিবর্তিত থাকবে।",
-          confirmLabel: "এখনই আপডেট",
-          cancelLabel: "পরে",
-          danger: false,
-        }),
-      notify: ({ phase, percent }) => {
-        if (cancelled || sessionEpoch.current !== epoch) return;
-        if (phase === "downloading") {
-          showAlert(
-            percent != null
-              ? `আপডেট ডাউনলোড হচ্ছে... ${percent}%`
-              : "আপডেট ডাউনলোড হচ্ছে...",
-            "success",
-          );
-        } else if (phase === "installing") {
-          showAlert("ডাউনলোড সম্পন্ন। Android ইনস্টলার খোলা হচ্ছে...", "success");
-        }
-      },
-    }).then((result) => {
-      if (cancelled || sessionEpoch.current !== epoch) return;
-      if (result.status === "ERROR" && result.error) {
-        // Only surface a download/install problem the user actively started.
-        const code = result.error.code;
-        if (
-          code &&
-          !["NETWORK", "OFFLINE", "NO_VERSION", "NOT_NATIVE"].includes(code)
-        ) {
-          showAlert(result.error.message || "আপডেট করা সম্ভব হয়নি।", "error");
-        }
-      }
-    });
+    checkForUpdate()
+      .then((result) => {
+        if (cancelled || sessionEpoch.current !== epoch || !result.hasUpdate) return;
+        setAutoUpdateRelease(result.release);
+        setAutoUpdateInstalled(result.installed);
+        setAutoUpdateState("update-available");
+      })
+      .catch(() => {
+        // Background update checks must not interrupt normal app use.
+      });
 
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.username]);
+
+  const failAutoUpdate = (err) => {
+    const messages = {
+      RATE_LIMITED: "GitHub রেট লিমিট হয়েছে, কিছুক্ষণ পরে আবার চেষ্টা করুন।",
+      NETWORK: "ইন্টারনেট সংযোগ নেই অথবা GitHub-এ পৌঁছানো যাচ্ছে না।",
+      OFFLINE: "ইন্টারনেট সংযোগ নেই অথবা GitHub-এ পৌঁছানো যাচ্ছে না।",
+      INCOMPLETE: "ডাউনলোড অসম্পূর্ণ হয়েছে (স্টোরেজ পূর্ণ হতে পারে)। আবার চেষ্টা করুন।",
+      EMPTY_FILE: "ডাউনলোড অসম্পূর্ণ হয়েছে (স্টোরেজ পূর্ণ হতে পারে)। আবার চেষ্টা করুন।",
+      CHECKSUM_MISMATCH: "ডাউনলোড করা ফাইলটি যাচাইয়ের সময় মেলেনি, তাই বাতিল করা হয়েছে।",
+      NO_FILE: "ডাউনলোড করা ফাইল পাওয়া যায়নি। আবার ডাউনলোড করুন।",
+      FILE_MISSING: "ডাউনলোড করা ফাইল পাওয়া যায়নি। আবার ডাউনলোড করুন।",
+      IN_PROGRESS: "একটি ডাউনলোড ইতিমধ্যে চলছে।",
+    };
+    setAutoUpdateMessage(
+      messages[err?.code] ||
+        "আপডেট করতে সমস্যা হয়েছে। ইন্টারনেট সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।",
+    );
+    setAutoUpdateState("error");
+    setAutoUpdateProgress(null);
+    setAutoUpdateBusy(false);
+  };
+
+  const launchAutoUpdateInstaller = async (download) => {
+    const file = download || autoUpdateDownloadRef.current;
+    const epoch = sessionEpoch.current;
+    if (!file) {
+      failAutoUpdate({ code: "NO_FILE" });
+      return;
+    }
+    setAutoUpdateState("download-complete");
+    try {
+      await openDownloadedApk(file.uri, { size: file.size });
+      if (sessionEpoch.current === epoch) resetAutoUpdate();
+    } catch (err) {
+      if (sessionEpoch.current !== epoch) return;
+      if (err?.code === "NEEDS_PERMISSION") {
+        setAutoUpdateMessage(
+          "Android-এ Amar Hisab থেকে অ্যাপ ইনস্টল করার অনুমতি চালু করুন, তারপর আবার চেষ্টা করুন।",
+        );
+        setAutoUpdateState("permission-required");
+        setAutoUpdateBusy(false);
+        return;
+      }
+      failAutoUpdate(err);
+    }
+  };
+
+  const startAutoUpdateDownload = async () => {
+    if (autoUpdateBusy || !autoUpdateRelease) return;
+    const epoch = sessionEpoch.current;
+    setAutoUpdateBusy(true);
+    setAutoUpdateState("downloading");
+    setAutoUpdateProgress({
+      bytes: 0,
+      contentLength: autoUpdateRelease.size || 0,
+      percent: 0,
+    });
+    setAutoUpdateMessage("");
+    try {
+      const result = await downloadUpdate(autoUpdateRelease, (progress) => {
+        if (sessionEpoch.current !== epoch) return;
+        setAutoUpdateProgress({
+          bytes: progress.bytes,
+          contentLength: progress.contentLength,
+          percent: progress.percent,
+        });
+      });
+      if (sessionEpoch.current !== epoch) return;
+      autoUpdateDownloadRef.current = result;
+      setAutoUpdateProgress({
+        bytes: result.size,
+        contentLength: result.size,
+        percent: 100,
+      });
+      setAutoUpdateState("download-complete");
+      await launchAutoUpdateInstaller(result);
+    } catch (err) {
+      if (sessionEpoch.current === epoch) failAutoUpdate(err);
+    }
+  };
 
   const handleLogout = useCallback(() => {
     // Fire-and-forget: the local session is dropped regardless of the response.
@@ -420,28 +520,11 @@ export default function App() {
       // Only attribute the balance when the row names an account; a legacy row
       // with no Account contributes to nothing rather than a phantom key.
       const acct = t.Account ? String(t.Account) : "";
-      if (
-        t.Type === "Income" ||
-        t.Type === "Transfer In" ||
-        t.Type === "Loan In" ||
-        t.Type === "Loan Repaid" ||
-        t.Type === "Savings Withdrawal" ||
-        t.Type === "Savings Payout"
-      ) {
-        if (t.Type === "Income" && inCurrentMonth) summary.income += amt;
-        if (acct) summary.accounts[acct] = (summary.accounts[acct] || 0) + amt;
-      } else if (
-        t.Type === "Expense" ||
-        t.Type === "Transfer Out" ||
-        t.Type === "Loan Out" ||
-        t.Type === "Loan Payment" ||
-        t.Type === "Savings Deposit" ||
-        t.Type === "Savings Contribution" ||
-        t.Type === "Savings Payment"
-      ) {
-        if (t.Type === "Expense" && inCurrentMonth) summary.expense += amt;
-        if (acct) summary.accounts[acct] = (summary.accounts[acct] || 0) - amt;
-      }
+      const balanceDelta = transactionBalanceDelta(t);
+      if (t.Type === "Income" && inCurrentMonth) summary.income += amt;
+      if (t.Type === "Expense" && inCurrentMonth) summary.expense += amt;
+      if (acct && balanceDelta !== null)
+        summary.accounts[acct] = (summary.accounts[acct] || 0) + balanceDelta;
     });
     Object.values(summaries).forEach((summary) => {
       summary.totalBalance = Object.values(summary.accounts).reduce(
@@ -456,6 +539,10 @@ export default function App() {
     // recomputes the monthly figures on the next render instead of showing
     // last month's numbers.
   }, [wallets, transactions, currentMonth, accounts]);
+  const transactionBalances = useMemo(
+    () => calculateBalancesAfterTransactions(transactions, wallets, accounts),
+    [transactions, wallets, accounts],
+  );
 
   // Merge one or two returned transaction rows into local state directly —
   // replacing a matching ID if it already exists, appending if it's new —
@@ -953,7 +1040,7 @@ export default function App() {
 
   if (checkingAuth) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--ah-header-2)] flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
@@ -963,6 +1050,7 @@ export default function App() {
     return (
       <Suspense fallback={<PageFallback />}>
         <LoginScreen
+          onReady={markLoginReady}
           onLogin={(user, token) => {
             sessionEpoch.current += 1;
             resetUiState();
@@ -978,45 +1066,152 @@ export default function App() {
   }
 
   return (
-    <div className="mobile-container flex flex-col min-h-screen bg-gray-50 dark:bg-gray-950 border-x border-gray-200 dark:border-gray-800 transition-colors">
+    <div className="mobile-container flex flex-col min-h-screen border-x border-[var(--ah-border)] transition-colors">
+      <UpdateDialog
+        open={autoUpdateState !== "idle"}
+        state={autoUpdateState}
+        release={autoUpdateRelease}
+        installed={autoUpdateInstalled}
+        progress={autoUpdateProgress}
+        message={autoUpdateMessage}
+        onUpdate={startAutoUpdateDownload}
+        onLater={resetAutoUpdate}
+        onClose={resetAutoUpdate}
+        onOpenInstaller={() => launchAutoUpdateInstaller()}
+        onOpenSettings={openInstallPermissionSettings}
+      />
       {/* Header */}
-      <header className="app-header bg-gray-900 dark:bg-gray-950 text-white px-4 py-4 flex items-center justify-between sticky top-0 z-30 shadow-md">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setActiveTab("home")}
-            className="text-xl text-emerald-400 font-bold flex items-center"
+      <header
+        className="app-header sticky top-0 z-30 px-4 pb-4 flex items-center justify-between"
+        style={{
+          background:
+            "linear-gradient(135deg, var(--ah-header) 0%, var(--ah-header-2) 100%)",
+          boxShadow: "var(--ah-shadow)",
+        }}
+      >
+        <button
+          onClick={() => setActiveTab("home")}
+          className="flex items-center gap-2.5 min-w-0 text-left"
+        >
+          <span
+            className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+            style={{
+              background: "rgba(255,255,255,.14)",
+              color: "var(--ah-header-text)",
+              border: "1px solid rgba(255,255,255,.16)",
+            }}
           >
-            <i className="fa-solid me-1.5 fa-wallet"></i> মাই হিসাব
+            <i className="fa-solid fa-wallet" />
+          </span>
+          <span className="min-w-0">
+            <span
+              className="block text-[15px] font-bold leading-tight truncate"
+              style={{ color: "var(--ah-header-text)" }}
+            >
+              মাই হিসাব
+            </span>
+            <span
+              className="block text-[10px] leading-tight truncate"
+              style={{ color: "var(--ah-header-text-2)" }}
+            >
+              মাই পার্সোনাল হিসাব
+            </span>
+          </span>
+        </button>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() =>
+              setThemeMode((m) => {
+                const next = THEME_MODES[(THEME_MODES.indexOf(m) + 1) % THEME_MODES.length];
+                return next;
+              })
+            }
+            aria-label="থিম পরিবর্তন"
+            title={
+              themeMode === "system"
+                ? "সিস্টেম থিম"
+                : themeMode === "light"
+                  ? "লাইট থিম"
+                  : "ডার্ক থিম"
+            }
+            className="w-9 h-9 rounded-xl flex items-center justify-center"
+            style={{
+              background: "rgba(255,255,255,.12)",
+              color: "var(--ah-header-text)",
+              border: "1px solid rgba(255,255,255,.14)",
+            }}
+          >
+            <i
+              className={`fa-solid ${
+                themeMode === "system"
+                  ? "fa-circle-half-stroke"
+                  : resolvedTheme === "dark"
+                    ? "fa-moon"
+                    : "fa-sun"
+              }`}
+            />
           </button>
-        </div>
-        <div className="flex items-center gap-2">
+
           <button
             onClick={() => setActiveTab("profile")}
-            className="text-xs bg-gray-800 dark:bg-gray-800 px-2.5 py-1 rounded-full text-emerald-300 border border-gray-700 dark:border-gray-700"
+            className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full"
+            style={{
+              background: "rgba(255,255,255,.12)",
+              border: "1px solid rgba(255,255,255,.14)",
+            }}
           >
-            <i className="fa-solid fa-user me-1"></i>{" "}
-            {currentUser.fullName || currentUser.username}
+            <span
+              className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold"
+              style={{ background: "var(--ah-brand)", color: "#fff" }}
+            >
+              {String(currentUser.fullName || currentUser.username || "U")
+                .charAt(0)
+                .toUpperCase()}
+            </span>
+            <span
+              className="text-[11px] font-semibold max-w-[90px] truncate"
+              style={{ color: "var(--ah-header-text)" }}
+            >
+              {currentUser.fullName || currentUser.username}
+            </span>
           </button>
         </div>
       </header>
 
-      <div className="bg-gray-800 dark:bg-gray-900 text-center py-2 px-3 text-white text-xs font-medium border-b border-gray-700 dark:border-gray-800 flex justify-between items-center">
-        <span>মাই পার্সোনাল হিসাব - ওয়েব অ্যাপ</span>
-        <span className="text-amber-300 font-semibold">{currentUser.role}</span>
-      </div>
-
-      <div className="text-center py-1.5 px-3 text-[11px] text-slate-500 dark:text-gray-400 font-medium">
-        {new Date().toLocaleDateString("bn-BD", {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-          weekday: "long",
-        })}
+      <div
+        className="px-3 py-2 flex justify-between items-center"
+        style={{
+          background: "var(--ah-surface)",
+          borderBottom: "1px solid var(--ah-border)",
+        }}
+      >
+        <span className="text-[11px] text-ink-2 font-medium">
+          {new Date().toLocaleDateString("bn-BD", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            weekday: "long",
+          })}
+        </span>
+        <span
+          className="badge"
+          style={{
+            background: "var(--ah-brand-soft)",
+            color: "var(--ah-brand-strong)",
+          }}
+        >
+          <i className="fa-solid fa-shield-halved" />
+          {currentUser.role}
+        </span>
       </div>
 
       {loading && (
-        <div className="w-full bg-emerald-100 dark:bg-emerald-900 h-1 overflow-hidden">
-          <div className="bg-emerald-600 h-full animate-pulse w-full"></div>
+        <div className="w-full h-1 overflow-hidden" style={{ background: "var(--ah-brand-soft)" }}>
+          <div
+            className="h-full w-full animate-pulse"
+            style={{ background: "var(--ah-brand)" }}
+          />
         </div>
       )}
 
@@ -1027,7 +1222,7 @@ export default function App() {
         onTouchEnd={pullTouchEnd}
       >
         {pullRefreshing && (
-          <div className="text-center py-2 text-xs text-emerald-600 dark:text-emerald-400">
+          <div className="text-center py-2 text-xs text-[var(--ah-success)]">
             <i className="fa-solid fa-arrows-rotate me-1 animate-spin"></i>{" "}
             রিফ্রেশ হচ্ছে...
           </div>
@@ -1047,6 +1242,7 @@ export default function App() {
             {can("VIEW_TRANSACTIONS") && activeTab === "transactions" && (
               <TransactionsView
                 transactions={transactions}
+                transactionBalances={transactionBalances}
                 wallets={wallets}
                 onDelete={handleDeleteTxn}
                 onEdit={(txn) => setActiveTab("edit-" + txn.ID)}
@@ -1112,13 +1308,13 @@ export default function App() {
             {activeTab.indexOf("edit-") === 0 &&
               !can("MANAGE_TRANSACTIONS") && (
                 <div className="text-center py-16 px-4">
-                  <i className="fa-solid fa-lock text-3xl text-gray-300 dark:text-gray-600 mb-3"></i>
-                  <div className="text-sm font-semibold text-slate-600 dark:text-gray-300">
+                  <i className="fa-solid fa-lock text-3xl text-ink-3 dark:text-ink-2 mb-3"></i>
+                  <div className="text-sm font-semibold text-ink-2">
                     লেনদেন এডিট করার অনুমতি নেই
                   </div>
                   <button
                     onClick={() => setActiveTab("transactions")}
-                    className="mt-3 bg-slate-800 dark:bg-gray-800 text-white text-xs font-semibold px-4 py-2 rounded-xl"
+                    className="mt-3 bg-[var(--ah-header)] text-white text-xs font-semibold px-4 py-2 rounded-xl"
                   >
                     লেনদেনে ফিরে যান
                   </button>
@@ -1193,13 +1389,13 @@ export default function App() {
                 );
                 if (!found) {
                   return (
-                    <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 text-center">
-                      <div className="text-sm text-gray-500 dark:text-gray-400 py-4">
+                    <div className="bg-[var(--ah-surface)] rounded-2xl border border-[var(--ah-border)] p-4 text-center">
+                      <div className="text-sm text-ink-3 py-4">
                         লোন পাওয়া যায়নি।
                       </div>
                       <button
                         onClick={() => setActiveTab("loans")}
-                        className="w-full bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs"
+                        className="w-full bg-[var(--ah-brand)] text-white font-bold py-2.5 rounded-xl text-xs"
                       >
                         লিষ্টে ফিরে যান
                       </button>
@@ -1231,13 +1427,13 @@ export default function App() {
               activeTab.indexOf("loan-details-") !== 0 &&
               activeTab.indexOf("loan-edit-") !== 0 && (
                 <div className="text-center py-16 px-4">
-                  <i className="fa-solid fa-hand-holding-dollar text-3xl text-gray-300 dark:text-gray-600 mb-3"></i>
-                  <div className="text-sm font-semibold text-slate-600 dark:text-gray-300">
+                  <i className="fa-solid fa-hand-holding-dollar text-3xl text-ink-3 dark:text-ink-2 mb-3"></i>
+                  <div className="text-sm font-semibold text-ink-2">
                     হাওলাত বিভাগ
                   </div>
                   <button
                     onClick={() => setActiveTab("loans")}
-                    className="mt-3 bg-slate-800 dark:bg-gray-800 text-white text-xs font-semibold px-4 py-2 rounded-xl"
+                    className="mt-3 bg-[var(--ah-header)] text-white text-xs font-semibold px-4 py-2 rounded-xl"
                   >
                     হাওলাত লিষ্ট
                   </button>
@@ -1350,9 +1546,12 @@ export default function App() {
               <UserProfileView
                 currentUser={currentUser}
                 transactions={transactions}
+                transactionBalances={transactionBalances}
                 wallets={wallets}
-                darkMode={darkMode}
-                onSetDark={setDarkMode}
+                darkMode={resolvedTheme === "dark"}
+                onSetDark={(v) => setThemeMode(v ? "dark" : "light")}
+                themeMode={themeMode}
+                onSetTheme={setThemeMode}
                 can={can}
                 onSave={handleProfileUpdate}
                 onCancel={() => setActiveTab("home")}
@@ -1365,11 +1564,11 @@ export default function App() {
 
             {activeTab === "home" && !can("VIEW_DASHBOARD") && (
               <div className="text-center py-16 px-4">
-                <i className="fa-solid fa-lock text-3xl text-gray-300 dark:text-gray-600 mb-3"></i>
-                <div className="text-sm font-semibold text-slate-600 dark:text-gray-300">
+                <i className="fa-solid fa-lock text-3xl text-ink-3 dark:text-ink-2 mb-3"></i>
+                <div className="text-sm font-semibold text-ink-2">
                   ড্যাশবোর্ড দেখার অনুমতি নেই
                 </div>
-                <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                <div className="text-xs text-ink-3 mt-1">
                   নিচের মেনু থেকে আপনার অনুমোদিত পেজ ব্যবহার করুন।
                 </div>
               </div>
@@ -1377,11 +1576,11 @@ export default function App() {
 
             {!currentUser.permissions?.length && activeTab === "home" && (
               <div className="text-center py-16 px-4">
-                <i className="fa-solid fa-lock text-3xl text-gray-300 dark:text-gray-600 mb-3"></i>
-                <div className="text-sm font-semibold text-slate-600 dark:text-gray-300">
+                <i className="fa-solid fa-lock text-3xl text-ink-3 dark:text-ink-2 mb-3"></i>
+                <div className="text-sm font-semibold text-ink-2">
                   এখনো কোনো অনুমতি দেওয়া হয়নি
                 </div>
-                <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                <div className="text-xs text-ink-3 mt-1">
                   আপনার অ্যাকাউন্টে কোনো Permission সেট করা নেই। Admin এর সাথে
                   যোগাযোগ করুন।
                 </div>
@@ -1392,15 +1591,15 @@ export default function App() {
       </main>
 
       {activeTab === "home" && (can("ADD_INCOME") || can("ADD_EXPENSE")) && (
-        <div className="fixed bottom-20 left-0 right-0 max-w-[480px] md:max-w-[1000px] mx-auto px-4 flex flex-col items-end gap-2.5 z-40 pointer-events-none">
+        <div className="fixed bottom-[calc(84px+env(safe-area-inset-bottom,0px))] left-0 right-0 max-w-[480px] md:max-w-[1000px] mx-auto px-4 flex flex-col items-end gap-2.5 z-40 pointer-events-none">
           {can("ADD_INCOME") && (
             <button
               onClick={() => setFormModal("income")}
               aria-label="Income"
               title="Income (আয়)"
-              className="pointer-events-auto w-12 h-12 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/40 flex items-center justify-center active:scale-95 transition-transform"
+              className="fab fab-income pointer-events-auto"
             >
-              <i className="fa-solid fa-plus text-lg"></i>
+              <i className="fa-solid fa-plus text-lg" />
             </button>
           )}
           {can("ADD_EXPENSE") && (
@@ -1408,9 +1607,9 @@ export default function App() {
               onClick={() => setFormModal("expense")}
               aria-label="Expense"
               title="Expense (খরচ)"
-              className="pointer-events-auto w-12 h-12 rounded-full bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-600/40 flex items-center justify-center active:scale-95 transition-transform"
+              className="fab fab-expense pointer-events-auto"
             >
-              <i className="fa-solid fa-minus text-lg"></i>
+              <i className="fa-solid fa-minus text-lg" />
             </button>
           )}
         </div>
@@ -1457,81 +1656,85 @@ export default function App() {
       </Suspense>
 
       {/* Bottom Nav */}
-      <nav className="app-bottom-nav fixed bottom-0 left-0 right-0 max-w-[480px] md:max-w-[1000px] mx-auto bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 flex justify-around items-center py-2 z-40 shadow-lg">
-        <button
+      <nav
+        className="app-bottom-nav fixed bottom-0 left-0 right-0 max-w-[480px] md:max-w-[1000px] mx-auto flex justify-around items-center pt-2 z-40"
+        style={{
+          background: "var(--ah-nav)",
+          borderTop: "1px solid var(--ah-nav-border)",
+          boxShadow: "0 -6px 22px -14px rgba(12,26,20,.35)",
+        }}
+      >
+        <NavItem
+          icon="fa-house"
+          label="Home"
+          active={activeTab === "home"}
           onClick={() => setActiveTab("home")}
-          className={`flex flex-col items-center text-xs font-medium ${
-            activeTab === "home"
-              ? "text-emerald-600"
-              : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"
-          }`}
-        >
-          <i className="fa-solid fa-house text-lg mb-0.5"></i> Home
-        </button>
+        />
         {can("VIEW_TRANSACTIONS") && (
-          <button
+          <NavItem
+            icon="fa-list-check"
+            label="Txn"
+            active={
+              activeTab === "transactions" || activeTab.indexOf("edit-") === 0
+            }
             onClick={() => setActiveTab("transactions")}
-            className={`flex flex-col items-center text-xs font-medium ${
-              activeTab === "transactions" ||
-              activeTab.indexOf("edit-") === 0
-                ? "text-emerald-600"
-                : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"
-            }`}
-          >
-            <i className="fa-solid fa-list-check text-lg mb-0.5"></i> Txn
-          </button>
+          />
         )}
         {(can("TRANSFER_MONEY") || can("BANK_OPERATIONS")) && (
-          <button
+          <NavItem
+            icon="fa-right-left"
+            label="Transfer"
+            active={formModal === "transfer"}
             onClick={() => setFormModal("transfer")}
-            className={`flex flex-col items-center text-xs font-medium ${
-              formModal === "transfer"
-                ? "text-emerald-600"
-                : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"
-            }`}
-          >
-            <i className="fa-solid fa-right-left text-lg mb-0.5"></i> Transfer
-          </button>
+          />
         )}
         {canLoan && (
-          <button
+          <NavItem
+            icon="fa-hand-holding-dollar"
+            label="Loan"
+            active={activeTab === "loans"}
             onClick={() => setActiveTab("loans")}
-            className={`flex flex-col items-center text-xs font-medium ${
-              activeTab === "loans"
-                ? "text-emerald-600"
-                : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"
-            }`}
-          >
-            <i className="fa-solid fa-hand-holding-dollar text-lg mb-0.5"></i>{" "}
-            Loan
-          </button>
+          />
         )}
         {canSavings && (
-          <button
+          <NavItem
+            icon="fa-piggy-bank"
+            label="Savings"
+            active={
+              activeTab === "savings" || activeTab.indexOf("savings-details-") === 0
+            }
             onClick={() => setActiveTab("savings")}
-            className={`flex flex-col items-center text-xs font-medium ${
-              activeTab === "savings" ||
-              activeTab.indexOf("savings-details-") === 0
-                ? "text-emerald-600"
-                : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"
-            }`}
-          >
-            <i className="fa-solid fa-piggy-bank text-lg mb-0.5"></i> Savings
-          </button>
+          />
         )}
         {can("VIEW_REPORTS") && (
-          <button
+          <NavItem
+            icon="fa-chart-pie"
+            label="Reports"
+            active={activeTab === "reports"}
             onClick={() => setActiveTab("reports")}
-            className={`flex flex-col items-center text-xs font-medium ${
-              activeTab === "reports"
-                ? "text-emerald-600"
-                : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"
-            }`}
-          >
-            <i className="fa-solid fa-chart-pie text-lg mb-0.5"></i> Reports
-          </button>
+          />
         )}
       </nav>
     </div>
+  );
+}
+
+// One bottom-navigation entry. The active item is marked with a brand pill
+// behind the icon, so the current section is obvious at a glance.
+function NavItem({ icon, label, active, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex flex-col items-center gap-1 px-2 min-w-[58px]"
+      style={{ color: active ? "var(--ah-brand)" : "var(--ah-text-3)" }}
+    >
+      <span
+        className="w-9 h-7 rounded-lg flex items-center justify-center text-[15px] transition-colors"
+        style={{ background: active ? "var(--ah-brand-soft)" : "transparent" }}
+      >
+        <i className={`fa-solid ${icon}`} />
+      </span>
+      <span className="text-[10px] font-semibold leading-none">{label}</span>
+    </button>
   );
 }

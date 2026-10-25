@@ -159,6 +159,7 @@ APK.
 
 - **App ID:** `com.amarhisab.app`
 - **App name:** Amar Hisab
+- **Current Android release:** versionCode `7`, versionName `1.6`, Git tag `v7`
 - **Capacitor config:** `capacitor.config.json`
 - **Native project:** `android/`
 - **Backend:** unchanged — the app still talks to the same Google Apps Script
@@ -208,6 +209,24 @@ APK: `android/app/build/outputs/apk/release/app-release.apk`
 
 If `keystore.properties` is absent the release build still runs, but produces
 an **unsigned** APK.
+
+### Publish an APK with GitHub Actions
+
+The **Build and publish Android APK** workflow is manually started from the
+repository's Actions tab. Select the release tag to build (for example `v7`);
+the tag number must match `versionCode` in `android/app/build.gradle`.
+The workflow replaces the release APK and checksum for that tag.
+
+Before running it, add these repository Actions secrets. The keystore secret is
+the Base64-encoded release keystore; the remaining values must match the local
+`android/keystore.properties` file:
+
+- `ANDROID_RELEASE_KEYSTORE_BASE64`
+- `ANDROID_RELEASE_STORE_PASSWORD`
+- `ANDROID_RELEASE_KEY_ALIAS`
+- `ANDROID_RELEASE_KEY_PASSWORD`
+
+Never add the keystore or signing properties to the repository.
 
 ### Open in Android Studio
 

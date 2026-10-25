@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { useToast } from "../components/Toast.jsx";
 
@@ -34,7 +34,7 @@ function loadRemembered() {
   }
 }
 
-export default function LoginScreen({ onLogin }) {
+export default function LoginScreen({ onLogin, onReady }) {
   const remembered = loadRemembered();
   const [username, setUsername] = useState(remembered.username);
   const [pin, setPin] = useState("");
@@ -42,6 +42,10 @@ export default function LoginScreen({ onLogin }) {
   const [showPin, setShowPin] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const toast = useToast();
+
+  useEffect(() => {
+    onReady?.();
+  }, [onReady]);
 
   const handleLoginSubmit = (e) => {
     e.preventDefault();
@@ -62,72 +66,117 @@ export default function LoginScreen({ onLogin }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 dark:bg-gray-950 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 w-full max-w-sm shadow-2xl border border-transparent dark:border-gray-800">
-        <div className="text-center mb-6">
-          <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center text-2xl mx-auto mb-2">
-            <i className="fa-solid fa-wallet"></i>
+    <div
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{
+        background:
+          "linear-gradient(150deg, var(--ah-header) 0%, var(--ah-header-2) 60%, #04120d 100%)",
+      }}
+    >
+      <div className="w-full max-w-sm">
+        <div
+          className="rounded-3xl p-6"
+          style={{
+            background: "var(--ah-surface)",
+            border: "1px solid var(--ah-border)",
+            boxShadow: "var(--ah-shadow-lg)",
+          }}
+        >
+          <div className="text-center mb-6">
+            <div
+              className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-3"
+              style={{
+                background: "linear-gradient(140deg, var(--ah-brand), var(--ah-header))",
+                color: "#fff",
+                boxShadow: "var(--ah-shadow-brand)",
+              }}
+            >
+              <i className="fa-solid fa-wallet" />
+            </div>
+            <h2 className="text-xl font-bold text-ink">মাই পার্সোনাল হিসাব</h2>
+            <p className="text-xs text-ink-3 mt-1">
+              আপনার ব্যক্তিগত ও ফ্যামিলি আয়-ব্যয় ম্যানেজার
+            </p>
           </div>
-          <h2 className="text-xl font-bold text-slate-800 dark:text-gray-100">মাই পার্সোনাল হিসাব</h2>
-          <p className="text-xs text-gray-500 dark:text-gray-400">আপনার ব্যক্তিগত ও ফ্যামিলি আয়-ব্যয় ম্যানেজার</p>
-        </div>
 
-        <form onSubmit={handleLoginSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">ইউজারনেম (Username)</label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Enter username"
-              className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder:text-slate-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">পিন (PIN)</label>
-            <div className="relative">
+          <form onSubmit={handleLoginSubmit} className="space-y-4">
+            <div>
+              <label className="label">ইউজারনেম (Username)</label>
               <input
-                type={showPin ? "text" : "password"}
-                value={pin}
-                onChange={(e) => setPin(e.target.value)}
-                className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 pr-10 text-sm text-slate-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder:text-slate-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                placeholder="****"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Enter username"
+                className="input"
+                autoComplete="username"
                 required
               />
-              <button
-                type="button"
-                onClick={() => setShowPin(!showPin)}
-                tabIndex={-1}
-                title={showPin ? "পিন লুকান" : "পিন দেখান"}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-emerald-600 dark:hover:text-emerald-400 px-1.5 py-1"
-              >
-                <i className={`fa-solid ${showPin ? "fa-eye-slash" : "fa-eye"} text-sm`}></i>
-              </button>
             </div>
-          </div>
+            <div>
+              <label className="label">পিন / পাসওয়ার্ড (PIN / Password)</label>
+              <div className="relative">
+                <input
+                  type={showPin ? "text" : "password"}
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value)}
+                  className="input pr-11"
+                  placeholder="••••"
+                  inputMode="text"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  autoComplete="current-password"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPin(!showPin)}
+                  tabIndex={-1}
+                  title={showPin ? "পিন লুকান" : "পিন দেখান"}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 px-1.5 py-1 text-ink-3 hover:text-brand"
+                >
+                  <i className={`fa-solid ${showPin ? "fa-eye-slash" : "fa-eye"} text-sm`} />
+                </button>
+              </div>
+            </div>
 
-          <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={remember}
-              onChange={(e) => setRemember(e.target.checked)}
-              className="accent-emerald-600 w-4 h-4"
-            />
-            <span>
-              <i className="fa-solid fa-bookmark me-1 text-emerald-600 dark:text-emerald-400 text-[10px]"></i>
-              মনে রাখুন (Remember Username)
-            </span>
-          </label>
+            <label className="flex items-center gap-2 text-xs text-ink-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={(e) => setRemember(e.target.checked)}
+                className="w-4 h-4"
+                style={{ accentColor: "var(--ah-brand)" }}
+              />
+              <span>
+                <i className="fa-solid fa-bookmark me-1 text-brand text-[10px]" />
+                মনে রাখুন (Remember Username)
+              </span>
+            </label>
 
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl shadow-md text-sm transition-all flex items-center justify-center gap-2"
-          >
-            {submitting ? <><i className="fa-solid fa-spinner fa-spin"></i> লগইন হচ্ছে...</> : 'লগইন করুন (Login)'}
-          </button>
-        </form>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="btn btn-primary btn-block"
+            >
+              {submitting ? (
+                <>
+                  <i className="fa-solid fa-spinner fa-spin" /> লগইন হচ্ছে...
+                </>
+              ) : (
+                <>
+                  <i className="fa-solid fa-right-to-bracket" /> লগইন করুন (Login)
+                </>
+              )}
+            </button>
+          </form>
+        </div>
+
+        <p
+          className="text-center text-[11px] mt-4"
+          style={{ color: "var(--ah-header-text-2)" }}
+        >
+          আপনার তথ্য সুরক্ষিত ও সম্পূর্ণ আপনার নিয়ন্ত্রণে
+        </p>
       </div>
     </div>
   );

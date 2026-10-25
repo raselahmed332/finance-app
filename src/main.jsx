@@ -4,6 +4,7 @@ import App from "./App.jsx";
 import { ToastProvider } from "./components/Toast.jsx";
 import { ConfirmProvider } from "./components/ConfirmDialog.jsx";
 import { initNativeUi } from "./utils/native.js";
+import { initTheme } from "./utils/theme.js";
 
 // Everything below replaces what used to be CDN <script>/<link> tags in
 // index.html — same fonts, same icons, same Tailwind version, now bundled
@@ -31,6 +32,11 @@ window.addEventListener("vite:preloadError", (event) => {
 });
 setTimeout(() => sessionStorage.removeItem("hisab_chunk_reload"), 15000);
 
+// Theme: apply the stored theme (and the OS preference in "system" mode) before
+// the first render. index.html already set the class for the very first paint,
+// so this only keeps the two in sync and wires up the OS-change listener.
+initTheme();
+
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <ToastProvider>
@@ -41,6 +47,6 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   </React.StrictMode>,
 );
 
-// Native shell (Android): status bar, keyboard resize and splash hiding.
+// Native shell (Android): status bar and keyboard resize.
 // No-op on the web build.
 initNativeUi();

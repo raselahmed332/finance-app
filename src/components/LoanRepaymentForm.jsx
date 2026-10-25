@@ -18,7 +18,7 @@ export default function LoanRepaymentForm({ loan, payment, wallets, currentUser,
   const walletId = String(loan?.walletId || "");
   const selectedWallet = (wallets || []).find((w) => String(w.WalletID) === walletId);
   const currency = selectedWallet?.Currency || loan?.currency || "";
-  const [account, setAccount] = useState((isEdit && payment.account) || loan?.account || "Cash");
+  const [account, setAccount] = useState((isEdit && payment.account) || "");
   const [amount, setAmount] = useState(isEdit ? String(payment.amount ?? "") : "");
   const [date, setDate] = useState(isEdit ? (payment.paymentDate || payment.date || todayStr()) : todayStr());
   const [note, setNote] = useState(isEdit ? (payment.note || "") : "");
@@ -68,20 +68,20 @@ export default function LoanRepaymentForm({ loan, payment, wallets, currentUser,
 
   return (
     <Popup open title={isEdit ? "ফেরত এডিট করুন" : meta.repaymentTitle} onClose={submitting ? undefined : onCancel}>
-      <div className="bg-slate-50 dark:bg-slate-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3 mb-4">
-          <div className="text-center text-sm font-bold text-slate-800 dark:text-gray-100 mb-2">{loan?.personName}</div>
+      <div className="bg-[var(--ah-surface-inset)] border border-[var(--ah-border)] rounded-xl p-3 mb-4">
+          <div className="text-center text-sm font-bold text-ink mb-2">{loan?.personName}</div>
           <div className="grid grid-cols-3 gap-1 text-center">
             <div>
-              <div className="text-[9px] text-gray-500 dark:text-gray-400 font-medium">মোট হাওলাত</div>
-              <div className="text-[11px] font-bold text-slate-800 dark:text-gray-100 mt-0.5">{formatMoney(totalAmountOf(loan), currency)}</div>
+              <div className="text-[9px] text-ink-3 font-medium">মোট হাওলাত</div>
+              <div className="text-[11px] font-bold text-ink mt-0.5">{formatMoney(totalAmountOf(loan), currency)}</div>
             </div>
             <div>
-              <div className="text-[9px] text-emerald-600 dark:text-emerald-400 font-medium">ফেরত হয়েছে</div>
-              <div className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">{formatMoney(loan?.repaid, currency)}</div>
+              <div className="text-[9px] text-[var(--ah-success)] font-medium">ফেরত হয়েছে</div>
+              <div className="text-[11px] font-bold text-[var(--ah-success)] mt-0.5">{formatMoney(loan?.repaid, currency)}</div>
             </div>
             <div>
-              <div className="text-[9px] text-amber-600 dark:text-amber-400 font-medium">বাকি</div>
-              <div className="text-[11px] font-bold text-amber-600 dark:text-amber-400 mt-0.5">{formatMoney(remaining, currency)}</div>
+              <div className="text-[9px] text-[var(--ah-warning)] font-medium">বাকি</div>
+              <div className="text-[11px] font-bold text-[var(--ah-warning)] mt-0.5">{formatMoney(remaining, currency)}</div>
             </div>
           </div>
         </div>
@@ -89,8 +89,8 @@ export default function LoanRepaymentForm({ loan, payment, wallets, currentUser,
         <form onSubmit={handleSubmit} className="space-y-3.5">
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Wallet</label>
-              <div className="w-full flex items-center justify-between border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-gray-50 dark:bg-slate-900 text-gray-500 dark:text-gray-400">
+              <label className="label">Wallet</label>
+              <div className="w-full flex items-center justify-between border border-[var(--ah-border)] rounded-xl px-3 py-2 text-xs bg-[var(--ah-surface-2)] text-ink-3">
                 <span className="truncate">{selectedWallet ? `${selectedWallet.WalletName} (${selectedWallet.Currency})` : (loan?.walletName || walletId || "—")}</span>
                 <span className="ml-2 shrink-0 text-[9px] font-semibold uppercase tracking-wide">লক করা আছে</span>
               </div>
@@ -98,18 +98,18 @@ export default function LoanRepaymentForm({ loan, payment, wallets, currentUser,
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Wallet Account</label>
+              <label className="label">Wallet Account</label>
               <AccountSelect walletId={walletId} value={account} onChange={setAccount} />
               <ErrorText msg={errors.account} />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">ফেরতের পরিমাণ ({currency})</label>
-            <input type="number" step="any" min="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm font-semibold focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-900 dark:text-gray-100" />
+            <label className="label">ফেরতের পরিমাণ ({currency})</label>
+            <input type="number" step="any" min="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="w-full border border-[var(--ah-border-strong)] rounded-xl px-3 py-2 text-sm font-semibold focus:ring-[var(--ah-brand-ring)] bg-[var(--ah-surface)] text-ink" />
             <ErrorText msg={errors.amount} />
             {Number(amount) > 0 && Number(amount) <= maxAmount && (
-              <div className={`mt-1.5 flex justify-between text-[10px] font-semibold ${maxAmount - Number(amount) > 0 ? "text-gray-400 dark:text-gray-500" : "text-emerald-600 dark:text-emerald-400"}`}>
+              <div className={`mt-1.5 flex justify-between text-[10px] font-semibold ${maxAmount - Number(amount) > 0 ? "text-ink-3" : "text-[var(--ah-success)]"}`}>
                 <span>পরিশোধের পর বাকি: {formatMoney(Math.max(0, maxAmount - Number(amount)), currency)}</span>
                 {maxAmount - Number(amount) <= 0 && <span><i className="fa-solid fa-circle-check me-0.5"></i>সম্পূর্ণ পরিশোধ হবে</span>}
               </div>
@@ -117,23 +117,23 @@ export default function LoanRepaymentForm({ loan, payment, wallets, currentUser,
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">তারিখ</label>
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-900 dark:text-gray-100" />
+            <label className="label">তারিখ</label>
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="input" />
             <ErrorText msg={errors.date} />
           </div>
 
-          <div className="bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-gray-800 rounded-xl px-3 py-2 flex items-center justify-between">
-            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">Currency</span>
-            <span className="text-xs font-bold text-slate-800 dark:text-gray-100">{currency} <span className="text-[10px] font-medium text-gray-400 dark:text-gray-500">(Auto)</span></span>
+          <div className="bg-[var(--ah-surface-2)] border border-[var(--ah-border)] rounded-xl px-3 py-2 flex items-center justify-between">
+            <span className="text-xs font-semibold text-ink-3">Currency</span>
+            <span className="text-xs font-bold text-ink">{currency} <span className="text-[10px] font-medium text-ink-3">(Auto)</span></span>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">নোট (ঐচ্ছিক)</label>
-            <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="নোট লিখুন..." className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-900 dark:text-gray-100" />
+            <label className="label">নোট (ঐচ্ছিক)</label>
+            <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="নোট লিখুন..." className="input" />
           </div>
 
           <button type="submit" disabled={submitting || (amount && Number(amount) > maxAmount)}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl shadow-md text-sm flex items-center justify-center gap-2 mt-1">
+            className="btn btn-primary btn-block mt-1">
             <i className={submitting ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-floppy-disk"}></i> {submitting ? "সাবমিট হচ্ছে..." : isEdit ? "পরিবর্তন সংরক্ষণ করুন" : "ফেরত যোগ করুন"}
           </button>
         </form>

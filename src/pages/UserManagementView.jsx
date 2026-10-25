@@ -3,6 +3,7 @@ import { api, GRANTABLE_PERMISSIONS, PERMISSION_LABELS, DEFAULT_WALLET_ACTIONS, 
 import Select from "../components/Select.jsx";
 import Popup from "../components/Popup.jsx";
 import { useConfirm } from "../components/ConfirmDialog.jsx";
+import { Badge, Button, Card, Input, PageHeader } from "../ui/index.jsx";
 
 // ---------- Role handling (friendly labels only, never raw DB keys) ----------
 
@@ -17,18 +18,18 @@ function isAdminRole(role) {
   return normRole(role) === "Admin";
 }
 
-const ROLE_BADGE = {
-  Admin: "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400",
-  "Sub-Admin": "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400",
-  User: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
+const ROLE_TONE = {
+  Admin: "success",
+  "Sub-Admin": "info",
+  User: "neutral",
 };
 
 function RoleBadge({ role }) {
   const label = normRole(role);
   return (
-    <span className={`px-2 py-0.5 rounded-md text-[9px] font-bold tracking-wide ${ROLE_BADGE[label] || ROLE_BADGE.User}`}>
+    <Badge tone={ROLE_TONE[label] || ROLE_TONE.User} className="text-[9px] tracking-wide">
       {label.toUpperCase()}
-    </span>
+    </Badge>
   );
 }
 
@@ -105,15 +106,15 @@ function filterGroups(groups, allowed) {
 
 // ---------- Small presentational pieces ----------
 
-function SectionCard({ icon, title, hint, children, className = "" }) {
+function Panel({ icon, title, hint, children, className = "" }) {
   return (
-    <div className={`bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-gray-200 dark:border-gray-800 space-y-2 ${className}`}>
+    <div className={`card-inset p-3 space-y-2 ${className}`}>
       <div>
-        <div className="text-[11px] font-bold text-slate-700 dark:text-gray-200 flex items-center gap-1.5">
-          {icon && <i className={`fa-solid ${icon} text-emerald-600 dark:text-emerald-400 text-[10px]`}></i>}
+        <div className="text-[11px] font-bold text-ink flex items-center gap-1.5">
+          {icon ? <i className={`fa-solid ${icon} text-[10px]`} style={{ color: "var(--ah-success)" }} /> : null}
           {title}
         </div>
-        {hint && <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{hint}</div>}
+        {hint ? <div className="text-[10px] text-ink-3 mt-0.5">{hint}</div> : null}
       </div>
       {children}
     </div>
@@ -122,15 +123,15 @@ function SectionCard({ icon, title, hint, children, className = "" }) {
 
 function NoWalletAccessNotice({ showInactiveNote }) {
   return (
-    <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-2.5">
-      <div className="text-[11px] font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+    <div className="card-warning p-2.5">
+      <div className="text-[11px] font-bold text-[var(--ah-warning)] flex items-center gap-1.5">
         <i className="fa-solid fa-triangle-exclamation"></i> No Wallet Access
       </div>
-      <p className="text-[10px] text-amber-700 dark:text-amber-400 mt-0.5 leading-snug">
+      <p className="text-[10px] text-[var(--ah-warning)] mt-0.5 leading-snug">
         এই ইউজারের কোন ওয়ালেটে অ্যাক্সেস নেই, তাই আর্থিক ডেটা ও Wallet অ্যাকশন ব্যবহার করা যাবে না — যতক্ষণ না Wallet Access দেওয়া হয়।
       </p>
       {showInactiveNote && (
-        <p className="text-[10px] text-amber-700 dark:text-amber-400 mt-1 leading-snug">
+        <p className="text-[10px] text-[var(--ah-warning)] mt-1 leading-snug">
           <i className="fa-solid fa-circle-exclamation me-1"></i>
           নিচে Additional Permission সংরক্ষিত থাকলেও Wallet Access ছাড়া সেগুলো নিষ্ক্রিয় থাকে।
         </p>
@@ -144,13 +145,13 @@ function DefaultPermissionsList({ active }) {
     <div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1">
         {DEFAULT_WALLET_ACTIONS.map((p) => (
-          <div key={p} className="flex items-center gap-1.5 text-[11px] text-slate-600 dark:text-gray-300">
-            <i className={`fa-solid fa-circle-check text-xs ${active ? "text-emerald-500 dark:text-emerald-400" : "text-gray-300 dark:text-gray-600"}`}></i>
+          <div key={p} className="flex items-center gap-1.5 text-[11px] text-ink-2">
+            <i className={`fa-solid fa-circle-check text-xs ${active ? "text-[var(--ah-success)]" : "text-ink-3 dark:text-ink-2"}`}></i>
             <span>{PERMISSION_LABELS[p] || p}</span>
           </div>
         ))}
       </div>
-      <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5 flex items-center gap-1">
+      <div className="text-[10px] text-ink-3 mt-1.5 flex items-center gap-1">
         <i className="fa-solid fa-lock"></i> Automatically enabled with Wallet Access — read-only, নিষ্ক্রিয় করা যাবে না
       </div>
     </div>
@@ -165,25 +166,17 @@ function ActionRow({ canEditUser, canManageTarget, canDel, onEdit, onManage, onD
   if (visible.length === 0) return null;
   const cols = { 1: "grid-cols-1", 2: "grid-cols-2", 3: "grid-cols-3" }[visible.length];
 
-  const outline = "font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-slate-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors";
-
   return (
     <div className={`grid ${cols} gap-2`}>
-      {canEditUser && (
-        <button onClick={onEdit} className={outline}>
-          <i className="fa-solid fa-pen"></i> Edit
-        </button>
-      )}
-      {canManageTarget && (
-        <button onClick={onManage} className={outline}>
-          <i className="fa-solid fa-user-gear"></i> Manage
-        </button>
-      )}
-      {canDel && (
-        <button onClick={onDelete} className="bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors">
-          <i className="fa-solid fa-trash-can"></i> Delete
-        </button>
-      )}
+      {canEditUser ? (
+        <Button variant="secondary" icon="fa-pen" onClick={onEdit}>Edit</Button>
+      ) : null}
+      {canManageTarget ? (
+        <Button variant="secondary" icon="fa-user-gear" onClick={onManage}>Manage</Button>
+      ) : null}
+      {canDel ? (
+        <Button variant="danger" icon="fa-trash-can" onClick={onDelete}>Delete</Button>
+      ) : null}
     </div>
   );
 }
@@ -195,18 +188,18 @@ function AdminFullAccessCard() {
     "Audit Log", "Category Management", "Role Management", "Password Management",
   ];
   return (
-    <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-3 space-y-2">
-      <div className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300">
+    <div className="bg-[var(--ah-success-soft)] border border-emerald-200 dark:border-[var(--ah-success-soft)] rounded-xl p-3 space-y-2">
+      <div className="text-[11px] font-bold text-[var(--ah-success)]">
         <i className="fa-solid fa-shield-halved me-1.5"></i>Admin — Full System Access
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1">
         {items.map((it) => (
-          <div key={it} className="flex items-center gap-1.5 text-[11px] text-emerald-800 dark:text-emerald-300">
+          <div key={it} className="flex items-center gap-1.5 text-[11px] text-[var(--ah-success)]">
             <i className="fa-solid fa-circle-check text-[10px] opacity-70"></i>{it}
           </div>
         ))}
       </div>
-      <p className="text-[10px] text-emerald-700 dark:text-emerald-400 leading-snug">
+      <p className="text-[10px] text-[var(--ah-success)] leading-snug">
         Admin-এর পূর্ণ সিস্টেম এক্সেস। আলাদা করে Permission অ্যাসাইন করার প্রয়োজন নেই, তাই এখানে কোন permission checkbox দেখানো হয় না।
       </p>
     </div>
@@ -215,11 +208,11 @@ function AdminFullAccessCard() {
 
 function AdminOnlyNote() {
   return (
-    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-2.5">
-      <div className="text-[10px] font-bold text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
-        <i className="fa-solid fa-lock text-amber-500 dark:text-amber-400"></i> Admin Only
+    <div className="bg-[var(--ah-surface)] border border-[var(--ah-border)] rounded-lg p-2.5">
+      <div className="text-[10px] font-bold text-ink-3 flex items-center gap-1.5">
+        <i className="fa-solid fa-lock text-[var(--ah-warning)]"></i> Admin Only
       </div>
-      <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 leading-snug">
+      <p className="text-[10px] text-ink-3 mt-0.5 leading-snug">
         Role পরিবর্তন, Password/PIN পরিবর্তন এবং Admin তৈরি — শুধুমাত্র Admin এর কাজ। এগুলো checkbox হিসেবে দেওয়া হয় না, ফলে Sub-Admin নিজেকে কখনো Admin বানাতে পারবে না।
       </p>
     </div>
@@ -228,17 +221,17 @@ function AdminOnlyNote() {
 
 function WalletChecklist({ wallets, selected, onToggle }) {
   if (!wallets.length) {
-    return <div className="text-[11px] text-gray-400 dark:text-gray-500">কোনো Wallet নেই (আগে Wallet তৈরি করুন)।</div>;
+    return <div className="text-[11px] text-ink-3">কোনো Wallet নেই (আগে Wallet তৈরি করুন)।</div>;
   }
   return (
     <div className="space-y-1">
       {wallets.map((w) => {
         const checked = selected.includes(String(w.WalletID));
         return (
-          <label key={w.WalletID} className="flex items-center gap-2 cursor-pointer select-none rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 px-2.5 py-2 hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors">
-            <input type="checkbox" checked={checked} onChange={() => onToggle(String(w.WalletID))} className="accent-emerald-600" />
-            <span className="text-xs font-medium text-slate-700 dark:text-gray-200">
-              {w.WalletName} <span className="text-[10px] text-gray-400 dark:text-gray-500">({w.Currency})</span>
+          <label key={w.WalletID} className="flex items-center gap-2 cursor-pointer select-none rounded-lg bg-[var(--ah-surface)] border border-[var(--ah-border)] px-2.5 py-2 hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors">
+            <input type="checkbox" checked={checked} onChange={() => onToggle(String(w.WalletID))} className="accent-[var(--ah-brand)]" />
+            <span className="text-xs font-medium text-ink">
+              {w.WalletName} <span className="text-[10px] text-ink-3">({w.Currency})</span>
             </span>
           </label>
         );
@@ -250,10 +243,10 @@ function WalletChecklist({ wallets, selected, onToggle }) {
 function PermissionCheckbox({ opt, checked, onToggle, sub }) {
   return (
     <label className="flex items-start gap-2 cursor-pointer select-none">
-      <input type="checkbox" checked={checked} onChange={() => onToggle(opt)} className="mt-0.5 accent-emerald-600" />
+      <input type="checkbox" checked={checked} onChange={() => onToggle(opt)} className="mt-0.5 accent-[var(--ah-brand)]" />
       <span className="min-w-0">
-        <span className="block text-[11px] font-medium text-slate-700 dark:text-gray-200">{PERMISSION_LABELS[opt] || opt}</span>
-        {sub && <span className="block text-[10px] text-gray-400 dark:text-gray-500">{sub}</span>}
+        <span className="block text-[11px] font-medium text-ink">{PERMISSION_LABELS[opt] || opt}</span>
+        {sub && <span className="block text-[10px] text-ink-3">{sub}</span>}
       </span>
     </label>
   );
@@ -263,26 +256,26 @@ function PermissionGroup({ group, selected, onToggle }) {
   const [open, setOpen] = useState(false);
   const selectedCount = (group.items || []).filter((item) => selected.includes(itemKey(item))).length;
   return (
-    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+    <div className="bg-[var(--ah-surface)] border border-[var(--ah-border)] rounded-lg overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-2.5 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+        className="w-full flex items-center justify-between px-2.5 py-2 text-left hover:bg-[var(--ah-surface-2)] dark:hover:bg-[var(--ah-surface-3)] transition-colors"
       >
-        <span className="text-[11px] font-bold text-slate-700 dark:text-gray-200">
-          {group.title} <span className="text-[10px] text-gray-400 dark:text-gray-500 font-normal">({group.bn})</span>
+        <span className="text-[11px] font-bold text-ink">
+          {group.title} <span className="text-[10px] text-ink-3 font-normal">({group.bn})</span>
         </span>
         <span className="flex items-center gap-1.5">
           {selectedCount > 0 && (
-            <span className="text-[9px] font-semibold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded-full min-w-[16px] text-center">
+            <span className="text-[9px] font-semibold bg-[var(--ah-success-soft)] text-[var(--ah-success)] px-1.5 py-0.5 rounded-full min-w-[16px] text-center">
               {selectedCount}
             </span>
           )}
-          <i className={`fa-solid fa-chevron-${open ? "up" : "right"} text-[10px] text-gray-400 dark:text-gray-500 transition-transform`}></i>
+          <i className={`fa-solid fa-chevron-${open ? "up" : "right"} text-[10px] text-ink-3 transition-transform`}></i>
         </span>
       </button>
       {open && (
-        <div className="px-2.5 pb-2.5 pt-1.5 space-y-2 border-t border-gray-100 dark:border-gray-800">
+        <div className="px-2.5 pb-2.5 pt-1.5 space-y-2 border-t border-[var(--ah-border)]">
           {group.items.map((item) => {
             const key = itemKey(item);
             return (
@@ -296,7 +289,7 @@ function PermissionGroup({ group, selected, onToggle }) {
             );
           })}
           {group.note && (
-            <div className="text-[10px] text-gray-400 dark:text-gray-500 leading-snug pt-1">
+            <div className="text-[10px] text-ink-3 leading-snug pt-1">
               <i className="fa-solid fa-circle-info me-1"></i>{group.note}
             </div>
           )}
@@ -399,42 +392,39 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
   const isEditSection = section === "edit";
 
   return (
-    <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-3 mb-3 space-y-3 border border-gray-200 dark:border-gray-800">
+    <Card className="p-3 mb-3 space-y-3">
       <div className="flex items-center justify-between">
-        <div className="text-[11px] font-bold text-slate-700 dark:text-gray-200">
-          {isEditSection ? "Edit User" : "Manage User"} <span className="text-gray-400 dark:text-gray-500 font-normal">— {user.FullName || user.Username}</span>
+        <div className="text-[11px] font-bold text-ink">
+          {isEditSection ? "Edit User" : "Manage User"} <span className="text-ink-3 font-normal">— {user.FullName || user.Username}</span>
         </div>
         {/* This closes the editor back to the details view, so it is a back
             arrow rather than an X - an X implies dismissing the whole modal. */}
-        <button onClick={onClose} className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 hover:text-slate-700 dark:hover:text-gray-200 flex items-center gap-1">
-          <i className="fa-solid fa-arrow-left text-[10px]"></i> Back
-        </button>
+        <Button variant="ghost" size="sm" icon="fa-arrow-left" onClick={onClose}>Back</Button>
       </div>
 
       {isEditSection ? (
         /* ---------- Edit: identity only ---------- */
         <>
-        <SectionCard icon="fa-id-card" title="Basic Information" hint="নাম ও ভূমিকা">
+        <Panel icon="fa-id-card" title="Basic Information" hint="নাম ও ভূমিকা">
           <div className="space-y-2">
             {canEditName ? (
               <div>
-                <div className="text-[10px] font-bold text-slate-600 dark:text-gray-300 mb-1">Full Name</div>
-                <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder={user.Username}
-                  className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-2.5 py-1.5 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" />
+                <div className="text-[10px] font-bold text-ink-2 mb-1">Full Name</div>
+                <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder={user.Username} />
               </div>
             ) : (
               <div>
-                <div className="text-[10px] font-bold text-gray-400 dark:text-gray-500 mb-1">Full Name (read-only)</div>
-                <div className="text-xs text-slate-700 dark:text-gray-200">{user.FullName || user.Username}</div>
+                <div className="text-[10px] font-bold text-ink-3 mb-1">Full Name (read-only)</div>
+                <div className="text-xs text-ink">{user.FullName || user.Username}</div>
               </div>
             )}
             <div>
-              <div className="text-[10px] font-bold text-slate-600 dark:text-gray-300 mb-1">Username</div>
-              <div className="text-xs text-slate-700 dark:text-gray-200">@{user.Username}</div>
+              <div className="text-[10px] font-bold text-ink-2 mb-1">Username</div>
+              <div className="text-xs text-ink">@{user.Username}</div>
             </div>
             {canEditRole ? (
               <div>
-                <div className="text-[10px] font-bold text-slate-600 dark:text-gray-300 mb-1">Role <span className="text-amber-600 dark:text-amber-400">(Admin Only)</span></div>
+                <div className="text-[10px] font-bold text-ink-2 mb-1">Role <span className="text-[var(--ah-warning)]">(Admin Only)</span></div>
                 <Select value={role} onChange={setRole}>
                   <option value="User">User</option>
                   <option value="Sub-Admin">Sub-Admin</option>
@@ -443,36 +433,36 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
               </div>
             ) : (
                 <div>
-                  <div className="text-[10px] font-bold text-gray-400 dark:text-gray-500 mb-1">Role (read-only)</div>
+                  <div className="text-[10px] font-bold text-ink-3 mb-1">Role (read-only)</div>
                   <div className="flex items-center gap-1.5"><RoleBadge role={user.Role} /></div>
                 </div>
               )}
             </div>
-          </SectionCard>
+          </Panel>
 
-          <button onClick={saveAll} disabled={saving} className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold py-2 rounded-xl text-xs shadow-sm flex items-center justify-center gap-1.5">
-            {saving && <i className="fa-solid fa-spinner fa-spin"></i>} {saving ? 'Saving...' : 'Save Changes'}
-          </button>
+          <Button block onClick={saveAll} disabled={saving}>
+            {saving ? <><i className="fa-solid fa-spinner fa-spin" /> Saving...</> : 'Save Changes'}
+          </Button>
         </>
       ) : isAdmin ? (
         <>
           <AdminFullAccessCard />
-          <SectionCard icon="fa-circle-dot" title="Account Status">
+          <Panel icon="fa-circle-dot" title="Account Status">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <i className={`fa-solid fa-circle text-[9px] ${active ? "text-emerald-500" : "text-gray-400"}`}></i>
-                <span className={`text-xs font-bold ${active ? "text-emerald-600 dark:text-emerald-400" : "text-gray-500 dark:text-gray-400"}`}>{active ? "Active" : "Inactive"}</span>
+                <i className={`fa-solid fa-circle text-[9px] ${active ? "text-[var(--ah-success)]" : "text-ink-3"}`}></i>
+                <span className={`text-xs font-bold ${active ? "text-[var(--ah-success)]" : "text-ink-3"}`}>{active ? "Active" : "Inactive"}</span>
               </div>
-              <div className="text-[10px] text-gray-400 dark:text-gray-500">Admin-এর Status শুধু Admin পরিবর্তন করতে পারবে।</div>
+              <div className="text-[10px] text-ink-3">Admin-এর Status শুধু Admin পরিবর্তন করতে পারবে।</div>
             </div>
-          </SectionCard>
+          </Panel>
         </>
       ) : (
         <>
           {canManagePerms && (
-            <SectionCard icon="fa-wallet" title="Wallet Access" hint="কোন ওয়ালেটে ইউজার এক্সেস পাবে তা নির্বাচন করুন। Permissions শুধু অ্যাক্সেসযোগ্য ওয়ালেটের ভেতরেই কাজ করে।">
+            <Panel icon="fa-wallet" title="Wallet Access" hint="কোন ওয়ালেটে ইউজার এক্সেস পাবে তা নির্বাচন করুন। Permissions শুধু অ্যাক্সেসযোগ্য ওয়ালেটের ভেতরেই কাজ করে।">
               {walletLocked && !actorAdmin ? (
-                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-2.5 text-[10px] text-amber-700 dark:text-amber-400 leading-snug">
+                <div className="card-warning p-2.5 text-[10px] text-[var(--ah-warning)] leading-snug">
                   <i className="fa-solid fa-triangle-exclamation me-1"></i>
                   এই ইউজারের আরও Wallet Access আছে, কিন্তু সেগুলো আপনার বর্তমান Wallet তালিকার বাইরে ({" "}
                   {outOfScopeWallets.join(", ")} )। এখানে সম্পাদনা করলে সেগুলো হারাবে, তাই Wallet Access
@@ -482,27 +472,27 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
                 <>
                   <WalletChecklist wallets={wallets} selected={walletAccess} onToggle={toggleWallet} />
                   {otherAccess.length > 0 && (
-                    <div className="text-[10px] text-gray-400 dark:text-gray-500">
+                    <div className="text-[10px] text-ink-3">
                       এই ইউজারের আরও অ্যাক্সেস আছে, কিন্তু তা আপনার বর্তমান Wallet তালিকায় নেই:{" "}
                       {otherAccess.join(", ")}
                     </div>
                   )}
                   {!hasWallet && <NoWalletAccessNotice showInactiveNote={AnyAdditionalGranted({ selected: permissions })} />}
                   {hasWallet && (
-                    <div className="text-[10px] text-gray-400 dark:text-gray-500 flex items-center gap-1">
-                      <i className="fa-solid fa-circle-check text-emerald-500"></i>
+                    <div className="text-[10px] text-ink-3 flex items-center gap-1">
+                      <i className="fa-solid fa-circle-check text-[var(--ah-success)]"></i>
                       Wallet Access সক্রিয় → Default Wallet Actions + Additional Permissions প্রযোজ্য
                     </div>
                   )}
                 </>
               )}
-            </SectionCard>
+            </Panel>
           )}
 
           {canManagePerms && (
-            <SectionCard icon="fa-user-shield" title="Additional Permissions" hint="এই Permissions Admin কে স্পষ্টভাবে দিতে হয়। এগুলো ইউজারের অ্যাক্সেসযোগ্য সব ওয়ালেটে প্রযোজ্য। Wallet Access থাকলে Default Wallet Actions স্বয়ংক্রিয়ভাবে প্রযোজ্য হয়।">
+            <Panel icon="fa-user-shield" title="Additional Permissions" hint="এই Permissions Admin কে স্পষ্টভাবে দিতে হয়। এগুলো ইউজারের অ্যাক্সেসযোগ্য সব ওয়ালেটে প্রযোজ্য। Wallet Access থাকলে Default Wallet Actions স্বয়ংক্রিয়ভাবে প্রযোজ্য হয়।">
               {permLocked ? (
-                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-2.5 text-[10px] text-amber-700 dark:text-amber-400 leading-snug">
+                <div className="card-warning p-2.5 text-[10px] text-[var(--ah-warning)] leading-snug">
                   <i className="fa-solid fa-triangle-exclamation me-1"></i>
                   এই ইউজারের কিছু Permission আপনার অনুমতির বাইরে, তাই Additional Permissions এডিট বন্ধ
                   আছে — আগে Admin এর সাথে যোগাযোগ করুন।
@@ -510,7 +500,7 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
               ) : (
                 <>
                   {!hasWallet && (
-                    <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-2.5 text-[10px] text-amber-700 dark:text-amber-400 leading-snug">
+                    <div className="card-warning p-2.5 text-[10px] text-[var(--ah-warning)] leading-snug">
                       <i className="fa-solid fa-triangle-exclamation me-1"></i>
                       Add Income ইত্যাদি Permission দেওয়া থাকলেও Wallet Access না থাকায় সেগুলো নিষ্ক্রিয় থাকবে।
                     </div>
@@ -521,7 +511,7 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
                   <AdminOnlyNote />
                 </>
               )}
-            </SectionCard>
+            </Panel>
           )}
 
           {/* Security (Reset PIN) and Account Status used to live here. Both are
@@ -529,12 +519,12 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
               status badge toggles Active/Inactive. Keeping them in one place
               avoids two entry points for the same action. */}
 
-          <button onClick={saveAll} disabled={saving} className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold py-2 rounded-xl text-xs shadow-sm flex items-center justify-center gap-1.5">
-            {saving && <i className="fa-solid fa-spinner fa-spin"></i>} {saving ? 'Saving...' : isEditSection ? 'Save Changes' : 'Save Access & Permissions'}
-          </button>
+          <Button block onClick={saveAll} disabled={saving}>
+            {saving ? <><i className="fa-solid fa-spinner fa-spin" /> Saving...</> : isEditSection ? 'Save Changes' : 'Save Access & Permissions'}
+          </Button>
         </>
       )}
-    </div>
+    </Card>
   );
 });
 
@@ -581,16 +571,19 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
   // reads as separate items rather than divider-separated rows inside one
   // continuous block.
   const row = (
-    <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-2.5 py-2.5">
+    <Card className="p-2.5">
       <div>
         <div className="flex justify-between items-center text-xs gap-2">
           <button type="button" onClick={openDetails} className="flex items-center gap-2 min-w-0 text-left flex-1">
-            <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-              <i className="fa-solid fa-user text-xs"></i>
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+              style={{ background: "var(--ah-success-soft)", color: "var(--ah-success)" }}
+            >
+              <i className="fa-solid fa-user text-xs" />
             </div>
             <div className="min-w-0">
-              <div className="font-bold text-slate-800 dark:text-gray-100 truncate">{user.FullName || user.Username}</div>
-              <div className="text-[10px] text-gray-400 dark:text-gray-500 truncate">@{user.Username}</div>
+              <div className="font-bold text-ink truncate">{user.FullName || user.Username}</div>
+              <div className="text-[10px] text-ink-3 truncate">@{user.Username}</div>
             </div>
           </button>
           <div className="flex items-center gap-1.5 shrink-0">
@@ -612,32 +605,29 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
                 }}
                 title={active ? "নিষ্ক্রিয় করতে ক্লিক করুন" : "সক্রিয় করতে ক্লিক করুন"}
                 aria-label={active ? "নিষ্ক্রিয় করুন" : "সক্রিয় করুন"}
-                className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
-                  active
-                    ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/60"
-                    : "bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-gray-700"
-                }`}
+                className="px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors"
+                style={active
+                  ? { background: "var(--ah-success-soft)", color: "var(--ah-success)", borderColor: "transparent" }
+                  : { background: "var(--ah-surface-3)", color: "var(--ah-text-2)", borderColor: "var(--ah-border)" }}
               >
                 {user.Status || "Active"}
               </button>
             ) : (
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${active ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400" : "bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400"}`}>
-                {user.Status || "Active"}
-              </span>
+              <Badge tone={active ? "success" : "neutral"}>{user.Status || "Active"}</Badge>
             )}
           </div>
         </div>
         <div className="mt-1.5 flex items-center justify-between gap-2">
           <button type="button" onClick={openDetails} className="flex items-center gap-1.5 text-[10px] pl-10 min-w-0 text-left">
-            <i className="fa-solid fa-wallet text-gray-300 dark:text-gray-600 text-[9px]"></i>
+            <i className="fa-solid fa-wallet text-ink-3 dark:text-ink-2 text-[9px]"></i>
             {/* Admins reach every wallet by role, so their stored WalletAccess is
                 usually empty - showing "No Wallet Access" in amber would be a lie. */}
             {isAdmin ? (
-              <span className="text-emerald-600 dark:text-emerald-400 font-semibold">All Wallets — Full System Access</span>
+              <span className="text-[var(--ah-success)] font-semibold">All Wallets — Full System Access</span>
             ) : walletCount === 0 ? (
-              <span className="text-amber-600 dark:text-amber-400 font-semibold">No Wallet Access</span>
+              <span className="text-[var(--ah-warning)] font-semibold">No Wallet Access</span>
             ) : (
-              <span className="text-gray-500 dark:text-gray-400">Wallet Access: {walletCount} {walletCount === 1 ? "Wallet" : "Wallets"}</span>
+              <span className="text-ink-3">Wallet Access: {walletCount} {walletCount === 1 ? "Wallet" : "Wallets"}</span>
             )}
           </button>
           {/* Reset PIN sits on this second line rather than stacked under the
@@ -653,13 +643,13 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
               api.resetPin(user.Username, normalized, currentUser.username).then((res) => {
                 showAlert(res.message, res.status === "ERROR" ? "error" : "success");
               }).catch(() => showAlert("নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।", "error"));
-            }} title="Reset PIN" aria-label="Reset PIN" className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors flex items-center gap-1">
-              <i className="fa-solid fa-key text-[9px]"></i> PIN
+            }} title="Reset PIN" aria-label="Reset PIN" className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors flex items-center gap-1" style={{ background: "var(--ah-warning-soft)", color: "var(--ah-warning)" }}>
+              <i className="fa-solid fa-key text-[9px]" /> PIN
             </button>
           )}
         </div>
       </div>
-    </div>
+    </Card>
   );
 
   return (
@@ -674,18 +664,19 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
         {!editorOpen ? (
           <>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-            <i className="fa-solid fa-user"></i>
+          <div
+            className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+            style={{ background: "var(--ah-success-soft)", color: "var(--ah-success)" }}
+          >
+            <i className="fa-solid fa-user" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="font-bold text-sm text-slate-800 dark:text-gray-100 truncate">{user.FullName || user.Username}</div>
-            <div className="text-[11px] text-gray-400 dark:text-gray-500 truncate">@{user.Username}</div>
+            <div className="font-bold text-sm text-ink truncate">{user.FullName || user.Username}</div>
+            <div className="text-[11px] text-ink-3 truncate">@{user.Username}</div>
           </div>
           <div className="flex flex-col items-end gap-1">
             <RoleBadge role={user.Role} />
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${active ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400" : "bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400"}`}>
-              {user.Status || "Active"}
-            </span>
+            <Badge tone={active ? "success" : "neutral"}>{user.Status || "Active"}</Badge>
           </div>
         </div>
 
@@ -699,18 +690,18 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
           <AdminFullAccessCard />
         ) : (
           <>
-            <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-gray-200 dark:border-gray-800 space-y-2">
-              <div className="text-[11px] font-bold text-slate-700 dark:text-gray-200">
-                <i className="fa-solid fa-wallet me-1.5 text-emerald-600 dark:text-emerald-400 text-[10px]"></i>Wallet Access
+            <div className="card-inset p-3 space-y-2">
+              <div className="text-[11px] font-bold text-ink">
+                <i className="fa-solid fa-wallet me-1.5 text-[var(--ah-success)] text-[10px]"></i>Wallet Access
               </div>
               {walletCount === 0 ? (
-                <div className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold">No Wallet Access</div>
+                <div className="text-[11px] text-[var(--ah-warning)] font-semibold">No Wallet Access</div>
               ) : (
                 <div className="flex flex-wrap gap-1.5">
                   {(user.WalletAccess || []).map((id) => {
                     const w = (wallets || []).find((x) => String(x.WalletID) === String(id));
                     return (
-                      <span key={id} className="text-[10px] font-semibold bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 px-2 py-1 rounded-full text-slate-600 dark:text-gray-300">
+                      <span key={id} className="text-[10px] font-semibold bg-[var(--ah-surface)] border border-[var(--ah-border)] px-2 py-1 rounded-full text-ink-2">
                         {w ? `${w.WalletName} (${w.Currency})` : id}
                       </span>
                     );
@@ -719,16 +710,16 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
               )}
             </div>
 
-            <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-gray-200 dark:border-gray-800 space-y-1.5">
-              <div className="text-[11px] font-bold text-slate-700 dark:text-gray-200">
-                <i className="fa-solid fa-list-check me-1.5 text-emerald-600 dark:text-emerald-400 text-[10px]"></i>Permissions
+            <div className="card-inset p-3 space-y-1.5">
+              <div className="text-[11px] font-bold text-ink">
+                <i className="fa-solid fa-list-check me-1.5 text-[var(--ah-success)] text-[10px]"></i>Permissions
               </div>
               {(user.Permissions || []).length === 0 ? (
-                <div className="text-[11px] text-gray-400 dark:text-gray-500">কোনো অতিরিক্ত Permission নেই (Default Wallet Actions স্বয়ংক্রিয়)।</div>
+                <div className="text-[11px] text-ink-3">কোনো অতিরিক্ত Permission নেই (Default Wallet Actions স্বয়ংক্রিয়)।</div>
               ) : (
                 <div className="flex flex-wrap gap-1.5">
                   {(user.Permissions || []).map((p) => (
-                    <span key={p} className="text-[10px] font-semibold bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 px-2 py-1 rounded-full text-slate-600 dark:text-gray-300">
+                    <span key={p} className="text-[10px] font-semibold bg-[var(--ah-surface)] border border-[var(--ah-border)] px-2 py-1 rounded-full text-ink-2">
                       {PERMISSION_LABELS[p] || p}
                     </span>
                   ))}
@@ -759,9 +750,9 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
           }}
         />
 
-        {!canManageTarget && !canDel && (
-          <button onClick={closeDetails} className="w-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-bold py-2 rounded-xl text-xs">Close</button>
-        )}
+        {!canManageTarget && !canDel ? (
+          <Button variant="secondary" block onClick={closeDetails}>Close</Button>
+        ) : null}
         </>
       ) : (
         /* Edit and Manage REPLACE the details content inside the same modal
@@ -829,11 +820,11 @@ function AddUserForm({ wallets, currentUser, showAlert, onRefresh, onClose }) {
 
   return (
     <form onSubmit={handleAddUser} className="space-y-3">
-      <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-gray-200 dark:border-gray-800 space-y-2">
-        <div className="text-[11px] font-bold text-slate-700 dark:text-gray-200"><i className="fa-solid fa-id-card me-1.5 text-emerald-600 dark:text-emerald-400 text-[10px]"></i>1. Basic Information</div>
-        <input type="text" placeholder="Full Name" value={fullName} onChange={(e) => setFullName(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" />
-        <input type="text" placeholder="Username" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" required />
-        <input type="password" placeholder={"PIN (min " + MIN_PIN_LENGTH + ", max " + MAX_PIN_LENGTH + " characters)"} value={newPin} onChange={(e) => setNewPin(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" required />
+      <div className="card-inset p-3 space-y-2">
+        <div className="text-[11px] font-bold text-ink"><i className="fa-solid fa-id-card me-1.5 text-[10px]" style={{ color: "var(--ah-success)" }} />1. Basic Information</div>
+        <Input type="text" placeholder="Full Name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+        <Input type="text" placeholder="Username" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} required />
+        <Input type="password" placeholder={"PIN (min " + MIN_PIN_LENGTH + ", max " + MAX_PIN_LENGTH + " characters)"} value={newPin} onChange={(e) => setNewPin(e.target.value)} required />
         <Select value={role} onChange={setRole}>
           <option value="User">User (সাধারণ ইউজার)</option>
           <option value="Sub-Admin">Sub-Admin</option>
@@ -843,24 +834,24 @@ function AddUserForm({ wallets, currentUser, showAlert, onRefresh, onClose }) {
 
         {!isAdminNew && (
           <>
-            <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-gray-200 dark:border-gray-800 space-y-2">
-              <div className="text-[11px] font-bold text-slate-700 dark:text-gray-200"><i className="fa-solid fa-wallet me-1.5 text-emerald-600 dark:text-emerald-400 text-[10px]"></i>2. Wallet Access</div>
-              <div className="text-[10px] text-gray-400 dark:text-gray-500">কোন ওয়ালেটে এই ইউজার এক্সেস পাবে তা নির্বাচন করুন। Permissions শুধু অ্যাক্সেসযোগ্য ওয়ালেটের ভেতরেই কাজ করে।</div>
+            <div className="card-inset p-3 space-y-2">
+              <div className="text-[11px] font-bold text-ink"><i className="fa-solid fa-wallet me-1.5 text-[var(--ah-success)] text-[10px]"></i>2. Wallet Access</div>
+              <div className="text-[10px] text-ink-3">কোন ওয়ালেটে এই ইউজার এক্সেস পাবে তা নির্বাচন করুন। Permissions শুধু অ্যাক্সেসযোগ্য ওয়ালেটের ভেতরেই কাজ করে।</div>
               <WalletChecklist wallets={wallets} selected={walletAccess} onToggle={toggleWallet} />
               {!hasWallet && <NoWalletAccessNotice showInactiveNote={AnyAdditionalGranted({ selected: permissions })} />}
             </div>
 
-            <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-gray-200 dark:border-gray-800 space-y-2">
-              <div className="text-[11px] font-bold text-slate-700 dark:text-gray-200"><i className="fa-solid fa-list-check me-1.5 text-emerald-600 dark:text-emerald-400 text-[10px]"></i>3. Default Wallet Permissions</div>
-              <div className="text-[10px] text-gray-400 dark:text-gray-500">Wallet Access থাকলে এই অ্যাকশনগুলো স্বয়ংক্রিয়ভাবে সক্রিয় হয়।</div>
+            <div className="card-inset p-3 space-y-2">
+              <div className="text-[11px] font-bold text-ink"><i className="fa-solid fa-list-check me-1.5 text-[var(--ah-success)] text-[10px]"></i>3. Default Wallet Permissions</div>
+              <div className="text-[10px] text-ink-3">Wallet Access থাকলে এই অ্যাকশনগুলো স্বয়ংক্রিয়ভাবে সক্রিয় হয়।</div>
               <DefaultPermissionsList active={hasWallet} />
             </div>
 
-            <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-gray-200 dark:border-gray-800 space-y-2">
-              <div className="text-[11px] font-bold text-slate-700 dark:text-gray-200"><i className="fa-solid fa-user-shield me-1.5 text-emerald-600 dark:text-emerald-400 text-[10px]"></i>4. Additional Permissions</div>
-              <div className="text-[10px] text-gray-400 dark:text-gray-500">এই Permissions Admin কে স্পষ্টভাবে দিতে হয়। এগুলো ইউজারের অ্যাক্সেসযোগ্য সব ওয়ালেটে প্রযোজ্য।</div>
+            <div className="card-inset p-3 space-y-2">
+              <div className="text-[11px] font-bold text-ink"><i className="fa-solid fa-user-shield me-1.5 text-[var(--ah-success)] text-[10px]"></i>4. Additional Permissions</div>
+              <div className="text-[10px] text-ink-3">এই Permissions Admin কে স্পষ্টভাবে দিতে হয়। এগুলো ইউজারের অ্যাক্সেসযোগ্য সব ওয়ালেটে প্রযোজ্য।</div>
               {!hasWallet && (
-                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-2.5 text-[10px] text-amber-700 dark:text-amber-400 leading-snug">
+                <div className="card-warning p-2.5 text-[10px] text-[var(--ah-warning)] leading-snug">
                   <i className="fa-solid fa-triangle-exclamation me-1"></i>
                   Add Income ইত্যাদি Permission দেওয়া থাকলেও Wallet Access না থাকায় সেগুলো নিষ্ক্রিয় থাকবে।
                 </div>
@@ -874,10 +865,10 @@ function AddUserForm({ wallets, currentUser, showAlert, onRefresh, onClose }) {
         )}
 
         <div className="grid grid-cols-2 gap-2">
-          <button type="button" onClick={() => { resetForm(); onClose(); }} className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-bold py-2 rounded-xl text-xs">Cancel</button>
-          <button type="submit" disabled={adding} className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5">
-            {adding && <i className="fa-solid fa-spinner fa-spin"></i>} {adding ? 'Creating...' : 'Create User'}
-          </button>
+          <Button type="button" variant="secondary" onClick={() => { resetForm(); onClose(); }}>Cancel</Button>
+          <Button type="submit" disabled={adding}>
+            {adding ? <><i className="fa-solid fa-spinner fa-spin" /> Creating...</> : 'Create User'}
+          </Button>
         </div>
       </form>
   );
@@ -889,21 +880,25 @@ export default function UserManagementView({ users, wallets, onRefresh, showAler
   const [addOpen, setAddOpen] = useState(false);
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="font-bold text-slate-800 dark:text-gray-100 text-base">User Access & Management (ইউজার ম্যানেজমেন্ট)</h3>
-        {can("ADD_USER") && (
-          <button onClick={() => setAddOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-sm shrink-0">
-            <i className="fa-solid fa-user-plus"></i> Add User
-          </button>
-        )}
-      </div>
+      <PageHeader
+        title="User Access & Management"
+        subtitle="ইউজার ম্যানেজমেন্ট, ওয়ালেট অ্যাক্সেস ও পারমিশন"
+        icon="fa-user-gear"
+        right={
+          can("ADD_USER") ? (
+            <Button size="sm" icon="fa-user-plus" onClick={() => setAddOpen(true)}>Add User</Button>
+          ) : null
+        }
+      />
 
       <Popup open={addOpen} title="Add User" onClose={() => setAddOpen(false)}>
         <AddUserForm wallets={wallets} currentUser={currentUser} showAlert={showAlert} onRefresh={onRefresh} onClose={() => setAddOpen(false)} />
       </Popup>
 
       <div>
-        <div className="text-xs font-bold text-slate-700 dark:text-gray-200 mb-2">ইউজার তালিকা <span className="text-[10px] text-gray-400 font-normal">({users.length})</span></div>
+        <div className="section-title mb-2">
+          ইউজার তালিকা <span className="text-[10px] text-ink-3 font-normal">({users.length})</span>
+        </div>
         {/* space-y separates the per-user cards, so each row supplies its own
             border rather than relying on a divider inside a shared container. */}
         <div className="space-y-2">

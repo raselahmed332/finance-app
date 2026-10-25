@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../api.js";
 import { formatMoney, fmtDate, fmtUpdated } from "../utils/loan.js";
 import { accountName } from "../utils/accounts.js";
+import { Badge, Button, Chip, EmptyState, ErrorState, LoadingState, PageHeader, Segmented } from "../ui/index.jsx";
 
 const TYPE_META = {
-  GROUP: { label: "গ্রুপ সঞ্চয়", short: "গ্রুপ", icon: "fa-people-group", accent: "emerald" },
-  FIXED: { label: "মেয়াদি সঞ্চয়", short: "মেয়াদি", icon: "fa-calendar-check", accent: "sky" },
-  FLEXIBLE: { label: "নমনীয় সঞ্চয়", short: "নমনীয়", icon: "fa-wallet", accent: "violet" },
+  GROUP: { label: "গ্রুপ সঞ্চয়", short: "গ্রুপ", icon: "fa-people-group" },
+  FIXED: { label: "মেয়াদি সঞ্চয়", short: "মেয়াদি", icon: "fa-calendar-check" },
+  FLEXIBLE: { label: "নমনীয় সঞ্চয়", short: "নমনীয়", icon: "fa-wallet" },
 };
 
 const FILTERS = [
@@ -25,24 +26,27 @@ const TABS = [
 function StatusBadge({ status }) {
   const closed = String(status).toUpperCase() === "CLOSED";
   return (
-    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${closed ? "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400" : "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400"}`}>
+    <Badge tone={closed ? "neutral" : "success"} icon={closed ? "fa-lock" : "fa-circle-check"}>
       {closed ? "বন্ধ" : "সক্রিয়"}
-    </span>
+    </Badge>
   );
 }
 
-function Stat({ label, value, strong }) {
+// A compact label/value pair for the three-column summary inside a plan card.
+function MiniStat({ label, value, strong }) {
   return (
-    <div>
-      <div className="text-[9px] uppercase tracking-wide text-gray-400 dark:text-gray-500">{label}</div>
-      <div className={`text-[11px] mt-0.5 ${strong ? "font-bold text-slate-800 dark:text-gray-100" : "font-semibold text-slate-600 dark:text-gray-300"}`}>{value}</div>
+    <div className="min-w-0">
+      <div className="text-[9px] uppercase tracking-wide text-ink-3">{label}</div>
+      <div className={`text-[11px] mt-0.5 truncate ${strong ? "font-bold text-ink" : "font-semibold text-ink-2"}`}>
+        {value}
+      </div>
     </div>
   );
 }
 
 function PlanCard({ plan, onOpen, creatorName }) {
   const type = String(plan.Type).toUpperCase();
-  const meta = TYPE_META[type] || { label: type, icon: "fa-piggy-bank", accent: "emerald" };
+  const meta = TYPE_META[type] || { label: type, icon: "fa-piggy-bank" };
   const summary = plan.Summary || {};
   const currency = plan.Currency || "";
 
@@ -50,16 +54,16 @@ function PlanCard({ plan, onOpen, creatorName }) {
     <button
       type="button"
       onClick={() => onOpen && onOpen(plan.PlanID)}
-      className="w-full text-left bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl p-3.5 hover:border-emerald-400 dark:hover:border-emerald-600 hover:shadow-sm transition-all"
+      className="card w-full text-left p-3.5 hover:border-[var(--ah-brand)] hover:shadow-sm transition-all"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-9 h-9 shrink-0 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-            <i className={`fa-solid ${meta.icon}`}></i>
+          <div className="w-9 h-9 shrink-0 rounded-xl bg-[var(--ah-success-soft)] text-[var(--ah-success)] flex items-center justify-center">
+            <i className={`fa-solid ${meta.icon}`} />
           </div>
           <div className="min-w-0">
-            <div className="text-sm font-bold text-slate-800 dark:text-gray-100 truncate">{plan.Name}</div>
-            <div className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
+            <div className="text-sm font-bold text-ink truncate">{plan.Name}</div>
+            <div className="text-[10px] text-ink-3 truncate">
               {plan.WalletName || plan.WalletID} • {accountName(plan.WalletID, plan.Account)} • {currency}
             </div>
           </div>
@@ -67,48 +71,56 @@ function PlanCard({ plan, onOpen, creatorName }) {
         <StatusBadge status={plan.Status} />
       </div>
 
-      <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-slate-700">
+      <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-[var(--ah-border)]">
         {type === "GROUP" && (
           <>
-            <Stat label="জমা" value={formatMoney(summary.Collected || 0, currency)} />
-            <Stat label="গ্রহণ" value={formatMoney(summary.PaidOut || 0, currency)} />
-            <Stat label="সদস্য" value={`${plan.Group?.MemberCount || 0} জন`} />
+            <MiniStat label="জমা" value={formatMoney(summary.Collected || 0, currency)} />
+            <MiniStat label="গ্রহণ" value={formatMoney(summary.PaidOut || 0, currency)} />
+            <MiniStat label="সদস্য" value={`${plan.Group?.MemberCount || 0} জন`} />
           </>
         )}
         {type === "FIXED" && (
           <>
-            <Stat label="পরিশোধিত" value={formatMoney(summary.Paid || 0, currency)} />
-            <Stat label="বাকি" value={formatMoney(summary.Balance || 0, currency)} strong />
-            <Stat label="কিস্তি" value={`${summary.InstallmentCount || 0} টি`} />
+            <MiniStat label="পরিশোধিত" value={formatMoney(summary.Paid || 0, currency)} />
+            <MiniStat label="বাকি" value={formatMoney(summary.Balance || 0, currency)} strong />
+            <MiniStat label="কিস্তি" value={`${summary.InstallmentCount || 0} টি`} />
           </>
         )}
         {type === "FLEXIBLE" && (
           <>
-            <Stat label="জমা" value={formatMoney(summary.Deposited || 0, currency)} />
-            <Stat label="উত্তোলন" value={formatMoney(summary.Withdrawn || 0, currency)} />
-            <Stat label="ব্যালেন্স" value={formatMoney(summary.Balance || 0, currency)} strong />
+            <MiniStat label="জমা" value={formatMoney(summary.Deposited || 0, currency)} />
+            <MiniStat label="উত্তোলন" value={formatMoney(summary.Withdrawn || 0, currency)} />
+            <MiniStat label="ব্যালেন্স" value={formatMoney(summary.Balance || 0, currency)} strong />
           </>
         )}
       </div>
 
-      <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-gray-100 dark:border-slate-700">
-        <div className="text-[10px] text-gray-400 dark:text-gray-500 flex items-center gap-2 min-w-0">
-          {plan.StartDate && <span className="shrink-0"><i className="fa-solid fa-calendar-day me-1"></i>{fmtUpdated(plan.StartDate)}</span>}
+      <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-[var(--ah-border)]">
+        <div className="text-[10px] text-ink-3 flex items-center gap-2 min-w-0">
+          {plan.StartDate && (
+            <span className="shrink-0">
+              <i className="fa-solid fa-calendar-day me-1" />
+              {fmtUpdated(plan.StartDate)}
+            </span>
+          )}
           {type === "FIXED" && plan.Fixed?.ClosedDate && (
-            <span className="truncate"><i className="fa-solid fa-lock me-1"></i>{fmtDate(plan.Fixed.ClosedDate)}</span>
+            <span className="truncate">
+              <i className="fa-solid fa-lock me-1" />
+              {fmtDate(plan.Fixed.ClosedDate)}
+            </span>
           )}
         </div>
         <div className="text-right ml-2 flex items-center justify-end gap-x-2 flex-wrap">
           {creatorName && (
-            <span className="text-[9px] text-gray-400 dark:text-gray-500 flex items-center gap-1">
-              <i className="fa-solid fa-user-pen"></i>
-              <span className="font-semibold text-gray-500 dark:text-gray-400">{creatorName}</span>
+            <span className="text-[9px] text-ink-3 flex items-center gap-1">
+              <i className="fa-solid fa-user-pen" />
+              <span className="font-semibold">{creatorName}</span>
             </span>
           )}
           {plan.UpdatedAt && (
-            <span className="text-[9px] text-gray-400 dark:text-gray-500 flex items-center gap-1">
-              <i className="fa-solid fa-clock-rotate-left"></i>
-              <span className="font-semibold text-gray-500 dark:text-gray-400">{fmtUpdated(plan.UpdatedAt)}</span>
+            <span className="text-[9px] text-ink-3 flex items-center gap-1">
+              <i className="fa-solid fa-clock-rotate-left" />
+              <span className="font-semibold">{fmtUpdated(plan.UpdatedAt)}</span>
             </span>
           )}
         </div>
@@ -182,84 +194,66 @@ export default function SavingsDashboardView({ currentUser, onOpenDetails, canCr
     { key: "FLEXIBLE", title: "নমনীয় সঞ্চয়", icon: "fa-wallet", items: flexible },
   ].filter((s) => tab === "ALL" || s.key === tab);
 
-  return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-bold text-slate-800 dark:text-gray-100">সঞ্চয়</h1>
-        {canCreate && (
-          <button className="px-3 py-1.5 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm" onClick={() => onAdd && onAdd()}>
-            <i className="fa-solid fa-plus me-1"></i> নতুন সঞ্চয়
-          </button>
-        )}
-      </div>
+  const tabOptions = TABS.map((t) => ({
+    value: t.value,
+    label: `${t.label} (${counts[t.value]})`,
+    icon: t.icon,
+  }));
 
-      <div className="grid grid-cols-2 gap-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl text-xs font-bold">
-        {TABS.map((t) => {
-          const active = tab === t.value;
-          return (
-            <button
-              key={t.value}
-              type="button"
-              onClick={() => setTab(t.value)}
-              className={`py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${active ? "bg-emerald-600 text-white shadow-sm" : "text-gray-600 dark:text-gray-400"}`}
-            >
-              <i className={`fa-solid ${t.icon} text-[10px]`}></i>
-              <span>{t.label}</span>
-              <span className={`text-[9px] font-bold px-1.5 rounded-full ${active ? "bg-white/25 text-white" : "bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-300"}`}>
-                {counts[t.value]}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+  return (
+    <div className="space-y-4">
+      <PageHeader
+        title="সঞ্চয়"
+        subtitle="গ্রুপ, মেয়াদি ও নমনীয় সঞ্চয়"
+        icon="fa-piggy-bank"
+        right={
+          canCreate ? (
+            <Button size="sm" icon="fa-plus" onClick={() => onAdd && onAdd()}>
+              নতুন সঞ্চয়
+            </Button>
+          ) : null
+        }
+      />
+
+      <Segmented options={tabOptions} value={tab} onChange={setTab} />
 
       <div className="space-y-2">
         <div className="relative">
-          <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+          <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-ink-3 text-xs" />
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="সঞ্চয় খুঁজুন..."
-            className="w-full border border-gray-300 dark:border-gray-700 rounded-xl pl-8 pr-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500"
+            className="input pl-9"
           />
         </div>
         <div className="flex gap-1.5">
           {FILTERS.map((f) => (
-            <button
-              key={f.value}
-              type="button"
-              onClick={() => setFilter(f.value)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${filter === f.value ? "bg-slate-800 dark:bg-gray-700 text-white" : "bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-slate-600 dark:text-gray-300"}`}
-            >
+            <Chip key={f.value} active={filter === f.value} onClick={() => setFilter(f.value)}>
               {f.label}
-            </button>
+            </Chip>
           ))}
         </div>
       </div>
 
-      {loading && (
-        <div className="text-sm text-gray-500 flex items-center gap-2">
-          <i className="fa-solid fa-spinner fa-spin"></i> লোড হচ্ছে...
-        </div>
-      )}
-      {error && <div className="text-sm text-red-600">{error}</div>}
-
-      {!loading && !error && counts[tab] === 0 && (
-        <div className="text-center py-10 text-gray-400 dark:text-gray-500">
-          <i className="fa-solid fa-piggy-bank text-3xl mb-2"></i>
-          <div className="text-sm">কোনো সঞ্চয় পাওয়া যায়নি</div>
-        </div>
-      )}
-
-      {!loading &&
-        !error &&
+      {loading ? (
+        <LoadingState label="সঞ্চয় লোড হচ্ছে..." />
+      ) : error ? (
+        <ErrorState text={error} />
+      ) : counts[tab] === 0 ? (
+        <EmptyState
+          icon="fa-piggy-bank"
+          title="কোনো সঞ্চয় পাওয়া যায়নি"
+          text="নতুন সঞ্চয় তৈরি করে শুরু করুন।"
+        />
+      ) : (
         sections.map((s) =>
           s.items.length === 0 ? null : (
             <section key={s.key} className="space-y-2">
-              <h2 className="text-xs font-bold text-slate-700 dark:text-gray-200 flex items-center gap-1.5">
-                <i className={`fa-solid ${s.icon} text-emerald-500`}></i> {s.title}
-                <span className="text-gray-400 dark:text-gray-500 font-medium">({s.items.length})</span>
+              <h2 className="section-title flex items-center gap-1.5">
+                <i className={`fa-solid ${s.icon} text-[var(--ah-success)]`} /> {s.title}
+                <span className="text-ink-3 font-medium">({s.items.length})</span>
               </h2>
               <div className="space-y-2">
                 {s.items.map((p) => (
@@ -268,7 +262,8 @@ export default function SavingsDashboardView({ currentUser, onOpenDetails, canCr
               </div>
             </section>
           ),
-        )}
+        )
+      )}
     </div>
   );
 }

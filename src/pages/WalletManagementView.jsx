@@ -7,6 +7,9 @@ import { DetailCell } from "../components/FormField.jsx";
 import { getActiveCurrencies } from "../utils/currency.js";
 import { useBalanceReveal, BalanceRevealToggle, MASK } from "../utils/balanceReveal.jsx";
 import { getWalletAccounts, onAccountsChange } from "../utils/accounts.js";
+import {
+  Badge, Button, Card, EmptyState, Input, LoadingState, PageHeader,
+} from "../ui/index.jsx";
 
 // The currency dropdown now reads the backend Currencies sheet through the
 // registry in utils/currency.js instead of a hardcoded list here, so an Admin
@@ -171,20 +174,30 @@ function EditWalletRow({ wallet, walletSummaries, currentUser, can, onRefresh, s
   // continuous block. The previous border-b/last:border-0 approach left the
   // rows looking like a single table.
   const row = (
-    <div
+    <Card
+      as="div"
       onClick={handleRowClick}
-      className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-2.5 py-2.5 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-800"
-      role="button" tabIndex={0}
+      className="p-3 cursor-pointer transition-colors hover:border-[var(--ah-brand)]"
+      role="button"
+      tabIndex={0}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleRowClick(); } }}
     >
-      <div className="flex justify-between items-center text-xs">
+      <div className="flex justify-between items-center gap-2">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-            <i className="fa-solid fa-vault text-xs"></i>
+          <div
+            className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+            style={{ background: "var(--ah-success-soft)", color: "var(--ah-success)" }}
+          >
+            <i className="fa-solid fa-vault text-xs" />
           </div>
           <div className="min-w-0">
-            <div className="font-bold text-slate-800 dark:text-gray-100 truncate">{wallet.WalletName} <span className="text-[10px] text-gray-400 font-normal">({wallet.WalletID})</span></div>
-            <div className="text-[10px] text-gray-400 dark:text-gray-500">{wallet.Currency}{wallet.SheetName ? ` • ${wallet.SheetName}` : ''}</div>
+            <div className="font-bold text-ink truncate">
+              {wallet.WalletName}{" "}
+              <span className="text-[10px] text-ink-3 font-normal">({wallet.WalletID})</span>
+            </div>
+            <div className="text-[10px] text-ink-3">
+              {wallet.Currency}{wallet.SheetName ? ` • ${wallet.SheetName}` : ''}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -195,20 +208,19 @@ function EditWalletRow({ wallet, walletSummaries, currentUser, can, onRefresh, s
               disabled={saving}
               title={active ? 'নিষ্ক্রিয় করতে ক্লিক করুন' : 'সক্রিয় করতে ক্লিক করুন'}
               aria-label={active ? 'নিষ্ক্রিয় করুন' : 'সক্রিয় করুন'}
-              className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors disabled:opacity-50 ${
-                active
-                  ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/60'
-                  : 'bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-gray-700'
-              }`}
+              className="px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors disabled:opacity-50"
+              style={active
+                ? { background: "var(--ah-success-soft)", color: "var(--ah-success)", borderColor: "transparent" }
+                : { background: "var(--ah-surface-3)", color: "var(--ah-text-2)", borderColor: "var(--ah-border)" }}
             >
               {wallet.Status}
             </button>
           ) : (
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${active ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400' : 'bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}>{wallet.Status}</span>
+            <Badge tone={active ? "success" : "neutral"}>{wallet.Status}</Badge>
           )}
         </div>
       </div>
-    </div>
+    </Card>
   );
 
   return (
@@ -217,17 +229,20 @@ function EditWalletRow({ wallet, walletSummaries, currentUser, can, onRefresh, s
 
       <Popup open={detailsOpen} title="Wallet Details" onClose={() => setDetailsOpen(false)}>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-            <i className="fa-solid fa-vault"></i>
+          <div
+            className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+            style={{ background: "var(--ah-success-soft)", color: "var(--ah-success)" }}
+          >
+            <i className="fa-solid fa-vault" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="font-bold text-sm text-slate-800 dark:text-gray-100 truncate">{wallet.WalletName}</div>
-            <div className="text-[11px] text-gray-400 dark:text-gray-500">{wallet.WalletID}</div>
+            <div className="font-bold text-sm text-ink truncate">{wallet.WalletName}</div>
+            <div className="text-[11px] text-ink-3">{wallet.WalletID}</div>
           </div>
-          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${active ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400' : 'bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}>{wallet.Status}</span>
+          <Badge tone={active ? "success" : "neutral"}>{wallet.Status}</Badge>
         </div>
 
-        <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-gray-200 dark:border-gray-800 grid grid-cols-2 gap-x-4 gap-y-2.5">
+        <div className="card-inset p-3 grid grid-cols-2 gap-x-4 gap-y-2.5">
           <DetailCell label="Currency" value={wallet.Currency} />
           <DetailCell label="Sheet" value={wallet.SheetName || "—"} />
           <DetailCell label="Created" value={fmtTimestamp(wallet.CreatedAt)} />
@@ -235,7 +250,7 @@ function EditWalletRow({ wallet, walletSummaries, currentUser, can, onRefresh, s
         </div>
 
         <div className="flex items-center justify-between gap-2">
-          <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500">Balance</div>
+          <div className="text-[10px] font-bold uppercase tracking-wide text-ink-3">Balance</div>
           <BalanceRevealToggle
             revealed={balance.revealed}
             secondsLeft={balance.secondsLeft}
@@ -247,11 +262,11 @@ function EditWalletRow({ wallet, walletSummaries, currentUser, can, onRefresh, s
           {accountIds.map((id) => {
             const m = accountMeta(id);
             return (
-              <div key={id} className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-2.5">
-                <div className="text-[10px] text-gray-500 dark:text-gray-400 font-semibold flex items-center gap-1">
-                  <i className={`fa-solid ${m.icon} text-emerald-600`}></i> Current {m.name}
+              <div key={id} className="rounded-xl p-2.5" style={{ background: "var(--ah-success-soft)" }}>
+                <div className="text-[10px] text-ink-2 font-semibold flex items-center gap-1">
+                  <i className={`fa-solid ${m.icon}`} style={{ color: "var(--ah-success)" }} /> Current {m.name}
                 </div>
-                <div className="text-sm font-bold text-slate-800 dark:text-gray-100 mt-1 tabular-nums">
+                <div className="text-sm font-bold tnum text-ink mt-1">
                   {summary ? money(summary?.accounts?.[id] || 0) : "—"}
                 </div>
               </div>
@@ -259,7 +274,7 @@ function EditWalletRow({ wallet, walletSummaries, currentUser, can, onRefresh, s
           })}
         </div>
 
-        <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-gray-200 dark:border-gray-800 grid grid-cols-2 gap-x-4 gap-y-2.5">
+        <div className="card-inset p-3 grid grid-cols-2 gap-x-4 gap-y-2.5">
           <DetailCell label="Total Balance" value={summary ? money(summary.totalBalance) : "—"} />
           {accountIds.map((id) => {
             const m = accountMeta(id);
@@ -268,18 +283,18 @@ function EditWalletRow({ wallet, walletSummaries, currentUser, can, onRefresh, s
           <DetailCell label="Wallet ID" value={String(wallet.WalletID)} />
         </div>
 
-        <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-gray-200 dark:border-gray-800">
-          <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-2">
-            <i className="fa-solid fa-users me-1.5 text-emerald-600 dark:text-emerald-400"></i>
+        <div className="card-inset p-3">
+          <div className="text-[10px] font-bold uppercase tracking-wide text-ink-3 mb-2">
+            <i className="fa-solid fa-users me-1.5" style={{ color: "var(--ah-success)" }} />
             যাদের এই Wallet-এ অ্যাক্সেস আছে
-            <span className="text-gray-400 dark:text-gray-500 font-normal">({walletUsers.length})</span>
+            <span className="text-ink-3 font-normal">({walletUsers.length})</span>
           </div>
           {walletUsers.length === 0 ? (
-            <div className="text-[11px] text-gray-400 dark:text-gray-500">কোনো ইউজারের অ্যাক্সেস নেই</div>
+            <div className="text-[11px] text-ink-3">কোনো ইউজারের অ্যাক্সেস নেই</div>
           ) : (
             <div className="flex flex-wrap gap-1.5">
               {walletUsers.map(u => (
-                <span key={u.Username} className="text-[10px] font-semibold bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 px-2 py-1 rounded-full text-slate-600 dark:text-gray-300">
+                <span key={u.Username} className="text-[10px] font-semibold bg-[var(--ah-surface)] border border-[var(--ah-border)] px-2 py-1 rounded-full text-ink-2">
                   {u.FullName || u.Username}
                 </span>
               ))}
@@ -287,30 +302,37 @@ function EditWalletRow({ wallet, walletSummaries, currentUser, can, onRefresh, s
           )}
         </div>
 
-        {(canEdit || canDel) && (
+        {(canEdit || canDel) ? (
           <div className="grid grid-cols-2 gap-2">
-            {canEdit && (
-              <button onClick={() => { setDetailsOpen(false); setEditing(true); setName(wallet.WalletName); setStatus(wallet.Status); }} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5">
-                <i className="fa-solid fa-pen"></i> Edit Wallet
-              </button>
-            )}
-            {canDel && (
-              <button onClick={() => { setDetailsOpen(false); handleDelete(); }} className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5">
-                <i className="fa-solid fa-trash-can"></i> Delete
-              </button>
-            )}
+            {canEdit ? (
+              <Button
+                onClick={() => { setDetailsOpen(false); setEditing(true); setName(wallet.WalletName); setStatus(wallet.Status); }}
+              >
+                <i className="fa-solid fa-pen" /> Edit Wallet
+              </Button>
+            ) : null}
+            {canDel ? (
+              <Button
+                variant="danger"
+                onClick={() => { setDetailsOpen(false); handleDelete(); }}
+              >
+                <i className="fa-solid fa-trash-can" /> Delete
+              </Button>
+            ) : null}
           </div>
-        )}
+        ) : null}
       </Popup>
 
       <Popup open={editing} title="Edit Wallet" onClose={saving ? undefined : () => setEditing(false)}>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Wallet Name" className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-1.5 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" />
+        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Wallet Name" />
         <Select value={status} onChange={setStatus}>
           <option value="Active">Active</option>
           <option value="Inactive">Inactive</option>
         </Select>
-        <div className="text-[10px] text-gray-400 dark:text-gray-500 px-1">Currency: {wallet.Currency} (তৈরির সময় নির্ধারিত, পরিবর্তনযোগ্য নয়)</div>
-        <button onClick={handleSave} disabled={saving} className="w-full bg-emerald-600 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl text-xs">{saving ? <><i className="fa-solid fa-spinner fa-spin me-1"></i>Saving...</> : 'Save'}</button>
+        <div className="text-[10px] text-ink-3 px-1">Currency: {wallet.Currency} (তৈরির সময় নির্ধারিত, পরিবর্তনযোগ্য নয়)</div>
+        <Button block onClick={handleSave} disabled={saving}>
+          {saving ? <><i className="fa-solid fa-spinner fa-spin" />Saving...</> : 'Save'}
+        </Button>
       </Popup>
     </div>
   );
@@ -350,33 +372,39 @@ function AddWalletForm({ currentUser, showAlert, onRefresh, onClose }) {
 
   return (
     <form onSubmit={handleAdd} className="space-y-3">
-      <input value={name} onChange={(e) => setName(e.target.value)} placeholder="যেমন: Bangladesh Bank" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" required />
+      <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="যেমন: Bangladesh Bank" required />
       <Select value={currency} onChange={setCurrency}>
         {options.map(c => <option key={c} value={c}>{c}</option>)}
       </Select>
-      <div className="text-[10px] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg px-2.5 py-1.5">
-        <i className="fa-solid fa-triangle-exclamation me-1"></i>
+      <div
+        className="text-[10px] rounded-lg px-2.5 py-1.5"
+        style={{ background: "var(--ah-warning-soft)", color: "var(--ah-warning)" }}
+      >
+        <i className="fa-solid fa-triangle-exclamation me-1" />
         কারেন্সি একবার নির্ধারণ করলে পরে পরিবর্তন করা যাবে না।
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="text-[10px] text-gray-500 dark:text-gray-400 mb-0.5 block">Opening Cash ({currency})</label>
-          <input type="number" step="0.01" min="0" value={openingCash} onChange={(e) => setOpeningCash(e.target.value)} placeholder="0.00" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" />
+          <label className="label">Opening Cash ({currency})</label>
+          <Input type="number" step="0.01" min="0" value={openingCash} onChange={(e) => setOpeningCash(e.target.value)} placeholder="0.00" />
         </div>
         <div>
-          <label className="text-[10px] text-gray-500 dark:text-gray-400 mb-0.5 block">Opening Bank ({currency})</label>
-          <input type="number" step="0.01" min="0" value={openingBank} onChange={(e) => setOpeningBank(e.target.value)} placeholder="0.00" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" />
+          <label className="label">Opening Bank ({currency})</label>
+          <Input type="number" step="0.01" min="0" value={openingBank} onChange={(e) => setOpeningBank(e.target.value)} placeholder="0.00" />
         </div>
       </div>
-      <div className="text-[10px] text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg px-2.5 py-1.5">
-        <i className="fa-solid fa-circle-info me-1"></i>
+      <div
+        className="text-[10px] rounded-lg px-2.5 py-1.5"
+        style={{ background: "var(--ah-info-soft)", color: "var(--ah-info)" }}
+      >
+        <i className="fa-solid fa-circle-info me-1" />
         শুরুর ব্যালেন্স — পরে "Edit Wallet" থেকে পরিবর্তন করা যাবে না।
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <button type="button" onClick={onClose} className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-bold py-2 rounded-xl text-xs">Cancel</button>
-        <button type="submit" disabled={adding} className="bg-emerald-600 disabled:opacity-50 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1">
-          {adding ? <><i className="fa-solid fa-spinner fa-spin me-1"></i>Creating...</> : <><i className="fa-solid fa-plus me-1"></i> Create Wallet</>}
-        </button>
+        <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+        <Button type="submit" disabled={adding}>
+          {adding ? <><i className="fa-solid fa-spinner fa-spin" />Creating...</> : <><i className="fa-solid fa-plus" /> Create Wallet</>}
+        </Button>
       </div>
     </form>
   );
@@ -397,31 +425,38 @@ export default function WalletManagementView({ currentUser, can, showAlert, wall
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="font-bold text-slate-800 dark:text-gray-100 text-base">Wallet ম্যানেজমেন্ট</h3>
-        {can('ADD_WALLET') && (
-          <button onClick={() => setAddOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-sm shrink-0">
-            <i className="fa-solid fa-plus"></i> Add Wallet
-          </button>
-        )}
-      </div>
+      <PageHeader
+        title="Wallet ম্যানেজমেন্ট"
+        icon="fa-vault"
+        subtitle="ওয়ালেট তৈরি, নাম পরিবর্তন ও স্ট্যাটাস ব্যবস্থাপনা"
+        right={
+          can('ADD_WALLET') ? (
+            <Button size="sm" icon="fa-plus" onClick={() => setAddOpen(true)}>Add Wallet</Button>
+          ) : null
+        }
+      />
 
       <Popup open={addOpen} title="নতুন Wallet তৈরি করুন" onClose={() => setAddOpen(false)}>
         <AddWalletForm currentUser={currentUser} showAlert={showAlert} onRefresh={load} onClose={() => setAddOpen(false)} />
       </Popup>
 
       <div>
-        <div className="text-xs font-bold text-slate-700 dark:text-gray-200 mb-2">সব Wallet <span className="text-[10px] text-gray-400 font-normal">({allWallets ? allWallets.length : 0})</span></div>
-        {allWallets === null && <div className="text-center text-xs text-gray-400 dark:text-gray-500 py-4">লোড হচ্ছে...</div>}
+        <div className="section-title mb-2">
+          সব Wallet <span className="text-[10px] text-ink-3 font-normal">({allWallets ? allWallets.length : 0})</span>
+        </div>
+        {allWallets === null ? <LoadingState label="লোড হচ্ছে..." /> : null}
+        {allWallets && allWallets.length === 0 ? (
+          <EmptyState icon="fa-vault" title="কোনো Wallet নেই" text="প্রথম Wallet তৈরি করে শুরু করুন।" />
+        ) : null}
         {/* space-y separates the per-wallet cards, so each row supplies its own
             border rather than relying on a divider inside a shared container. */}
-        {allWallets && (
+        {allWallets ? (
           <div className="space-y-2">
             {allWallets.map(w => (
               <EditWalletRow key={w.WalletID} wallet={w} walletSummaries={walletSummaries} currentUser={currentUser} can={can} onRefresh={load} showAlert={showAlert} users={users} />
             ))}
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

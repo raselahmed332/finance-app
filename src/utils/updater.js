@@ -589,7 +589,7 @@ export function openInstallPermissionSettings() {
   // No dedicated Capacitor API; the OS settings intent is launched through the
   // App plugin's openUrl, which maps to ACTION_VIEW. The `package:` uri opens
   // this app's install-permission page on API 26+.
-  const pkg = "com.amarhisab.app";
+  const pkg = "com.amarhisab.v2";
   const url = `package:${pkg}`;
   return CapApp.openUrl({ url }).then(
     () => true,

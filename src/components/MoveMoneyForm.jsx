@@ -2,7 +2,7 @@ import { useState } from "react";
 import Select from "./Select.jsx";
 import AccountSelect from "./AccountSelect.jsx";
 import { useToast } from "./Toast.jsx";
-import { todayStr, pickDefaultWalletId } from "../utils/loan.js";
+import { todayStr } from "../utils/loan.js";
 
 // One screen for every money move. When From and To are the SAME wallet it is an
 // account-to-account move and is sent through the existing Bank Operation path
@@ -16,17 +16,12 @@ export default function MoveMoneyForm({ wallets, currentUser, onSave, onCancel, 
   const canTransfer = can ? can("TRANSFER_MONEY") : true;
   const canBankOp = can ? can("BANK_OPERATIONS") : true;
 
-  const defaultFrom = pickDefaultWalletId(currentUser?.username, wallets);
-  const [fromWalletId, setFromWalletId] = useState(defaultFrom);
-  const [fromAccount, setFromAccount] = useState('Bank');
+  const [fromWalletId, setFromWalletId] = useState("");
+  const [fromAccount, setFromAccount] = useState("");
   const [fromAmount, setFromAmount] = useState('');
 
-  const [toWalletId, setToWalletId] = useState(
-    canTransfer
-      ? ((wallets || []).find((w) => String(w.WalletID) !== String(defaultFrom))?.WalletID || defaultFrom || '')
-      : defaultFrom
-  );
-  const [toAccount, setToAccount] = useState('Cash');
+  const [toWalletId, setToWalletId] = useState("");
+  const [toAccount, setToAccount] = useState("");
   const [toAmount, setToAmount] = useState('');
 
   const [date, setDate] = useState(todayStr());
@@ -46,13 +41,19 @@ export default function MoveMoneyForm({ wallets, currentUser, onSave, onCancel, 
 
   const changeFromWallet = (id) => {
     setFromWalletId(id);
+    setFromAccount("");
+    setToAccount("");
     setFromAmount('');
     setToAmount('');
     // Without TRANSFER_MONEY the money can only move inside one wallet, so the
     // destination wallet tracks the source.
     if (!canTransfer) setToWalletId(id);
   };
-  const changeToWallet = (id) => { setToWalletId(id); setToAmount(''); };
+  const changeToWallet = (id) => {
+    setToWalletId(id);
+    setToAccount("");
+    setToAmount('');
+  };
 
   const finish = (promise) => promise.catch(() => {}).finally(() => setSubmitting(false));
 
@@ -94,13 +95,13 @@ export default function MoveMoneyForm({ wallets, currentUser, onSave, onCancel, 
   };
 
   return (
-    <div className={embedded ? "space-y-4" : "bg-white dark:bg-gray-900 rounded-2xl p-4 shadow-sm border border-gray-200 dark:border-gray-800 space-y-4"}>
+    <div className={embedded ? "space-y-4" : "card p-4 space-y-4"}>
       {!embedded && (
         <div className="flex items-center justify-between pb-3">
-          <button onClick={onCancel} className="text-gray-500 hover:text-slate-800 dark:text-gray-400 dark:hover:text-gray-200">
+          <button onClick={onCancel} className="text-ink-3 hover:text-ink dark:text-ink-3 dark:hover:text-gray-200">
             <i className="fa-solid fa-arrow-left text-lg"></i>
           </button>
-          <h3 className="font-bold text-slate-800 dark:text-gray-100 text-base text-center flex-1 text-blue-600 dark:text-blue-400">
+          <h3 className="font-bold text-ink text-base text-center flex-1 text-[var(--ah-info)]">
             Transfer (ট্রান্সফার)
           </h3>
           <div className="w-5"></div>
@@ -108,90 +109,92 @@ export default function MoveMoneyForm({ wallets, currentUser, onSave, onCancel, 
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-gray-700 rounded-xl p-3 space-y-2">
-          <div className="text-xs font-bold text-slate-700 dark:text-gray-200 uppercase tracking-wider">From (কোথা থেকে)</div>
+        <div className="card-inset p-3 space-y-2">
+          <div className="text-xs font-bold text-ink uppercase tracking-wider">From (কোথা থেকে)</div>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-[11px] text-gray-500 dark:text-gray-400 font-medium mb-1">Wallet</label>
+              <label className="label">Wallet</label>
               <Select value={fromWalletId} onChange={changeFromWallet}>
+                <option value="">Select wallet</option>
                 {wallets.map(w => <option key={w.WalletID} value={w.WalletID}>{w.WalletName} ({w.Currency})</option>)}
               </Select>
             </div>
             <div>
-              <label className="block text-[11px] text-gray-500 dark:text-gray-400 font-medium mb-1">Account</label>
+              <label className="label">Account</label>
               <AccountSelect walletId={fromWalletId} value={fromAccount} onChange={setFromAccount} />
             </div>
           </div>
 
           <div>
-            <label className="block text-[11px] text-gray-500 dark:text-gray-400 font-medium mb-1">Amount</label>
+            <label className="label">Amount</label>
             <div className="relative flex items-center">
-              <input type="number" step="any" value={fromAmount} onChange={(e) => { setFromAmount(e.target.value); if (sameCurrency) setToAmount(e.target.value); }} placeholder="0.00" className="w-full border border-gray-300 dark:border-gray-700 rounded-lg pl-2 pr-12 py-1.5 text-xs font-semibold bg-white dark:bg-gray-900 dark:text-gray-100" required />
-              <span className="absolute right-2 text-[10px] font-bold text-gray-400 dark:text-gray-500">{fromWallet?.Currency}</span>
+              <input type="number" step="any" value={fromAmount} onChange={(e) => { setFromAmount(e.target.value); if (sameCurrency) setToAmount(e.target.value); }} placeholder="0.00" className="input pr-12 py-1.5 text-xs font-semibold" required />
+              <span className="absolute right-2 text-[10px] font-bold text-ink-3">{fromWallet?.Currency}</span>
             </div>
           </div>
         </div>
 
         <div className="flex justify-center relative z-10">
-          <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm shadow-md border-2 border-white dark:border-gray-900">
+          <div className="w-9 h-9 rounded-full bg-[var(--ah-info)] text-white flex items-center justify-center text-sm shadow-md border-2 border-white dark:border-gray-900">
             <i className="fa-solid fa-right-left rotate-90"></i>
           </div>
         </div>
 
-        <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-gray-700 rounded-xl p-3 space-y-2">
-          <div className="text-xs font-bold text-slate-700 dark:text-gray-200 uppercase tracking-wider">To (কোথায়)</div>
+        <div className="card-inset p-3 space-y-2">
+          <div className="text-xs font-bold text-ink uppercase tracking-wider">To (কোথায়)</div>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-[11px] text-gray-500 dark:text-gray-400 font-medium mb-1">Wallet</label>
+              <label className="label">Wallet</label>
               {canTransfer ? (
                 <Select value={toWalletId} onChange={changeToWallet}>
+                  <option value="">Select wallet</option>
                   {wallets.map(w => <option key={w.WalletID} value={w.WalletID}>{w.WalletName} ({w.Currency})</option>)}
                 </Select>
               ) : (
-                <div className="flex items-center gap-1.5 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+                <div className="flex items-center gap-1.5 border border-[var(--ah-border)] rounded-lg px-2 py-1.5 text-xs bg-[var(--ah-surface-3)] text-ink-3">
                   <i className="fa-solid fa-lock text-[10px]"></i>
-                  <span className="truncate">{fromWallet?.WalletName} ({fromWallet?.Currency})</span>
+                  <span className="truncate">{fromWallet ? `${fromWallet.WalletName} (${fromWallet.Currency})` : "Select source wallet first"}</span>
                 </div>
               )}
             </div>
             <div>
-              <label className="block text-[11px] text-gray-500 dark:text-gray-400 font-medium mb-1">Account</label>
+              <label className="label">Account</label>
               <AccountSelect walletId={sameWallet ? fromWalletId : toWalletId} value={toAccount} onChange={setToAccount} />
             </div>
           </div>
 
           {!sameWallet && (
             <div>
-              <label className="block text-[11px] text-gray-500 dark:text-gray-400 font-medium mb-1">Amount Received</label>
+              <label className="label">Amount Received</label>
               <div className="relative flex items-center">
-                <input type="number" step="any" value={toAmount} onChange={(e) => setToAmount(e.target.value)} placeholder="0.00" className="w-full border border-gray-300 dark:border-gray-700 rounded-lg pl-2 pr-12 py-1.5 text-xs font-semibold bg-white dark:bg-gray-900 dark:text-gray-100" required />
-                <span className="absolute right-2 text-[10px] font-bold text-gray-400 dark:text-gray-500">{toWallet?.Currency}</span>
+                <input type="number" step="any" value={toAmount} onChange={(e) => setToAmount(e.target.value)} placeholder="0.00" className="input pr-12 py-1.5 text-xs font-semibold" required />
+                <span className="absolute right-2 text-[10px] font-bold text-ink-3">{toWallet?.Currency}</span>
               </div>
             </div>
           )}
         </div>
 
         {!sameWallet && fromWallet && toWallet && !sameCurrency && (
-          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-2.5 text-[11px] text-amber-800 dark:text-amber-300">
+          <div className="card-warning p-2.5 text-[11px] text-[var(--ah-warning)]">
             <i className="fa-solid fa-triangle-exclamation me-1"></i>
             ভিন্ন কারেন্সি — কোনো স্বয়ংক্রিয় কনভার্সন হবে না, "Amount Received" নিজে দিন।
           </div>
         )}
 
         <div>
-          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Date</label>
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" required />
+          <label className="label">Date</label>
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="input" required />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Description (বিবরণ)</label>
-          <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="যেমন: ATM Withdraw" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" />
+          <label className="label">Description (বিবরণ)</label>
+          <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="যেমন: ATM Withdraw" className="input" />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Note (নোট)</label>
-          <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="নোট লিখুন..." rows="2" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100"></textarea>
+          <label className="label">Note (নোট)</label>
+          <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="নোট লিখুন..." rows="2" className="input"></textarea>
         </div>
 
-        <button type="submit" disabled={submitting} className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl shadow-md text-sm flex items-center justify-center gap-2">
+        <button type="submit" disabled={submitting} className="btn btn-primary btn-block">
           <i className={`${submitting ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-floppy-disk"}`}></i> {submitting ? 'Saving...' : 'Save'}
         </button>
       </form>

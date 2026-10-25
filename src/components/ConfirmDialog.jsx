@@ -43,36 +43,79 @@ export function ConfirmProvider({ children }) {
     <ConfirmContext.Provider value={confirm}>
       {children}
       {state && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4" onClick={() => close(false)}>
-          <div className="w-full max-w-xs bg-white dark:bg-gray-900 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-4 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800">
-              <h3 className="font-bold text-slate-800 dark:text-gray-100 text-base">{state.title}</h3>
-              <button onClick={() => close(false)} className="text-gray-500 dark:text-gray-400 hover:text-slate-800 dark:hover:text-gray-200" title="Close">
-                <i className="fa-solid fa-xmark text-xl"></i>
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center p-4"
+          style={{ background: "rgba(4, 12, 9, 0.62)" }}
+          onClick={() => close(false)}
+        >
+          <div
+            className="w-full max-w-xs overflow-hidden"
+            style={{
+              background: "var(--ah-surface)",
+              border: "1px solid var(--ah-border)",
+              borderRadius: "22px",
+              boxShadow: "var(--ah-shadow-lg)",
+              animation: "sheetIn .2s ease-out",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className="flex items-center justify-between px-5 py-4"
+              style={{ borderBottom: "1px solid var(--ah-border)" }}
+            >
+              <h3 className="font-bold text-[15px]" style={{ color: "var(--ah-text)" }}>
+                {state.title}
+              </h3>
+              <button
+                onClick={() => close(false)}
+                className="icon-btn"
+                style={{ width: 30, height: 30, border: "none", background: "transparent" }}
+                title="বন্ধ করুন"
+              >
+                <i className="fa-solid fa-xmark text-base" />
               </button>
             </div>
+
             <div className="p-5 space-y-4">
               <div className="flex items-start gap-3">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${state.danger ? "bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400" : "bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400"}`}>
-                  <i className={`fa-solid ${state.danger ? "fa-triangle-exclamation" : "fa-circle-question"} text-lg`}></i>
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                  style={{
+                    background: state.danger
+                      ? "var(--ah-danger-soft)"
+                      : "var(--ah-warning-soft)",
+                    color: state.danger ? "var(--ah-danger)" : "var(--ah-warning)",
+                  }}
+                >
+                  <i
+                    className={`fa-solid ${state.danger ? "fa-triangle-exclamation" : "fa-circle-question"} text-lg`}
+                  />
                 </div>
-                <div>
-                  <div className="text-[13px] font-medium text-slate-700 dark:text-gray-200 leading-relaxed whitespace-pre-line">{state.message}</div>
+                <div className="min-w-0">
+                  <div
+                    className="text-[13px] font-medium leading-relaxed whitespace-pre-line"
+                    style={{ color: "var(--ah-text-2)" }}
+                  >
+                    {state.message}
+                  </div>
                   {state.detail && (
-                    <div className="mt-1.5 text-[11px] font-semibold text-gray-500 dark:text-gray-400">{state.detail}</div>
+                    <div
+                      className="mt-1.5 text-[11px] font-semibold"
+                      style={{ color: "var(--ah-text-3)" }}
+                    >
+                      {state.detail}
+                    </div>
                   )}
                 </div>
               </div>
+
               <div className="flex gap-2.5 pt-1">
-                <button
-                  onClick={() => close(false)}
-                  className="flex-1 border border-gray-300 dark:border-gray-600 text-slate-700 dark:text-gray-200 text-xs font-bold py-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                >
+                <button onClick={() => close(false)} className="btn btn-secondary flex-1">
                   {state.cancelLabel}
                 </button>
                 <button
                   onClick={() => close(true)}
-                  className={`flex-1 text-white font-bold py-2.5 rounded-xl transition-colors ${state.danger ? "bg-rose-600 hover:bg-rose-700" : "bg-emerald-600 hover:bg-emerald-700"}`}
+                  className={`btn flex-1 ${state.danger ? "btn-danger" : "btn-primary"}`}
                 >
                   {state.confirmLabel}
                 </button>

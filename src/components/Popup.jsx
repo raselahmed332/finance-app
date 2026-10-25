@@ -11,13 +11,40 @@ export default function Popup({ open, title, onClose, children, maxWidth = "max-
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={hideClose ? undefined : onClose}>
-      <div className={`w-full ${maxWidth} bg-white dark:bg-gray-900 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-800 max-h-[90vh] overflow-y-auto custom-scrollbar`} onClick={(e) => e.stopPropagation()}>
-        <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800">
-          <h3 className="font-bold text-slate-800 dark:text-gray-100 text-base">{title}</h3>
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+      style={{ background: "rgba(4, 12, 9, 0.62)" }}
+      onClick={hideClose ? undefined : onClose}
+    >
+      <div
+        className={`w-full ${maxWidth} max-h-[90vh] overflow-y-auto custom-scrollbar`}
+        style={{
+          background: "var(--ah-surface)",
+          border: "1px solid var(--ah-border)",
+          borderRadius: "22px",
+          boxShadow: "var(--ah-shadow-lg)",
+          animation: "sheetIn .2s ease-out",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          className="sticky top-0 z-10 flex items-center justify-between px-5 py-4"
+          style={{
+            background: "var(--ah-surface)",
+            borderBottom: "1px solid var(--ah-border)",
+          }}
+        >
+          <h3 className="font-bold text-[15px]" style={{ color: "var(--ah-text)" }}>
+            {title}
+          </h3>
           {!hideClose && (
-            <button onClick={onClose} className="text-gray-500 dark:text-gray-400 hover:text-slate-800 dark:hover:text-gray-200" title="Close">
-              <i className="fa-solid fa-xmark text-xl"></i>
+            <button
+              onClick={onClose}
+              className="icon-btn"
+              style={{ width: 30, height: 30, border: "none", background: "transparent" }}
+              title="বন্ধ করুন"
+            >
+              <i className="fa-solid fa-xmark text-base" />
             </button>
           )}
         </div>

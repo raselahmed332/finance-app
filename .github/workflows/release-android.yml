@@ -1,0 +1,111 @@
+name: Build and publish Android APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to build and update (for example v7)
+        required: true
+        type: string
+      prerelease:
+        description: Publish this as a pre-release
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Validate release tag and app version
+        id: release-meta
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+$ ]]; then
+            echo "::error::Release tag must be v followed by digits."
+            exit 1
+          fi
+
+          tag_code="${RELEASE_TAG#v}"
+          version_code=$(sed -n 's/^[[:space:]]*versionCode[[:space:]]\+\([0-9]\+\).*/\1/p' android/app/build.gradle | head -n 1)
+          version_name=$(sed -n 's/^[[:space:]]*versionName[[:space:]]*"\([^"]*\)".*/\1/p' android/app/build.gradle | head -n 1)
+          if [[ "$tag_code" != "$version_code" || -z "$version_name" ]]; then
+            echo "::error::Release tag and Android versionCode/versionName do not match."
+            exit 1
+          fi
+
+          echo "version_name=$version_name" >> "$GITHUB_OUTPUT"
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Configure release signing
+        env:
+          ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+          ANDROID_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}
+          ANDROID_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          ANDROID_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+        run: |
+          for name in ANDROID_RELEASE_KEYSTORE_BASE64 ANDROID_RELEASE_STORE_PASSWORD ANDROID_RELEASE_KEY_ALIAS ANDROID_RELEASE_KEY_PASSWORD; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Configure the $name GitHub Actions secret before publishing."
+              exit 1
+            fi
+          done
+
+          printf '%s' "$ANDROID_RELEASE_KEYSTORE_BASE64" | base64 --decode > android/app/amar-hisab-release.keystore
+          {
+            printf 'storeFile=amar-hisab-release.keystore\n'
+            printf 'storePassword=%s\n' "$ANDROID_RELEASE_STORE_PASSWORD"
+            printf 'keyAlias=%s\n' "$ANDROID_RELEASE_KEY_ALIAS"
+            printf 'keyPassword=%s\n' "$ANDROID_RELEASE_KEY_PASSWORD"
+          } > android/keystore.properties
+
+      - name: Build signed release APK
+        run: |
+          npm run cap:sync
+          cd android
+          ./gradlew assembleRelease
+
+      - name: Prepare release assets
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk AmarHisab-release.apk
+          sha256sum AmarHisab-release.apk > AmarHisab-release.apk.sha256
+
+      - name: Create or update GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag }}
+          name: Amar Hisab v${{ steps.release-meta.outputs.version_name }}
+          prerelease: ${{ inputs.prerelease }}
+          overwrite_files: true
+          files: |
+            AmarHisab-release.apk
+            AmarHisab-release.apk.sha256

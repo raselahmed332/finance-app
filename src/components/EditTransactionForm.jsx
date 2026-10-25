@@ -15,7 +15,7 @@ export default function EditTransactionForm({ transaction, onSave, onCancel }) {
 
   if (!transaction) return (
     <Popup open title="Edit Transaction" onClose={onCancel}>
-      <div className="text-center text-gray-500 dark:text-gray-400 text-sm py-4">লেনদেন পাওয়া যায়নি।</div>
+      <div className="text-center text-ink-3 text-sm py-4">লেনদেন পাওয়া যায়নি।</div>
     </Popup>
   );
 
@@ -24,6 +24,7 @@ export default function EditTransactionForm({ transaction, onSave, onCancel }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (submitting) return;
+    if (!form.account) return toast.error('একটি Account নির্বাচন করুন!');
     if (!form.amount || Number(form.amount) <= 0) return toast.error('সঠিক পরিমাণ লিখুন!');
     setSubmitting(true);
     onSave({ id: transaction.ID, walletId: transaction.WalletID, ...form })
@@ -33,19 +34,19 @@ export default function EditTransactionForm({ transaction, onSave, onCancel }) {
 
   return (
     <Popup open title="Edit Transaction" onClose={submitting ? undefined : onCancel}>
-      <div className="bg-slate-50 dark:bg-slate-900 rounded-xl px-3 py-2 text-xs text-slate-500 dark:text-gray-400 flex items-center gap-2">
-        <i className="fa-solid fa-vault"></i> Wallet: <span className="font-semibold text-slate-700 dark:text-gray-200">{transaction.WalletName || transaction.WalletID}</span>
+      <div className="card-inset px-3 py-2 text-xs text-ink-2 flex items-center gap-2">
+        <i className="fa-solid fa-vault"></i> Wallet: <span className="font-semibold text-ink">{transaction.WalletName || transaction.WalletID}</span>
       </div>
       <form onSubmit={handleSubmit} className="space-y-3">
-        <input type="date" value={form.date || ''} onChange={(e) => change('date', e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" required />
-        <div className="grid grid-cols-2 gap-2"><Select value={form.type || 'Expense'} onChange={change.bind(null, 'type')}><option>Income</option><option>Expense</option></Select><input value={form.currency || ''} readOnly className="border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-xl px-3 py-2 text-sm text-gray-500 dark:text-gray-400" /></div>
-        <AccountSelect walletId={transaction.WalletID} value={form.account || 'Cash'} onChange={change.bind(null, 'account')} />
-        <input value={form.sourceCategory || ''} onChange={(e) => change('sourceCategory', e.target.value)} placeholder="Category / Source" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" required />
-        <input value={form.whereVendor || ''} onChange={(e) => change('whereVendor', e.target.value)} placeholder="Where / Vendor" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" />
-        <input value={form.description || ''} onChange={(e) => change('description', e.target.value)} placeholder="Description" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" />
-        <input type="number" step="any" value={form.amount || ''} onChange={(e) => change('amount', e.target.value)} placeholder="Amount" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" required />
-        <textarea value={form.note || ''} onChange={(e) => change('note', e.target.value)} placeholder="Note" rows="2" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl p-3 text-sm resize-none bg-white dark:bg-gray-900 dark:text-gray-100"></textarea>
-        <button disabled={submitting} className="w-full bg-emerald-600 disabled:opacity-50 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2">{submitting ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-floppy-disk"></i>} {submitting ? 'Updating...' : 'Update Transaction'}</button>
+        <input type="date" value={form.date || ''} onChange={(e) => change('date', e.target.value)} className="input" required />
+        <div className="grid grid-cols-2 gap-2"><Select value={form.type || 'Expense'} onChange={change.bind(null, 'type')}><option>Income</option><option>Expense</option></Select><input value={form.currency || ''} readOnly className="border border-[var(--ah-border)] bg-[var(--ah-surface-2)] rounded-xl px-3 py-2 text-sm text-ink-3" /></div>
+        <AccountSelect walletId={transaction.WalletID} value={form.account || ''} onChange={change.bind(null, 'account')} />
+        <input value={form.sourceCategory || ''} onChange={(e) => change('sourceCategory', e.target.value)} placeholder="Category / Source" className="input" required />
+        <input value={form.whereVendor || ''} onChange={(e) => change('whereVendor', e.target.value)} placeholder="Where / Vendor" className="input" />
+        <input value={form.description || ''} onChange={(e) => change('description', e.target.value)} placeholder="Description" className="input" />
+        <input type="number" step="any" value={form.amount || ''} onChange={(e) => change('amount', e.target.value)} placeholder="Amount" className="input" required />
+        <textarea value={form.note || ''} onChange={(e) => change('note', e.target.value)} placeholder="Note" rows="2" className="textarea"></textarea>
+        <button disabled={submitting} className="btn btn-primary btn-block">{submitting ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-floppy-disk"></i>} {submitting ? 'Updating...' : 'Update Transaction'}</button>
       </form>
     </Popup>
   );

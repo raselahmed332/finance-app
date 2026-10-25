@@ -31,20 +31,23 @@ export function ToastProvider({ children }) {
   return (
     <ToastContext.Provider value={show}>
       {children}
-      <div className="fixed top-20 inset-x-0 z-[100] flex flex-col items-center gap-2 px-4 pointer-events-none">
+      <div className="fixed top-[calc(4.5rem+env(safe-area-inset-top,0px))] inset-x-0 z-[100] flex flex-col items-center gap-2 px-4 pointer-events-none">
         {toasts.map((t) => {
           const isError = t.type === "error";
           return (
             <button
               key={t.id}
               onClick={() => dismiss(t.id)}
-              className={`pointer-events-auto flex items-center gap-2.5 rounded-xl px-4 py-3 text-xs font-semibold text-white shadow-lg max-w-sm w-full sm:w-auto animate-[toastIn_.25s_ease-out] ${
-                isError
-                  ? "bg-rose-600 dark:bg-rose-700"
-                  : "bg-emerald-600 dark:bg-emerald-700"
-              }`}
+              className="pointer-events-auto flex items-center gap-2.5 rounded-xl px-4 py-3 text-xs font-semibold shadow-lg max-w-sm w-full sm:w-auto"
+              style={{
+                background: isError ? "var(--ah-danger)" : "var(--ah-success)",
+                color: "#fff",
+                animation: "toastIn .25s ease-out",
+              }}
             >
-              <i className={`fa-solid ${isError ? "fa-circle-exclamation" : "fa-circle-check"} text-sm`}></i>
+              <i
+                className={`fa-solid ${isError ? "fa-circle-exclamation" : "fa-circle-check"} text-sm`}
+              />
               <span className="text-left leading-snug">{t.msg}</span>
             </button>
           );

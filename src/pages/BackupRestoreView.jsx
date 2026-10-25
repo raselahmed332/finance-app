@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api } from "../api.js";
 import { todayStr } from "../utils/loan.js";
+import { Button, PageHeader, SectionCard } from "../ui/index.jsx";
 
 export default function BackupRestoreView({ currentUser, showAlert, onImport, can, onCancel }) {
   const [downloading, setDownloading] = useState(false);
@@ -45,31 +46,57 @@ export default function BackupRestoreView({ currentUser, showAlert, onImport, ca
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <button onClick={onCancel} className="text-gray-500 dark:text-gray-400 hover:text-slate-800 dark:hover:text-gray-200">
-          <i className="fa-solid fa-arrow-left text-lg"></i>
-        </button>
-        <h3 className="font-bold text-slate-800 dark:text-gray-100 text-base">Backup & Restore (ব্যাকআপ ও রিস্টোর)</h3>
-        <div className="w-5"></div>
-      </div>
+      <PageHeader
+        title="Backup & Restore"
+        subtitle="ব্যাকআপ ও রিস্টোর"
+        icon="fa-cloud-arrow-down"
+        onBack={onCancel}
+      />
 
-      <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-200 dark:border-gray-800 shadow-2xs space-y-3">
-        <div className="text-xs font-bold text-slate-700 dark:text-gray-200">ডাটাবেজ ও ব্যাকআপ</div>
-        <p className="text-xs text-gray-500 dark:text-gray-400">আপনার সমস্ত হিসাব গুগল সিট (Google Sheets)-এ রিয়েলটাইমে সংরক্ষিত হচ্ছে। চাইলে অফলাইন কপি ডাউনলোড করে রাখতে পারেন।</p>
+      <SectionCard
+        title="ডাটাবেজ ও ব্যাকআপ"
+        icon="fa-database"
+        bodyClassName="p-4 space-y-3"
+      >
+        <p className="text-xs text-ink-3">
+          আপনার সমস্ত হিসাব গুগল সিট (Google Sheets)-এ রিয়েলটাইমে সংরক্ষিত হচ্ছে। চাইলে
+          অফলাইন কপি ডাউনলোড করে রাখতে পারেন।
+        </p>
 
         {allowed ? (
-          <button onClick={handleBackup} disabled={downloading} className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2">
-            {downloading ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-download"></i>} {downloading ? 'Downloading...' : 'Download Full JSON Backup'}
-          </button>
+          <Button
+            block
+            icon={downloading ? "fa-spinner fa-spin" : "fa-download"}
+            onClick={handleBackup}
+            disabled={downloading}
+          >
+            {downloading ? 'Downloading...' : 'Download Full JSON Backup'}
+          </Button>
         ) : (
-          <div className="text-[10px] text-gray-400 dark:text-gray-500">ব্যাকআপ ডাউনলোড করার অনুমতি আপনার নেই।</div>
+          <p className="text-[11px] text-ink-3">ব্যাকআপ ডাউনলোড করার অনুমতি আপনার নেই।</p>
         )}
-        {allowed ? <label className="w-full bg-slate-800 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer"><i className="fa-solid fa-upload"></i> Import / Restore JSON<input type="file" accept="application/json,.json" onChange={handleImport} className="hidden" /></label> : <div className="text-[10px] text-gray-400 dark:text-gray-500">Backup restore করার অনুমতি আপনার নেই।</div>}
-      </div>
 
-      <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-3 text-[11px] text-amber-800 dark:text-amber-300 flex items-start gap-2">
-        <i className="fa-solid fa-triangle-exclamation mt-0.5"></i>
-        <span>Restore করলে বর্তমান ডেটা প্রতিস্থাপিত হতে পারে। নতুন backup download/import করার আগে নিশ্চিত হয়ে নিন।</span>
+        {allowed ? (
+          <label className="btn btn-secondary btn-block cursor-pointer">
+            <i className="fa-solid fa-upload" /> Import / Restore JSON
+            <input
+              type="file"
+              accept="application/json,.json"
+              onChange={handleImport}
+              className="hidden"
+            />
+          </label>
+        ) : (
+          <p className="text-[11px] text-ink-3">Backup restore করার অনুমতি আপনার নেই।</p>
+        )}
+      </SectionCard>
+
+      <div className="card card-warning p-3 flex items-start gap-2">
+        <i className="fa-solid fa-triangle-exclamation mt-0.5 text-warning" />
+        <span className="text-[11px] text-ink-2">
+          Restore করলে বর্তমান ডেটা প্রতিস্থাপিত হতে পারে। নতুন backup download/import
+          করার আগে নিশ্চিত হয়ে নিন।
+        </span>
       </div>
     </div>
   );

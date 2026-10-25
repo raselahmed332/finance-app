@@ -51,10 +51,10 @@ export function BalanceRevealToggle({ revealed, secondsLeft, onToggle, tone = "l
     ? `মেলে যাবে (${secondsLeft}s)`
     : `${BALANCE_REVEAL_SECONDS} সেকেন্ড দেখান`;
   const cls = tone === "onDark"
-    ? "bg-white/20 hover:bg-white/30 text-white"
+    ? "bg-[var(--ah-surface)]/20 hover:bg-[var(--ah-surface)]/30 text-white"
     : revealed
-      ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
-      : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300";
+      ? "bg-[var(--ah-warning-soft)] text-[var(--ah-warning)]"
+      : "bg-[var(--ah-surface-3)] text-ink-2";
 
   return (
     <button

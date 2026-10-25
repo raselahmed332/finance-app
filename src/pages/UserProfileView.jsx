@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { MIN_PIN_LENGTH, MAX_PIN_LENGTH, normalizePinInput } from "../api.js";
 import { todayStr } from "../utils/loan.js";
 import { formatMoney } from "../utils/currency.js";
@@ -6,6 +6,7 @@ import Select from "../components/Select.jsx";
 import Popup from "../components/Popup.jsx";
 import UpdateDialog from "../components/UpdateDialog.jsx";
 import { useToast } from "../components/Toast.jsx";
+import { Segmented } from "../ui/index.jsx";
 import TransactionCard from "../components/TransactionCard.jsx";
 import { compareNewestFirst } from "../utils/sortTransactions.js";
 import {
@@ -36,18 +37,18 @@ function MenuButton({ icon, label, sub, onClick, danger }) {
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${danger ? "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20" : "text-slate-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"}`}
+      className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${danger ? "text-[var(--ah-danger)] hover:bg-[var(--ah-danger-soft)] dark:hover:bg-red-900/20" : "text-ink hover:bg-[var(--ah-surface-2)] dark:hover:bg-[var(--ah-surface-3)]"}`}
     >
-      <i className={`fa-solid ${icon} w-4 text-center ${danger ? "" : "text-slate-400 dark:text-gray-500"}`}></i>
+      <i className={`fa-solid ${icon} w-4 text-center ${danger ? "" : "text-ink-3 dark:text-ink-3"}`}></i>
       <span className="flex-1 min-w-0">
         <span className="block text-[11px] font-semibold">{label}</span>
-        {sub && <span className="block text-[10px] text-gray-400 dark:text-gray-500">{sub}</span>}
+        {sub && <span className="block text-[10px] text-ink-3">{sub}</span>}
       </span>
     </button>
   );
 }
 
-export default function UserProfileView({ currentUser, transactions, wallets, darkMode, onSetDark, can, onSave, onCancel, onEditTxn, onDeleteTxn, onLogout, setActiveTab }) {
+export default function UserProfileView({ currentUser, transactions, transactionBalances, wallets, darkMode, onSetDark, themeMode, onSetTheme, can, onSave, onCancel, onEditTxn, onDeleteTxn, onLogout, setActiveTab }) {
   const [activeCard, setActiveCard] = useState(null);
   const toast = useToast();
   const [currentPin, setCurrentPin] = useState('');
@@ -354,36 +355,32 @@ export default function UserProfileView({ currentUser, transactions, wallets, da
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <button onClick={onCancel} className="text-gray-500 dark:text-gray-400 hover:text-slate-800 dark:hover:text-gray-200">
+        <button onClick={onCancel} className="text-ink-3 hover:text-ink dark:hover:text-gray-200">
           <i className="fa-solid fa-arrow-left text-lg"></i>
         </button>
-        <h3 className="font-bold text-slate-800 dark:text-gray-100 text-base">প্রোফাইল</h3>
+        <h3 className="font-bold text-ink text-base">প্রোফাইল</h3>
         <div ref={menuRef} className="relative">
-          <button onClick={() => setMenuOpen(o => !o)} className={`text-lg ${menuOpen ? "text-emerald-600 dark:text-emerald-400" : "text-gray-500 dark:text-gray-400 hover:text-slate-800 dark:hover:text-gray-200"}`} title="Profile Settings">
+          <button onClick={() => setMenuOpen(o => !o)} className={`text-lg ${menuOpen ? "text-[var(--ah-success)]" : "text-ink-3 hover:text-ink dark:hover:text-gray-200"}`} title="Profile Settings">
             <i className="fa-solid fa-gear"></i>
           </button>
           {menuOpen && (
-            <div className="absolute right-0 mt-1 w-60 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-50 overflow-hidden">
-              <div className="px-3 pt-2 pb-1 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase border-b border-gray-100 dark:border-gray-800">Profile Settings</div>
+            <div className="absolute right-0 mt-1 w-60 bg-[var(--ah-surface)] border border-[var(--ah-border)] rounded-xl shadow-lg z-50 overflow-hidden">
+              <div className="px-3 pt-2 pb-1 text-[10px] font-bold text-ink-3 uppercase border-b border-[var(--ah-border)]">Profile Settings</div>
               <div className="py-1.5">
                 <div className="px-3 pb-1">
-                  <div className="text-[10px] font-bold text-gray-400 dark:text-gray-500 mb-1">Theme Mode</div>
-                  <div className="flex gap-1.5">
-                    <button
-                      onClick={() => onSetDark(true)}
-                      className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] font-semibold transition-colors ${darkMode ? "bg-slate-800 dark:bg-gray-700 text-white" : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-gray-700"}`}
-                    >
-                      <i className="fa-solid fa-moon"></i> Dark
-                    </button>
-                    <button
-                      onClick={() => onSetDark(false)}
-                      className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] font-semibold transition-colors ${!darkMode ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300" : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-gray-700"}`}
-                    >
-                      <i className="fa-solid fa-sun"></i> Day
-                    </button>
-                  </div>
+                  <div className="text-[10px] font-bold text-ink-3 mb-1">Theme Mode</div>
+                  <Segmented
+                    className="w-full"
+                    value={themeMode || "system"}
+                    onChange={(v) => onSetTheme && onSetTheme(v)}
+                    options={[
+                      { value: "system", label: "সিস্টেম", icon: "fa-circle-half-stroke" },
+                      { value: "light", label: "লাইট", icon: "fa-sun" },
+                      { value: "dark", label: "ডার্ক", icon: "fa-moon" },
+                    ]}
+                  />
                 </div>
-                <div className="border-t border-gray-100 dark:border-gray-800 my-1"></div>
+                <div className="border-t border-[var(--ah-border)] my-1"></div>
                 <MenuButton icon="fa-user-pen" label="Edit Profile" sub="নাম, ছবি, ডিফল্ট Wallet" onClick={() => { setEditName(currentUser.fullName || currentUser.username || ''); setActiveCard('edit'); setMenuOpen(false); }} />
                 <MenuButton icon="fa-key" label="Change Password" sub="PIN পরিবর্তন করুন" onClick={() => { setCurrentPin(''); setNewPin(''); setConfirmPin(''); setActiveCard('password'); setMenuOpen(false); }} />
                 {can?.('BACKUP_RESTORE') && <MenuButton icon="fa-download" label="Backup & Restore" sub="ব্যাকআপ ডাউনলোড/রিস্টোর" onClick={() => { setMenuOpen(false); setActiveTab('backup'); }} />}
@@ -395,7 +392,7 @@ export default function UserProfileView({ currentUser, transactions, wallets, da
                     onClick={startCheck}
                   />
                 )}
-                <div className="border-t border-gray-100 dark:border-gray-800 my-1"></div>
+                <div className="border-t border-[var(--ah-border)] my-1"></div>
                 <MenuButton danger icon="fa-right-from-bracket" label="Log Out" sub="সেশন শেষ করুন" onClick={handleLogout} />
               </div>
             </div>
@@ -407,53 +404,54 @@ export default function UserProfileView({ currentUser, transactions, wallets, da
         {activeCard === 'edit' ? (
           <>
             <div className="flex items-center gap-3">
-              <div className="w-14 h-14 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex-shrink-0">
+              <div className="w-14 h-14 rounded-full overflow-hidden bg-[var(--ah-surface-3)] border border-[var(--ah-border)] flex-shrink-0">
                 {profilePic ? <img src={profilePic} alt="Profile" className="w-full h-full object-cover" /> : <DefaultAvatarIcon className="w-full h-full" />}
               </div>
               <div className="flex-1">
-                <button onClick={() => editFileInputRef.current.click()} className="bg-slate-800 dark:bg-gray-800 text-white text-xs font-bold px-3 py-2 rounded-xl">
+                <button onClick={() => editFileInputRef.current.click()} className="bg-[var(--ah-header)] text-white text-xs font-bold px-3 py-2 rounded-xl">
                   <i className="fa-solid fa-camera me-1"></i> Change Profile Pic
                 </button>
-                <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">ছবির সাইজ ৩০ KB এর কম হতে হবে</div>
+                <div className="text-[10px] text-ink-3 mt-1">ছবির সাইজ ৩০ KB এর কম হতে হবে</div>
                 <input ref={editFileInputRef} type="file" accept="image/*" onChange={handlePicChange} className="hidden" />
               </div>
             </div>
 
             <div>
-              <label className="text-[10px] font-bold text-slate-600 dark:text-gray-300 mb-1 block">Full Name</label>
-              <input value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-gray-900 dark:text-gray-100" />
+              <label className="text-[10px] font-bold text-ink-2 mb-1 block">Full Name</label>
+              <input value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full border border-[var(--ah-border-strong)] rounded-xl px-3 py-2 text-xs bg-[var(--ah-surface)] text-ink" />
             </div>
 
             <div>
-              <label className="text-[10px] font-bold text-slate-600 dark:text-gray-300 mb-1 block">Username</label>
-              <div className="w-full border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400">@{currentUser.username} — পরিবর্তন করা যাবে না</div>
+              <label className="text-[10px] font-bold text-ink-2 mb-1 block">Username</label>
+              <div className="w-full border border-[var(--ah-border)] rounded-xl px-3 py-2 text-xs bg-[var(--ah-surface-2)] text-ink-3">@{currentUser.username} — পরিবর্তন করা যাবে না</div>
             </div>
 
             {wallets.length > 1 ? (
               <div>
-                <label className="text-[10px] font-bold text-slate-600 dark:text-gray-300 mb-1 block">Default Wallet</label>
+                <label className="text-[10px] font-bold text-ink-2 mb-1 block">Default Wallet</label>
                 <Select value={defaultWallet} onChange={setDefaultWallet}>
+                  <option value="">Select wallet</option>
                   {wallets.map(w => <option key={w.WalletID} value={String(w.WalletID)}>{w.WalletName} ({w.Currency})</option>)}
                 </Select>
-                <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">এই Wallet টি নতুন লেনদেনে ডিফল্ট হিসেবে ব্যবহার হবে।</div>
+                <div className="text-[10px] text-ink-3 mt-1">এই Wallet টি নতুন লেনদেনে ডিফল্ট হিসেবে ব্যবহার হবে।</div>
               </div>
             ) : wallets.length === 1 ? (
               <div>
-                <label className="text-[10px] font-bold text-slate-600 dark:text-gray-300 mb-1 block">Default Wallet</label>
-                <div className="w-full border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-gray-50 dark:bg-gray-800 text-slate-700 dark:text-gray-200">{wallets[0].WalletName} ({wallets[0].Currency})</div>
+                <label className="text-[10px] font-bold text-ink-2 mb-1 block">Default Wallet</label>
+                <div className="w-full border border-[var(--ah-border)] rounded-xl px-3 py-2 text-xs bg-[var(--ah-surface-2)] text-ink">{wallets[0].WalletName} ({wallets[0].Currency})</div>
               </div>
             ) : (
-              <div className="text-[10px] text-gray-400 dark:text-gray-500">কোনো Wallet এক্সেস নেই, তাই Default Wallet নির্বাচন করা যাবে না।</div>
+              <div className="text-[10px] text-ink-3">কোনো Wallet এক্সেস নেই, তাই Default Wallet নির্বাচন করা যাবে না।</div>
             )}
 
-            <button onClick={handleEditSave} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs shadow-md">Save Profile</button>
+            <button onClick={handleEditSave} className="w-full bg-[var(--ah-brand)] hover:bg-[var(--ah-brand-strong)] text-white font-bold py-2.5 rounded-xl text-xs shadow-md">Save Profile</button>
           </>
         ) : (
           <>
-            <input type="password" value={currentPin} onChange={(e) => setCurrentPin(e.target.value)} placeholder="Current PIN / Password" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-900 dark:text-gray-100" />
-            <input type="password" value={newPin} onChange={(e) => setNewPin(e.target.value)} placeholder={"New PIN / Password (min " + MIN_PIN_LENGTH + ", max " + MAX_PIN_LENGTH + " characters)"} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-900 dark:text-gray-100" />
-            <input type="password" value={confirmPin} onChange={(e) => setConfirmPin(e.target.value)} placeholder="Confirm New PIN / Password" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-900 dark:text-gray-100" />
-            <button onClick={handlePwSave} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs shadow-md">Change Password</button>
+            <input type="password" value={currentPin} onChange={(e) => setCurrentPin(e.target.value)} placeholder="Current PIN / Password" className="w-full border border-[var(--ah-border-strong)] rounded-xl px-3 py-2 text-xs focus:ring-[var(--ah-brand-ring)] bg-[var(--ah-surface)] text-ink" />
+            <input type="password" value={newPin} onChange={(e) => setNewPin(e.target.value)} placeholder={"New PIN / Password (min " + MIN_PIN_LENGTH + ", max " + MAX_PIN_LENGTH + " characters)"} className="w-full border border-[var(--ah-border-strong)] rounded-xl px-3 py-2 text-xs focus:ring-[var(--ah-brand-ring)] bg-[var(--ah-surface)] text-ink" />
+            <input type="password" value={confirmPin} onChange={(e) => setConfirmPin(e.target.value)} placeholder="Confirm New PIN / Password" className="w-full border border-[var(--ah-border-strong)] rounded-xl px-3 py-2 text-xs focus:ring-[var(--ah-brand-ring)] bg-[var(--ah-surface)] text-ink" />
+            <button onClick={handlePwSave} className="w-full bg-[var(--ah-brand)] hover:bg-[var(--ah-brand-strong)] text-white font-bold py-2.5 rounded-xl text-xs shadow-md">Change Password</button>
           </>
         )}
       </Popup>
@@ -473,100 +471,100 @@ export default function UserProfileView({ currentUser, transactions, wallets, da
       />
 
       {/* Avatar Card */}
-      <div className="bg-white dark:bg-gray-900 rounded-2xl overflow-hidden shadow-sm">
+      <div className="bg-[var(--ah-surface)] rounded-2xl overflow-hidden shadow-sm">
         <div className="bg-emerald-700 h-14"></div>
         <div className="text-center pb-5 -mt-10">
           <div className="relative w-20 h-20 mx-auto mb-3">
-            <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800 ring-4 ring-white dark:ring-gray-900 shadow-md">
+            <div className="w-20 h-20 rounded-full overflow-hidden bg-[var(--ah-surface-3)] ring-4 ring-white dark:ring-gray-900 shadow-md">
               {profilePic ? (
                 <img src={profilePic} alt="Profile" className="w-full h-full object-cover" />
               ) : (
                 <DefaultAvatarIcon className="w-full h-full" />
               )}
             </div>
-            <button onClick={() => fileInputRef.current.click()} className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[11px] border-2 border-white dark:border-gray-900 shadow-sm">
+            <button onClick={() => fileInputRef.current.click()} className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-[var(--ah-brand)] text-white flex items-center justify-center text-[11px] border-2 border-white dark:border-gray-900 shadow-sm">
               <i className="fa-solid fa-camera"></i>
             </button>
             <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePicChange} className="hidden" />
           </div>
-          <div className="text-slate-800 dark:text-gray-100 font-bold text-base">{fullName}</div>
+          <div className="text-ink font-bold text-base">{fullName}</div>
           <div className="inline-flex items-center gap-1.5 mt-1.5">
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${currentUser.role === 'Admin' ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400' : 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400'}`}>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${currentUser.role === 'Admin' ? 'bg-[var(--ah-success-soft)] text-[var(--ah-success)]' : 'bg-[var(--ah-info-soft)] text-[var(--ah-info)]'}`}>
               {currentUser.role}
             </span>
-            <span className="text-gray-400 dark:text-gray-500 text-xs">@{currentUser.username}</span>
+            <span className="text-ink-3 text-xs">@{currentUser.username}</span>
           </div>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-2">
-        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3 flex items-center gap-2.5 shadow-2xs">
-          <div className="w-9 h-9 rounded-lg bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 flex items-center justify-center text-sm flex-shrink-0">
+        <div className="bg-[var(--ah-surface)] border border-[var(--ah-border)] rounded-xl p-3 flex items-center gap-2.5 shadow-2xs">
+          <div className="w-9 h-9 rounded-lg bg-purple-100 dark:bg-purple-900/40 text-[var(--ah-info)] flex items-center justify-center text-sm flex-shrink-0">
             <i className="fa-solid fa-receipt"></i>
           </div>
           <div>
-            <div className="text-sm font-bold text-slate-800 dark:text-gray-100 leading-tight">{scopedTransactions.length}</div>
-            <div className="text-[10px] text-gray-500 dark:text-gray-400">{selectedWallet ? `${selectedWallet.WalletName} লেনদেন` : 'মোট লেনদেন'}</div>
+            <div className="text-sm font-bold text-ink leading-tight">{scopedTransactions.length}</div>
+            <div className="text-[10px] text-ink-3">{selectedWallet ? `${selectedWallet.WalletName} লেনদেন` : 'মোট লেনদেন'}</div>
           </div>
         </div>
-        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3 flex items-center gap-2.5 shadow-2xs">
-          <div className="w-9 h-9 rounded-lg bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center text-sm flex-shrink-0">
+        <div className="bg-[var(--ah-surface)] border border-[var(--ah-border)] rounded-xl p-3 flex items-center gap-2.5 shadow-2xs">
+          <div className="w-9 h-9 rounded-lg bg-[var(--ah-warning-soft)] text-[var(--ah-warning)] flex items-center justify-center text-sm flex-shrink-0">
             <i className="fa-solid fa-calendar-check"></i>
           </div>
           <div>
-            <div className="text-sm font-bold text-slate-800 dark:text-gray-100 leading-tight">{thisMonthCount}</div>
-            <div className="text-[10px] text-gray-500 dark:text-gray-400">এই মাসে এন্ট্রি</div>
+            <div className="text-sm font-bold text-ink leading-tight">{thisMonthCount}</div>
+            <div className="text-[10px] text-ink-3">এই মাসে এন্ট্রি</div>
           </div>
         </div>
       </div>
 
       {/* Lifetime income/expense for the selected wallet. */}
-      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3.5 shadow-2xs">
+      <div className="bg-[var(--ah-surface)] border border-[var(--ah-border)] rounded-xl p-3.5 shadow-2xs">
         <div className="flex items-center justify-between gap-2 mb-2">
-          <div className="text-xs font-bold text-slate-700 dark:text-gray-200">মোট আয় ও খরচ</div>
-          <div className="text-[10px] text-gray-400 dark:text-gray-500">
+          <div className="text-xs font-bold text-ink">মোট আয় ও খরচ</div>
+          <div className="text-[10px] text-ink-3">
             {selectedWallet ? `${selectedWallet.WalletName} · সর্বমোট` : 'সর্বমোট'}
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-lg p-2.5 bg-emerald-50 dark:bg-emerald-900/20">
-            <div className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium">
+          <div className="rounded-lg p-2.5 bg-[var(--ah-success-soft)]">
+            <div className="text-[10px] text-[var(--ah-success)] font-medium">
               <i className="fa-solid fa-arrow-up text-[9px] me-1"></i>মোট আয়
             </div>
-            <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 break-all tabular-nums">
+            <div className="text-sm font-bold text-[var(--ah-success)] mt-0.5 break-all tabular-nums">
               {formatMoney(lifetimeIncome, selectedWallet?.Currency)}
             </div>
           </div>
-          <div className="rounded-lg p-2.5 bg-rose-50 dark:bg-rose-900/20">
-            <div className="text-[10px] text-rose-700 dark:text-rose-400 font-medium">
+          <div className="rounded-lg p-2.5 bg-[var(--ah-danger-soft)]">
+            <div className="text-[10px] text-[var(--ah-danger)] font-medium">
               <i className="fa-solid fa-arrow-down text-[9px] me-1"></i>মোট খরচ
             </div>
-            <div className="text-sm font-bold text-rose-600 dark:text-rose-400 mt-0.5 break-all tabular-nums">
+            <div className="text-sm font-bold text-[var(--ah-danger)] mt-0.5 break-all tabular-nums">
               {formatMoney(lifetimeExpense, selectedWallet?.Currency)}
             </div>
           </div>
         </div>
-        <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-gray-100 dark:border-gray-800">
-          <span className="text-[10px] text-gray-500 dark:text-gray-400">নিট (আয় − খরচ)</span>
-          <span className={`text-xs font-bold tabular-nums ${lifetimeNet >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+        <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-[var(--ah-border)]">
+          <span className="text-[10px] text-ink-3">নিট (আয় − খরচ)</span>
+          <span className={`text-xs font-bold tabular-nums ${lifetimeNet >= 0 ? 'text-[var(--ah-success)]' : 'text-[var(--ah-danger)]'}`}>
             {formatMoney(lifetimeNet, selectedWallet?.Currency)}
           </span>
         </div>
       </div>
 
       {/* Access Summary — doubles as the wallet filter for everything below. */}
-      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3.5 shadow-2xs">
+      <div className="bg-[var(--ah-surface)] border border-[var(--ah-border)] rounded-xl p-3.5 shadow-2xs">
         <div className="flex items-center justify-between gap-2 mb-2">
-          <div className="text-xs font-bold text-slate-700 dark:text-gray-200">আমার Access</div>
+          <div className="text-xs font-bold text-ink">আমার Access</div>
           {walletList.length > 0 && (
-            <span className="text-[10px] text-gray-400 dark:text-gray-500">
+            <span className="text-[10px] text-ink-3">
               {selectedWallet ? `${selectedWallet.WalletName} দেখানো হচ্ছে` : ''}
             </span>
           )}
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {walletList.length === 0 && <span className="text-[11px] text-gray-400 dark:text-gray-500">কোনো Wallet এক্সেস নেই</span>}
+          {walletList.length === 0 && <span className="text-[11px] text-ink-3">কোনো Wallet এক্সেস নেই</span>}
           {walletList.map(w => {
             const id = String(w.WalletID);
             const active = resolvedWalletId === id;
@@ -582,10 +580,10 @@ export default function UserProfileView({ currentUser, transactions, wallets, da
                 aria-pressed={active}
                 className={`text-[10px] font-semibold px-2 py-1 rounded-full transition-colors ${
                   active
-                    ? "bg-emerald-600 text-white shadow-sm"
+                    ? "bg-[var(--ah-brand)] text-white shadow-sm"
                     : isDefault
-                    ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/60"
-                    : "bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-gray-700"
+                    ? "bg-[var(--ah-success-soft)] text-[var(--ah-success)] hover:bg-[var(--ah-success-soft-2)] dark:hover:bg-emerald-900/60"
+                    : "bg-[var(--ah-surface-3)] text-ink-2 hover:bg-[var(--ah-surface-3)] dark:hover:bg-[var(--ah-header-2)]"
                 }`}
               >
                 {w.WalletName} ({w.Currency}){isDefault ? ' • Default' : ''} · {count}
@@ -597,24 +595,24 @@ export default function UserProfileView({ currentUser, transactions, wallets, da
 
       {/* Transaction History */}
       <div>
-        <div className="text-xs font-bold text-slate-700 dark:text-gray-200 mb-2">লেনদেন ইতিহাস</div>
+        <div className="text-xs font-bold text-ink mb-2">লেনদেন ইতিহাস</div>
         <div className="space-y-2">
           {pageItems.length === 0 ? (
-            <div className="text-center py-8 text-gray-400 dark:text-gray-500 text-xs">
+            <div className="text-center py-8 text-ink-3 text-xs">
               {selectedWallet ? `${selectedWallet.WalletName}-এ কোনো লেনদেন নেই।` : 'কোনো লেনদেন নেই।'}
             </div>
           ) : pageItems.map((t) => (
-            <TransactionCard key={t.ID} t={t} canEdit={canEdit} canDelete={canDelete} onEdit={onEditTxn} onDelete={onDeleteTxn} />
+            <TransactionCard key={t.ID} t={t} balanceAfter={transactionBalances?.get(t)} canEdit={canEdit} canDelete={canDelete} onEdit={onEditTxn} onDelete={onDeleteTxn} />
           ))}
         </div>
 
         {totalPages > 1 && (
           <div className="flex justify-center items-center gap-1.5 mt-3">
-            <button disabled={page === 1} onClick={() => setPage(page - 1)} className="w-7 h-7 rounded-lg text-xs font-semibold text-gray-500 dark:text-gray-400 disabled:opacity-30"><i className="fa-solid fa-chevron-left"></i></button>
+            <button disabled={page === 1} onClick={() => setPage(page - 1)} className="w-7 h-7 rounded-lg text-xs font-semibold text-ink-3 disabled:opacity-30"><i className="fa-solid fa-chevron-left"></i></button>
             {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
-              <button key={n} onClick={() => setPage(n)} className={`w-7 h-7 rounded-lg text-xs font-semibold ${page === n ? 'bg-emerald-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}>{n}</button>
+              <button key={n} onClick={() => setPage(n)} className={`w-7 h-7 rounded-lg text-xs font-semibold ${page === n ? 'bg-[var(--ah-brand)] text-white' : 'bg-[var(--ah-surface-3)] text-ink-2'}`}>{n}</button>
             ))}
-            <button disabled={page === totalPages} onClick={() => setPage(page + 1)} className="w-7 h-7 rounded-lg text-xs font-semibold text-gray-500 dark:text-gray-400 disabled:opacity-30"><i className="fa-solid fa-chevron-right"></i></button>
+            <button disabled={page === totalPages} onClick={() => setPage(page + 1)} className="w-7 h-7 rounded-lg text-xs font-semibold text-ink-3 disabled:opacity-30"><i className="fa-solid fa-chevron-right"></i></button>
           </div>
         )}
       </div>

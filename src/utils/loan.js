@@ -96,9 +96,9 @@ export function totalAmountOf(loan) {
 
 export const STATUS_META = {
   active: { label: "Active", bg: "bg-sky-100 dark:bg-sky-900/40", text: "text-sky-700 dark:text-sky-400", dot: "bg-sky-500" },
-  partial: { label: "Partial", bg: "bg-amber-100 dark:bg-amber-900/40", text: "text-amber-700 dark:text-amber-400", dot: "bg-amber-500" },
-  paid: { label: "পরিশোধিত", bg: "bg-emerald-100 dark:bg-emerald-900/40", text: "text-emerald-700 dark:text-emerald-400", dot: "bg-emerald-500" },
-  overdue: { label: "Overdue", bg: "bg-rose-100 dark:bg-rose-900/40", text: "text-rose-700 dark:text-rose-400", dot: "bg-rose-500" },
+  partial: { label: "Partial", bg: "bg-[var(--ah-warning-soft)]", text: "text-[var(--ah-warning)]", dot: "bg-[var(--ah-warning)]" },
+  paid: { label: "পরিশোধিত", bg: "bg-[var(--ah-success-soft)]", text: "text-[var(--ah-success)]", dot: "bg-[var(--ah-success)]" },
+  overdue: { label: "Overdue", bg: "bg-[var(--ah-danger-soft)]", text: "text-[var(--ah-danger)]", dot: "bg-[var(--ah-danger)]" },
 };
 
 export function statusOf(loan, today) {
@@ -145,8 +145,8 @@ export function dateInRange(dateStr, range, today) {
 
 export function avatarClass(name) {
   const palette = [
-    "bg-emerald-600", "bg-indigo-600", "bg-blue-600", "bg-purple-600",
-    "bg-amber-600", "bg-rose-600", "bg-teal-600", "bg-sky-600",
+    "bg-[var(--ah-brand)]", "bg-indigo-600", "bg-[var(--ah-info)]", "bg-purple-600",
+    "bg-amber-600", "bg-[var(--ah-danger)]", "bg-teal-600", "bg-sky-600",
   ];
   const n = String(name || "?").split("").reduce((s, c) => s + c.charCodeAt(0), 0);
   return palette[n % palette.length];

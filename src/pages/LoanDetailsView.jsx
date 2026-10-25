@@ -8,12 +8,30 @@ import LoanRepaymentForm from "../components/LoanRepaymentForm.jsx";
 import LoanAddForm from "../components/LoanAddForm.jsx";
 import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { accountName } from "../utils/accounts.js";
+import {
+  Badge, Button, Card, EmptyState, ErrorState, IconButton, KV, LoadingState, PageHeader, SectionCard, toneStyle,
+} from "../ui/index.jsx";
 
-function DetailRow({ label, value, bold }) {
+const STATUS_TONE = { active: "info", partial: "warning", paid: "success", overdue: "danger" };
+
+function TotalTile({ label, value, tone }) {
+  const style = tone ? toneStyle(tone) : null;
   return (
-    <div className="flex items-center justify-between py-1.5 border-b border-gray-50 dark:border-gray-800 last:border-0">
-      <span className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">{label}</span>
-      <span className={`text-xs ${bold ? "font-bold" : "font-semibold"} text-slate-800 dark:text-gray-100`}>{value}</span>
+    <div
+      className="rounded-xl p-2.5 text-center border"
+      style={
+        style
+          ? {
+              background: style.background,
+              borderColor: `var(--ah-${tone}-border)`,
+            }
+          : { background: "var(--ah-surface-inset)", borderColor: "var(--ah-border)" }
+      }
+    >
+      <div className="text-[9px] font-medium text-ink-2">{label}</div>
+      <div className="text-sm font-bold tnum mt-0.5" style={style ? { color: style.color } : undefined}>
+        {value}
+      </div>
     </div>
   );
 }
@@ -106,7 +124,7 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
       // timeline row stays read-only for them.
       items.push({ key: p.id || "p" + i, date: p.date, title: p.title || meta.repaymentTitle, amount: p.amount, walletName: p.walletName, walletId: p.walletId, account: p.account, currency: p.currency || loan?.currency, initial: false, payment: p });
     });
-    return items.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    return items.sort((a, b) => String(b.date).localeCompare(String(a.date)));
   }, [loan, payments, additions, meta]);
 
   // After any addition add/edit/delete the derived totals change, so re-fetch
@@ -160,222 +178,225 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
 
   if (!initialLoan) {
     return (
-      <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-200 dark:border-gray-800 space-y-3">
-        <div className="flex items-center justify-between">
-          <button onClick={onBack} className="text-gray-500 dark:text-gray-400"><i className="fa-solid fa-arrow-left text-lg"></i></button>
-          <h3 className="font-bold text-slate-800 dark:text-gray-100 text-base">লোন বিস্তারিত</h3>
-          <div className="w-5"></div>
-        </div>
-        <div className="text-center text-sm text-gray-500 dark:text-gray-400 py-6">লোন পাওয়া যায়নি।</div>
-        <button onClick={onBack} className="w-full bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs">লিষ্টে ফিরে যান</button>
+      <div className="space-y-4">
+        <PageHeader title="লোন বিস্তারিত" icon="fa-hand-holding-dollar" onBack={onBack} />
+        <EmptyState
+          icon="fa-hand-holding-dollar"
+          title="লোন পাওয়া যায়নি।"
+          action={<Button onClick={onBack}>লিষ্টে ফিরে যান</Button>}
+        />
       </div>
     );
   }
 
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <button onClick={onBack} className="text-gray-500 dark:text-gray-400 hover:text-slate-800 dark:hover:text-gray-200">
-          <i className="fa-solid fa-arrow-left text-lg"></i>
-        </button>
-        <h3 className="font-bold text-slate-800 dark:text-gray-100 text-base flex items-center gap-2">
-          <i className="fa-solid fa-hand-holding-dollar text-emerald-600"></i> লোন বিস্তারিত
-        </h3>
-        <button onClick={onGoHome} className="text-gray-400 dark:text-gray-500 hover:text-emerald-600 text-sm" title="হোমে যান">
-          <i className="fa-solid fa-house"></i>
-        </button>
-      </div>
+  const isGiven = meta.short === "দিয়েছি";
 
-      <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 shadow-sm">
+  return (
+    <div className="space-y-4">
+      <PageHeader
+        title="লোন বিস্তারিত"
+        icon="fa-hand-holding-dollar"
+        subtitle={loan?.personName}
+        onBack={onBack}
+        right={
+          <IconButton icon="fa-house" label="হোমে যান" onClick={onGoHome} />
+        }
+      />
+
+      <Card className="p-4">
         <div className="flex items-center gap-3">
-          <div className={`w-14 h-14 rounded-full ${avatarClass(loan.personName)} text-white flex items-center justify-center text-xl font-bold flex-shrink-0 shadow-sm`}>
+          <div className={`w-14 h-14 rounded-full ${avatarClass(loan.personName)} text-white flex items-center justify-center text-xl font-bold flex-shrink-0`}>
             {initialOf(loan.personName)}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="font-bold text-base text-slate-800 dark:text-gray-100 truncate">{loan.personName}</div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              <i className="fa-solid fa-phone text-[10px] me-1"></i>{loan.phone || "নাম্বার নেই"}
+            <div className="font-bold text-base text-ink truncate">{loan.personName}</div>
+            <div className="text-xs text-ink-3 mt-0.5 flex items-center gap-1.5 min-w-0">
+              <i className="fa-solid fa-phone text-[10px] me-1" />
+              <span className="truncate">{loan.phone || "নাম্বার নেই"}</span>
+              <Badge className="shrink-0" tone={isGiven ? "danger" : "success"}>{meta.short}</Badge>
             </div>
           </div>
           <div className="flex flex-col items-end gap-1 flex-shrink-0">
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${meta.short === "দিয়েছি" ? "bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-400" : "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400"}`}>
-              {meta.short}
-            </span>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${statusMeta.bg} ${statusMeta.text}`}>{statusMeta.label}</span>
+            <Badge tone={STATUS_TONE[status] || "neutral"}>{statusMeta.label}</Badge>
           </div>
         </div>
 
         <div className="grid grid-cols-3 gap-2 mt-4">
-          <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-2.5 text-center border border-gray-100 dark:border-gray-800">
-            <div className="text-[9px] text-gray-500 dark:text-gray-400 font-medium">মোট হাওলাত</div>
-            <div className="text-sm font-bold text-slate-800 dark:text-gray-100 mt-0.5">{formatMoney(loanTotal, loan.currency)}</div>
-          </div>
-          <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-2.5 text-center border border-emerald-100 dark:border-emerald-800">
-            <div className="text-[9px] text-emerald-700 dark:text-emerald-400 font-medium">{meta.repaidLabel}</div>
-            <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">{formatMoney(loan.repaid, loan.currency)}</div>
-          </div>
-          <div className={`rounded-xl p-2.5 text-center border ${remaining > 0 ? "bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-800" : "bg-slate-50 dark:bg-slate-900 border-gray-100 dark:border-gray-800"}`}>
-            <div className="text-[9px] text-amber-700 dark:text-amber-400 font-medium">বাকি</div>
-            <div className={`text-sm font-bold mt-0.5 ${remaining > 0 ? "text-amber-600 dark:text-amber-400" : "text-slate-500 dark:text-gray-400"}`}>{formatMoney(remaining, loan.currency)}</div>
-          </div>
+          <TotalTile label="মোট হাওলাত" value={formatMoney(loanTotal, loan.currency)} />
+          <TotalTile label={meta.repaidLabel} value={formatMoney(loan.repaid, loan.currency)} tone="success" />
+          <TotalTile label="বাকি" value={formatMoney(remaining, loan.currency)} tone={remaining > 0 ? "warning" : null} />
         </div>
-      </div>
+      </Card>
 
-      <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 shadow-sm">
-        <div className="text-xs font-bold text-slate-700 dark:text-gray-200 mb-1">বিস্তারিত</div>
+      <SectionCard title="বিস্তারিত">
         {/* statusMeta is the derived status, which reports a cancelled loan as
             Active/Partial. Say so explicitly instead. */}
-        <DetailRow label="স্ট্যাটাস" value={isCancelled ? "বাতিল (Cancelled)" : statusMeta.label} />
-        <DetailRow label="প্রথম হাওলাতের তারিখ" value={fmtDate(loan.loanDate)} />
-        <DetailRow label="ডিউ তারিখ" value={loan.dueDate ? fmtDate(loan.dueDate) : "—"} />
-        <DetailRow label="কারেন্সি" value={loan.currency} />
-        <DetailRow label="ওয়ালেট" value={loan.walletName || loan.walletId} />
-        <DetailRow label="ওয়ালেট অ্যাকাউন্ট" value={loan.account ? accountName(loan.walletId, loan.account) : "—"} />
-        {loan.note && <DetailRow label="নোট" value={loan.note} />}
-      </div>
+        <KV label="স্ট্যাটাস" value={isCancelled ? "বাতিল (Cancelled)" : statusMeta.label} />
+        <KV label="প্রথম হাওলাতের তারিখ" value={fmtDate(loan.loanDate)} />
+        <KV label="ডিউ তারিখ" value={loan.dueDate ? fmtDate(loan.dueDate) : "—"} />
+        <KV label="কারেন্সি" value={loan.currency} />
+        <KV label="ওয়ালেট" value={loan.walletName || loan.walletId} />
+        <KV label="ওয়ালেট অ্যাকাউন্ট" value={loan.account ? accountName(loan.walletId, loan.account) : "—"} />
+        {loan.note ? <KV label="নোট" value={loan.note} /> : null}
+      </SectionCard>
 
-      <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 shadow-sm">
-        <div className="flex items-center justify-between mb-3">
-          <div className="text-xs font-bold text-slate-700 dark:text-gray-200">হাওলাতের বিস্তারিত</div>
-          {canAddExtra && !isCancelled && (
-            <button onClick={() => { setEditingAddition(null); setShowAdd(true); }} disabled={remaining <= 0} className="text-[10px] font-bold bg-sky-600 hover:bg-sky-700 disabled:opacity-40 text-white px-2.5 py-1.5 rounded-lg flex items-center gap-1">
-              <i className="fa-solid fa-plus"></i> টাকা যোগ করুন
-            </button>
-          )}
-        </div>
-
+      <SectionCard
+        title="হাওলাতের বিস্তারিত"
+        action={
+          showAddExtra ? (
+            <Button size="sm" icon="fa-plus" disabled={remaining <= 0} onClick={() => { setEditingAddition(null); setShowAdd(true); }}>
+              টাকা যোগ করুন
+            </Button>
+          ) : null
+        }
+      >
         <div className="flex items-center justify-between py-1.5">
           <div>
-            <div className="text-[11px] font-semibold text-slate-700 dark:text-gray-200">প্রথম হাওলাত</div>
-            <div className="text-[10px] text-gray-400 dark:text-gray-500">{fmtDate(loan.loanDate)}</div>
+            <div className="text-[11px] font-semibold text-ink">প্রথম হাওলাত</div>
+            <div className="text-[10px] text-ink-3">{fmtDate(loan.loanDate)}</div>
           </div>
-          <span className="text-xs font-bold text-slate-800 dark:text-gray-100">{formatMoney(Number(loan.originalAmount || loan.amount) || 0, loan.currency)}</span>
+          <span className="text-xs font-bold tnum text-ink">{formatMoney(Number(loan.originalAmount || loan.amount) || 0, loan.currency)}</span>
         </div>
 
         {additions.length === 0 ? (
-          <div className="py-2 text-[11px] text-gray-400 dark:text-gray-500">কোনো অতিরিক্ত টাকা যোগ হয়নি।</div>
+          <div className="py-2 text-[11px] text-ink-3">কোনো অতিরিক্ত টাকা যোগ হয়নি।</div>
         ) : (
-          additions.map((ad) => (
-            <div key={ad.id} className="flex items-center justify-between py-1.5 border-t border-gray-50 dark:border-gray-800">
-              <div className="flex-1 min-w-0 pr-2">
-                <div className="text-[11px] font-semibold text-slate-700 dark:text-gray-200">{meta.additionLabel}</div>
-                <div className="text-[10px] text-gray-400 dark:text-gray-500 truncate">{fmtDate(ad.date)} • {ad.walletName || "—"} ({ad.account ? accountName(ad.walletId, ad.account) : "—"})</div>
-                {ad.note && <div className="text-[10px] text-gray-400 dark:text-gray-500 truncate">{ad.note}</div>}
-              </div>
-              <div className="text-right flex items-center gap-2 flex-shrink-0">
-                <span className="text-xs font-bold text-amber-600 dark:text-amber-400">+{formatMoney(ad.amount, ad.currency || loan.currency)}</span>
-                {canEditLoan && !isCancelled && remaining > 0 && (
-                  <span className="flex items-center gap-1">
-                    <button onClick={() => setEditingAddition(ad)} className="text-xs text-gray-400 hover:text-emerald-600"><i className="fa-solid fa-pen"></i></button>
-                    <button onClick={() => handleDeleteAddition(ad)} className="text-xs text-gray-400 hover:text-rose-600"><i className="fa-solid fa-trash"></i></button>
+          <div className="divide-y divide-[var(--ah-border)]">
+            {additions.map((ad) => (
+              <div key={ad.id} className="flex items-center justify-between gap-2 py-2">
+                <div className="flex-1 min-w-0 pr-2">
+                  <div className="text-[11px] font-semibold text-ink">{meta.additionLabel}</div>
+                  <div className="text-[10px] text-ink-3 truncate">
+                    {fmtDate(ad.date)} • {ad.walletName || "—"} ({ad.account ? accountName(ad.walletId, ad.account) : "—"})
+                  </div>
+                  {ad.note ? <div className="text-[10px] text-ink-3 truncate">{ad.note}</div> : null}
+                </div>
+                <div className="text-right flex items-center gap-1 flex-shrink-0">
+                  <span className="text-xs font-bold tnum" style={{ color: "var(--ah-warning)" }}>
+                    +{formatMoney(ad.amount, ad.currency || loan.currency)}
                   </span>
-                )}
+                  {canEditLoan && !isCancelled && remaining > 0 ? (
+                    <>
+                      <IconButton icon="fa-pen" label="এডিট" onClick={() => setEditingAddition(ad)} />
+                      <IconButton icon="fa-trash" label="মুছে ফেলুন" variant="danger" onClick={() => handleDeleteAddition(ad)} />
+                    </>
+                  ) : null}
+                </div>
               </div>
-            </div>
-          ))
+            ))}
+          </div>
         )}
 
-        <div className="border-t border-gray-100 dark:border-gray-800 mt-2 pt-2 space-y-1.5">
-          <div className="flex justify-between text-[11px]"><span className="text-gray-500 dark:text-gray-400">মোট হাওলাত</span><span className="font-bold text-slate-800 dark:text-gray-100">{formatMoney(loanTotal, loan.currency)}</span></div>
-          <div className="flex justify-between text-[11px]"><span className="text-emerald-600 dark:text-emerald-400 font-medium">{meta.repaidLabel}</span><span className="font-bold text-emerald-600 dark:text-emerald-400">{formatMoney(loan.repaid, loan.currency)}</span></div>
-          <div className="flex justify-between text-[11px]"><span className="text-amber-600 dark:text-amber-400 font-medium">বাকি</span><span className="font-bold text-amber-600 dark:text-amber-400">{formatMoney(remaining, loan.currency)}</span></div>
+        <div className="border-t border-[var(--ah-border)] mt-2 pt-2 space-y-1.5">
+          <div className="flex justify-between text-[11px]">
+            <span className="text-ink-3">মোট হাওলাত</span>
+            <span className="font-bold tnum text-ink">{formatMoney(loanTotal, loan.currency)}</span>
+          </div>
+          <div className="flex justify-between text-[11px]">
+            <span className="font-medium" style={{ color: "var(--ah-success)" }}>{meta.repaidLabel}</span>
+            <span className="font-bold tnum" style={{ color: "var(--ah-success)" }}>{formatMoney(loan.repaid, loan.currency)}</span>
+          </div>
+          <div className="flex justify-between text-[11px]">
+            <span className="font-medium" style={{ color: "var(--ah-warning)" }}>বাকি</span>
+            <span className="font-bold tnum" style={{ color: "var(--ah-warning)" }}>{formatMoney(remaining, loan.currency)}</span>
+          </div>
         </div>
-      </div>
+      </SectionCard>
 
       <div className={`grid gap-2 ${actionCount === 4 ? "grid-cols-2" : actionCount === 3 ? "grid-cols-3" : actionCount === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
-        <button onClick={() => { setEditingPayment(null); setShowRepay(true); }} disabled={remaining <= 0 || isCancelled}
-          className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold py-3 rounded-xl text-sm shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-transform">
-          <i className="fa-solid fa-plus"></i> ফেরত যোগ করুন
-        </button>
-        {showAddExtra && (
-          <button onClick={() => { setEditingAddition(null); setShowAdd(true); }} disabled={remaining <= 0}
-            className="bg-sky-600 hover:bg-sky-700 disabled:opacity-40 text-white font-bold py-3 rounded-xl text-sm shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-transform">
-            <i className="fa-solid fa-circle-plus"></i> টাকা যোগ করুন
-          </button>
-        )}
-        {showEditLoan && (
-          <button onClick={onEdit} disabled={remaining <= 0}
-            className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 disabled:opacity-40 text-slate-700 dark:text-gray-200 font-bold py-3 rounded-xl text-sm shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-transform">
-            <i className="fa-solid fa-pen"></i> এডিট করুন
-          </button>
-        )}
-        {showCancelLoan && (
-          <button onClick={handleCancel} disabled={remaining <= 0 || isCancelled}
-            className="border border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 font-bold py-3 rounded-xl text-sm shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-transform disabled:opacity-40">
-            <i className="fa-solid fa-ban"></i> {isCancelled ? "বাতিল হয়েছে" : "হাওলাট বাতিল করুন"}
-          </button>
-        )}
+        <Button icon="fa-plus" disabled={remaining <= 0 || isCancelled} onClick={() => { setEditingPayment(null); setShowRepay(true); }}>
+          ফেরত যোগ করুন
+        </Button>
+        {showAddExtra ? (
+          <Button variant="secondary" icon="fa-circle-plus" disabled={remaining <= 0} onClick={() => { setEditingAddition(null); setShowAdd(true); }}>
+            টাকা যোগ করুন
+          </Button>
+        ) : null}
+        {showEditLoan ? (
+          <Button variant="secondary" icon="fa-pen" disabled={remaining <= 0} onClick={onEdit}>
+            এডিট করুন
+          </Button>
+        ) : null}
+        {showCancelLoan ? (
+          <Button variant="danger" icon="fa-ban" disabled={remaining <= 0 || isCancelled} onClick={handleCancel}>
+            {isCancelled ? "বাতিল হয়েছে" : "হাওলাট বাতিল করুন"}
+          </Button>
+        ) : null}
       </div>
 
-      {remaining <= 0 && (
-        <div className="text-center text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 rounded-xl p-2.5">
-          <i className="fa-solid fa-circle-check me-1"></i> এই হাওলাত সম্পূর্ণ ফেরত হয়েছে।
+      {remaining <= 0 ? (
+        <div className="text-center text-[11px] font-semibold rounded-xl p-2.5" style={{ background: "var(--ah-success-soft)", color: "var(--ah-success)" }}>
+          <i className="fa-solid fa-circle-check me-1" />
+          এই হাওলাত সম্পূর্ণ ফেরত হয়েছে।
         </div>
-      )}
+      ) : null}
 
-      {remaining > 0 && loan.dueDate && loan.dueDate < todayStr() && (
-        <div className="text-center text-[11px] text-rose-600 dark:text-rose-400 font-semibold bg-rose-50 dark:bg-rose-900/20 border border-rose-100 dark:border-rose-800 rounded-xl p-2.5">
-          <i className="fa-solid fa-triangle-exclamation me-1"></i> ডিউ তারিখ অতিক্রান্ত — হাওলাত ওভারডিউ।
+      {remaining > 0 && loan.dueDate && loan.dueDate < todayStr() ? (
+        <div className="text-center text-[11px] font-semibold rounded-xl p-2.5" style={{ background: "var(--ah-danger-soft)", color: "var(--ah-danger)" }}>
+          <i className="fa-solid fa-triangle-exclamation me-1" />
+          ডিউ তারিখ অতিক্রান্ত — হাওলাত ওভারডিউ।
         </div>
-      )}
+      ) : null}
 
-      <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 shadow-sm">
-        <div className="text-xs font-bold text-slate-700 dark:text-gray-200 mb-4">পেমেন্ট হিস্টোরি</div>
+      <SectionCard title="পেমেন্ট হিস্টোরি" bodyClassName="p-4 pt-0">
         {loading ? (
-          <div className="text-center py-6">
-            <div className="w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-            <div className="text-xs text-gray-400 dark:text-gray-500 mt-2">লোড হচ্ছে...</div>
-          </div>
+          <LoadingState label="লোড হচ্ছে..." />
         ) : loadError ? (
-          <div className="text-center py-6">
-            <i className="fa-solid fa-triangle-exclamation text-amber-500 text-lg mb-2"></i>
-            <div className="text-xs text-rose-600 dark:text-rose-400">{loadError}</div>
-            <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">দেখানো তথ্য পুরোনো হতে পারে — অনুগ্রহ করে আবার চেষ্টা করুন।</div>
-            <button onClick={() => setRefreshKey((k) => k + 1)}
-              className="mt-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-xl text-xs">
-              আবার চেষ্টা করুন
-            </button>
-          </div>
+          <ErrorState
+            title="লোনের বিবরণ লোড করা যায়নি"
+            text={`${loadError} দেখানো তথ্য পুরোনো হতে পারে — অনুগ্রহ করে আবার চেষ্টা করুন।`}
+            onRetry={() => setRefreshKey((k) => k + 1)}
+          />
         ) : timeline.length === 0 ? (
-          <div className="text-center py-6 text-xs text-gray-400 dark:text-gray-500">কোনো লেনদেন নেই।</div>
+          <EmptyState icon="fa-receipt" title="কোনো লেনদেন নেই।" />
         ) : (
           <div className="relative">
-            <div className="absolute left-[5px] top-2 bottom-2 w-0.5 bg-gray-200 dark:bg-gray-700"></div>
+            <div className="absolute left-[5px] top-2 bottom-2 w-0.5 bg-[var(--ah-surface-3)]" />
             <div className="space-y-4">
               {timeline.map((item) => (
                 <div key={item.key} className="relative pl-6">
-                  <span className={`absolute left-0 top-1.5 w-[11px] h-[11px] rounded-full ring-4 ${item.initial ? "bg-slate-500 ring-slate-100 dark:ring-gray-800" : item.addition ? "bg-amber-500 ring-amber-100 dark:ring-amber-900/40" : "bg-emerald-500 ring-emerald-100 dark:ring-emerald-900/40"}`}></span>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-gray-400 dark:text-gray-500 font-medium">{fmtDate(item.date)}</span>
-                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${item.initial ? "bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-gray-300" : item.addition ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400" : "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400"}`}>
-                      {item.title}
-                    </span>
+                  <span
+                    className={`absolute left-0 top-1.5 w-[11px] h-[11px] rounded-full ring-4 ${
+                      item.initial
+                        ? "bg-[var(--ah-surface-3)] ring-slate-100 dark:ring-gray-800"
+                        : item.addition
+                          ? "bg-[var(--ah-warning)] ring-amber-100 dark:ring-amber-900/40"
+                          : "bg-[var(--ah-success)] ring-emerald-100 dark:ring-emerald-900/40"
+                    }`}
+                  />
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] text-ink-3 font-medium">{fmtDate(item.date)}</span>
+                    <Badge tone={item.initial ? "neutral" : item.addition ? "warning" : "success"}>{item.title}</Badge>
                   </div>
-                  <div className={`text-sm font-bold mt-0.5 ${item.initial ? "text-slate-800 dark:text-gray-100" : item.addition ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                  <div
+                    className="text-sm font-bold tnum mt-0.5"
+                    style={item.initial ? undefined : { color: item.addition ? "var(--ah-warning)" : "var(--ah-success)" }}
+                  >
                     {formatMoney(item.amount, item.currency)}
                   </div>
-                  <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
-                    Wallet: <span className="font-semibold">{item.walletName || "—"}</span> • Account: <span className="font-semibold">{item.account ? accountName(item.walletId, item.account) : "—"}</span>
+                  <div className="text-[10px] text-ink-3 mt-0.5">
+                    Wallet: <span className="font-semibold">{item.walletName || "—"}</span> • Account:{" "}
+                    <span className="font-semibold">{item.account ? accountName(item.walletId, item.account) : "—"}</span>
                   </div>
-                  {item.payment?.note && (
-                    <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 truncate">{item.payment.note}</div>
-                  )}
-                  {item.payment && canManageLoanTxns && !isCancelled && (
-                    <div className="flex items-center gap-3 mt-1.5">
-                      <button onClick={() => { setEditingPayment(item.payment); setShowRepay(false); }} className="text-[10px] font-semibold text-gray-400 hover:text-emerald-600 flex items-center gap-1">
-                        <i className="fa-solid fa-pen"></i> এডিট
-                      </button>
-                      <button onClick={() => handleDeletePayment(item.payment)} className="text-[10px] font-semibold text-gray-400 hover:text-rose-600 flex items-center gap-1">
-                        <i className="fa-solid fa-trash"></i> মুছে ফেলুন
-                      </button>
+                  {item.payment?.note ? (
+                    <div className="text-[10px] text-ink-3 mt-0.5 truncate">{item.payment.note}</div>
+                  ) : null}
+                  {item.payment && canManageLoanTxns && !isCancelled ? (
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <Button size="sm" variant="ghost" icon="fa-pen" onClick={() => { setEditingPayment(item.payment); setShowRepay(false); }}>
+                        এডিট
+                      </Button>
+                      <Button size="sm" variant="ghost" icon="fa-trash" onClick={() => handleDeletePayment(item.payment)}>
+                        মুছে ফেলুন
+                      </Button>
                     </div>
-                  )}
+                  ) : null}
                 </div>
               ))}
             </div>
           </div>
         )}
-      </div>
+      </SectionCard>
 
       {(showRepay || editingPayment) && (
         <LoanRepaymentForm

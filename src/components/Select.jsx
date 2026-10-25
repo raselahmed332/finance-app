@@ -80,28 +80,24 @@ export default function Select({ value, onChange, children, className = "", ...p
           }
         }}
         aria-haspopup="listbox"
-        aria-expanded={open}
-        className="w-full flex items-center justify-between border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-white dark:bg-gray-900 text-slate-800 dark:text-gray-100 text-left"
+        aria-expanded={open ? "true" : "false"}
+        className="select-trigger"
       >
         <span className="truncate">{label || "Select..."}</span>
-        <svg className={`w-3 h-3 ml-2 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
+        <i
+          className={`fa-solid fa-chevron-down text-[10px] text-ink-3 shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
+        />
       </button>
       {open && (
-        <div role="listbox" className="absolute z-50 mt-1 w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg max-h-60 overflow-auto">
+        <div role="listbox" className="select-menu">
           {options.map((opt, i) => (
             <button
               key={i}
               type="button"
               role="option"
-              aria-selected={opt.value === value}
+              aria-selected={opt.value === value ? "true" : "false"}
               onClick={() => selectOption(opt)}
-              className={`w-full text-left px-3 py-2 text-xs transition-colors ${
-                i === highlight || opt.value === value
-                  ? "bg-slate-100 dark:bg-gray-800 font-semibold text-slate-800 dark:text-gray-100"
-                  : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50"
-              }`}
+              className={`select-option ${i === highlight || opt.value === value ? "select-option-active" : ""}`}
             >
               {opt.label}
             </button>

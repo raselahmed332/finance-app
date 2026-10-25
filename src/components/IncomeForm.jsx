@@ -2,13 +2,14 @@ import { useState } from "react";
 import Select from "./Select.jsx";
 import AccountSelect from "./AccountSelect.jsx";
 import { useToast } from "./Toast.jsx";
-import { todayStr, pickDefaultWalletId } from "../utils/loan.js";
+import { FormHeader, AmountField } from "../ui/index.jsx";
+import { todayStr } from "../utils/loan.js";
 
 export default function IncomeForm({ wallets, categories, currentUser, onSave, onCancel, embedded }) {
   const incomeCategories = (categories || []).filter(c => c.Type === 'Income');
   const fallbackCategories = ['Salary', 'Business', 'Remittance', 'Other'];
-  const [walletId, setWalletId] = useState(pickDefaultWalletId(currentUser?.username, wallets));
-  const [account, setAccount] = useState('Bank');
+  const [walletId, setWalletId] = useState("");
+  const [account, setAccount] = useState("");
   const [sourceCategory, setSourceCategory] = useState(incomeCategories[0]?.Name || 'Salary');
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
@@ -24,6 +25,7 @@ export default function IncomeForm({ wallets, categories, currentUser, onSave, o
 
   const changeWallet = (id) => {
     setWalletId(id);
+    setAccount("");
     setAmount('');
   };
 
@@ -31,6 +33,7 @@ export default function IncomeForm({ wallets, categories, currentUser, onSave, o
     e.preventDefault();
     if (submitting) return;
     if (!walletId) return toast.error('একটি Wallet নির্বাচন করুন!');
+    if (!account) return toast.error('একটি Account নির্বাচন করুন!');
     if (!amount || amount <= 0) return toast.error('সঠিক পরিমাণ লিখুন!');
     setSubmitting(true);
     // Disabled for exactly as long as the real request takes — no artificial wait.
@@ -40,37 +43,34 @@ export default function IncomeForm({ wallets, categories, currentUser, onSave, o
   };
 
   return (
-    <div className={embedded ? "space-y-4" : "bg-white dark:bg-gray-900 rounded-2xl p-4 shadow-sm border border-gray-200 dark:border-gray-800 space-y-4"}>
+    <div className={embedded ? "space-y-4" : "card p-4 space-y-4"}>
       {!embedded && (
-        <div className="flex items-center justify-between pb-3">
-          <button onClick={onCancel} className="text-gray-500 hover:text-slate-800 dark:text-gray-400 dark:hover:text-gray-200">
-            <i className="fa-solid fa-arrow-left text-lg"></i>
-          </button>
-          <h3 className="font-bold text-slate-800 dark:text-gray-100 text-base text-center flex-1 text-emerald-600">
-            Income (আয় যোগ করুন)
-          </h3>
-          <div className="w-5"></div>
-        </div>
+        <FormHeader
+          title="Income (আয় যোগ করুন)"
+          icon="fa-arrow-down"
+          tone="success"
+          onCancel={onCancel}
+        />
       )}
 
       <form onSubmit={handleSubmit} className="space-y-3.5">
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Wallet (কোন হিসাবে)</label>
+            <label className="label">Wallet (কোন হিসাবে)</label>
             <Select value={walletId} onChange={changeWallet} required>
-              {wallets.length === 0 && <option value="">কোনো Wallet এক্সেস নেই</option>}
+              <option value="">Select wallet</option>
               {wallets.map(w => <option key={w.WalletID} value={w.WalletID}>{w.WalletName} ({w.Currency})</option>)}
             </Select>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Account (অ্যাকাউন্ট)</label>
+            <label className="label">Account (অ্যাকাউন্ট)</label>
             <AccountSelect walletId={walletId} value={account} onChange={setAccount} />
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Income Source (কোথা থেকে এসেছে)</label>
+          <label className="label">Income Source (কোথা থেকে এসেছে)</label>
           <Select value={sourceCategory} onChange={setSourceCategory}>
             {incomeCategories.length > 0
               ? incomeCategories.map(c => <option key={c.CategoryID} value={c.Name}>{c.Name}</option>)
@@ -79,29 +79,31 @@ export default function IncomeForm({ wallets, categories, currentUser, onSave, o
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Amount</label>
-          <div className="relative flex items-center">
-            <input type="number" step="any" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl pl-3 pr-14 py-2 text-sm font-semibold focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-900 dark:text-gray-100" required />
-            <span className="absolute right-3 text-xs font-bold text-gray-400 dark:text-gray-500">{selectedWallet?.Currency}</span>
-          </div>
+          <label className="label">Amount</label>
+          <AmountField
+            value={amount}
+            onChange={setAmount}
+            currency={selectedWallet?.Currency}
+            tone="success"
+          />
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Description (বিবরণ)</label>
-          <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="যেমন: May Salary" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-900 dark:text-gray-100" />
+          <label className="label">Description (বিবরণ)</label>
+          <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="যেমন: May Salary" className="input" />
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Date</label>
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-900 dark:text-gray-100" required />
+          <label className="label">Date</label>
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="input" required />
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Note (নোট)</label>
-          <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="নোট লিখুন..." rows="2" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 resize-none bg-white dark:bg-gray-900 dark:text-gray-100"></textarea>
+          <label className="label">Note (নোট)</label>
+          <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="নোট লিখুন..." rows="2" className="textarea"></textarea>
         </div>
 
-        <button type="submit" disabled={submitting} className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl shadow-md text-sm flex items-center justify-center gap-2 mt-2">
+        <button type="submit" disabled={submitting} className="btn btn-primary btn-block mt-2">
           <i className={`${submitting ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-floppy-disk"}`}></i> {submitting ? 'Saving...' : 'Save Income'}
         </button>
       </form>

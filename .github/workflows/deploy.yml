@@ -1,15 +1,10 @@
 name: Deploy frontend to GitHub Pages
 
-# Auto-deploys the React frontend on every push to main, matching the workflow
-# described in the project README. Only the frontend is deployed; the Google
-# Apps Script backend is deployed by hand from the Apps Script editor.
+# Auto-deploys the React frontend on every push to main. The Google Apps Script
+# backend is deployed separately from the Apps Script editor.
 #
-# NOTE: this file lives at the frontend project root. If you keep the frontend
-# inside a monorepo instead of publishing the "finance-app" folder as its own
-# repository, move this file to the monorepo root and add
-#   defaults: { run: { working-directory: finance-app } }
-# plus `path: finance-app/dist` in the upload step.
-
+# This workflow lives at the frontend project root. In a monorepo, move it to
+# the root and set the working directory to finance-app.
 on:
   push:
     branches: [main]
@@ -20,7 +15,6 @@ permissions:
   pages: write
   id-token: write
 
-# Allow one concurrent deployment; newer pushes cancel in-progress runs.
 concurrency:
   group: pages
   cancel-in-progress: true

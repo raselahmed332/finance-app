@@ -70,10 +70,11 @@ export async function initNativeUi() {
   } catch {
     /* plugin unavailable - non-fatal */
   }
+}
 
-  // The splash screen is configured with launchAutoHide/launchShowDuration in
-  // capacitor.config.json; hiding explicitly once React is mounted avoids a
-  // flash of an empty webview on slower devices.
+export async function hideNativeSplash() {
+  if (!isNative()) return;
+
   try {
     await SplashScreen.hide();
   } catch {

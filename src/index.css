@@ -1,67 +1,886 @@
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* ---------------------------------------------------------------------------
-   Android/Capacitor safe areas.
-   In a normal browser env(safe-area-inset-*) resolves to 0px, so the web
-   layout is pixel-identical to before. On a device with a notch or a gesture
-   navigation bar, the sticky header and the fixed bottom nav keep clear of the
-   system UI and the scrollable content adds room for the taller nav.
---------------------------------------------------------------------------- */
-.app-header {
-  padding-top: calc(1rem + env(safe-area-inset-top, 0px));
-}
+/* ===========================================================================
+   AMAR HISAB — DESIGN TOKENS
+   ---------------------------------------------------------------------------
+   One token set drives both themes. Every colour in the app comes from here so
+   a page can never drift into an "almost dark" or "almost green" shade.
 
-.app-bottom-nav {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-}
+   Light: soft off-white canvas, white cards, deep near-black text.
+   Dark:  deep charcoal canvas, distinct dark card surfaces, readable text.
+   Accent: professional emerald - legible on both canvases.
 
-.mobile-container {
-  padding-bottom: calc(75px + env(safe-area-inset-bottom, 0px));
-}
+   Layering note:
+   - `base` holds theme variables and element defaults (below Tailwind's
+     utilities layer, so a `text-white` utility still wins).
+   - `components` holds the reusable classes (`.card`, `.btn`, `.input`).
+     Tailwind's utilities layer sits ABOVE components, so utility classes
+     such as `px-3` or `text-sm` can still override these where needed.
+   =========================================================================== */
 
-@media (min-width: 768px) {
-  .mobile-container {
-    padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+@layer base {
+  :root {
+    /* Canvas + surfaces */
+    --ah-bg: #f1f5f3;
+    --ah-bg-alt: #e9efec;
+    --ah-surface: #ffffff;
+    --ah-surface-2: #f7faf9;
+    --ah-surface-3: #eef3f1;
+    --ah-surface-inset: #f4f7f6;
+
+    /* Lines */
+    --ah-border: #e2e9e5;
+    --ah-border-strong: #cdd8d3;
+
+    /* Type */
+    --ah-text: #0c1a14;
+    --ah-text-2: #55665e;
+    --ah-text-3: #87978f;
+    --ah-text-inverse: #ffffff;
+
+    /* Brand - emerald */
+    --ah-brand: #0b8f68;
+    --ah-brand-strong: #076a4d;
+    --ah-brand-soft: #e4f4ee;
+    --ah-brand-soft-2: #d2ebe1;
+    --ah-brand-contrast: #ffffff;
+    --ah-brand-ring: rgba(11, 143, 104, 0.22);
+
+    /* Semantic states */
+    --ah-success: #12855c;
+    --ah-success-soft: #e4f4ec;
+    --ah-success-border: #b8dfcb;
+    --ah-danger: #cc3d3d;
+    --ah-danger-soft: #fdeceb;
+    --ah-danger-border: #f1c3bf;
+    --ah-warning: #a86a12;
+    --ah-warning-soft: #fdf1de;
+    --ah-warning-border: #eed6a8;
+    --ah-info: #2a5fd0;
+    --ah-info-soft: #e9effc;
+    --ah-info-border: #bfd0f5;
+    --ah-neutral-soft: #eef2f1;
+
+    /* Elevation */
+    --ah-shadow-sm: 0 1px 2px rgba(12, 26, 20, 0.05);
+    --ah-shadow: 0 2px 10px rgba(12, 26, 20, 0.06);
+    --ah-shadow-lg: 0 12px 32px rgba(12, 26, 20, 0.14);
+    --ah-shadow-brand: 0 8px 20px rgba(11, 143, 104, 0.24);
+
+    /* Shape */
+    --ah-radius: 14px;
+    --ah-radius-sm: 10px;
+    --ah-radius-lg: 20px;
+
+    /* Chrome */
+    --ah-header: #0b3a2c;
+    --ah-header-2: #062a20;
+    --ah-header-text: #eaf6f1;
+    --ah-header-text-2: #a8cbbd;
+    --ah-nav: #ffffff;
+    --ah-nav-border: #e2e9e5;
+    --ah-theme-color: #0b3a2c;
+  }
+
+  .dark {
+    --ah-bg: #080e0c;
+    --ah-bg-alt: #0c1512;
+    --ah-surface: #111b17;
+    --ah-surface-2: #16211d;
+    --ah-surface-3: #1d2a25;
+    --ah-surface-inset: #0d1613;
+
+    --ah-border: #22322c;
+    --ah-border-strong: #32463f;
+
+    --ah-text: #e8f1ec;
+    --ah-text-2: #a2b6ad;
+    --ah-text-3: #75887f;
+
+    --ah-brand: #2ebd8a;
+    --ah-brand-strong: #35d19b;
+    --ah-brand-soft: rgba(46, 189, 138, 0.14);
+    --ah-brand-soft-2: rgba(46, 189, 138, 0.22);
+    --ah-brand-contrast: #05251a;
+    --ah-brand-ring: rgba(46, 189, 138, 0.26);
+
+    --ah-success: #38d39c;
+    --ah-success-soft: rgba(56, 211, 156, 0.14);
+    --ah-success-border: rgba(56, 211, 156, 0.38);
+    --ah-danger: #f87171;
+    --ah-danger-soft: rgba(248, 113, 113, 0.14);
+    --ah-danger-border: rgba(248, 113, 113, 0.38);
+    --ah-warning: #fbbf24;
+    --ah-warning-soft: rgba(251, 191, 36, 0.14);
+    --ah-warning-border: rgba(251, 191, 36, 0.38);
+    --ah-info: #7aa7f5;
+    --ah-info-soft: rgba(122, 167, 245, 0.14);
+    --ah-info-border: rgba(122, 167, 245, 0.38);
+    --ah-neutral-soft: #1d2a25;
+
+    --ah-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --ah-shadow: 0 2px 12px rgba(0, 0, 0, 0.45);
+    --ah-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.6);
+    --ah-shadow-brand: 0 8px 22px rgba(46, 189, 138, 0.22);
+
+    --ah-header: #0a2a21;
+    --ah-header-2: #061c16;
+    --ah-header-text: #eaf6f1;
+    --ah-header-text-2: #9dc4b6;
+    --ah-nav: #0d1613;
+    --ah-nav-border: #22322c;
+    --ah-theme-color: #0a2a21;
+  }
+
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  body {
+    font-family: "Hind Siliguri", system-ui, -apple-system, sans-serif;
+    background-color: var(--ah-bg);
+    color: var(--ah-text);
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+  }
+
+  /* Tabular figures everywhere a money value is rendered so columns line up. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  /* =========================================================================
+     FORM CONTROLS - GENERIC COLOUR SAFETY NET
+     -------------------------------------------------------------------------
+     Several inputs/selects/textareas declare no text colour of their own, so
+     they inherit whatever ancestor colour is active. On Android WebView, and
+     when the OS is in dark mode while the app is in light theme, that
+     inherited/native default can match the field background -> invisible text.
+     These element selectors live in the base layer, so any per-field
+     `text-*` / `dark:text-*` utility (utilities layer) still wins - they only
+     fill the gap for fields that declare no colour of their own.
+     `color-scheme` is what makes the native date picker and number spinners
+     render in the right theme inside an Android WebView.
+     ========================================================================= */
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea,
+  .app-input {
+    color: var(--ah-text);
+    color-scheme: light;
+  }
+
+  :where(.dark) input:not([type="checkbox"]):not([type="radio"]),
+  :where(.dark) select,
+  :where(.dark) textarea,
+  :where(.dark) .app-input {
+    color-scheme: dark;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--ah-text-3);
   }
 }
 
-/* ---------------------------------------------------------------------------
-   Form controls: guarantee a visible font in BOTH themes.
-   Several inputs/selects/textareas declare no text colour of their own, so
-   they inherit whatever ancestor colour is active. On Android WebView, and
-   when the OS is in dark mode while the app is in light theme (or the page
-   background changes under them), that inherited/native default can match the
-   field background -> invisible text.
-   These element selectors have specificity (0,0,1): they beat Tailwind
-   Preflight's `input{color:inherit}` (also 0,0,1) because they come later, but
-   they lose to any per-field `text-*` / `dark:text-*` utility (0,1,0). So they
-   only fill the gap for fields that declare no colour of their own.
---------------------------------------------------------------------------- */
-input:not([type="checkbox"]):not([type="radio"]),
-select,
-textarea,
-.app-input {
-  color: #1f2937; /* slate-800, readable on white light-theme fields */
-  color-scheme: light;
+@layer components {
+  /* =========================================================================
+     LAYOUT PRIMITIVES
+     ========================================================================= */
+
+  .app-header {
+    padding-top: calc(0.85rem + env(safe-area-inset-top, 0px));
+  }
+
+  .app-bottom-nav {
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .mobile-container {
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100vh;
+    position: relative;
+    background: var(--ah-bg);
+    box-shadow: 0 12px 34px -12px rgba(12, 26, 20, 0.18);
+    padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .dark .mobile-container {
+    box-shadow: 0 12px 34px -12px rgba(0, 0, 0, 0.6);
+  }
+
+  @media (min-width: 768px) {
+    .mobile-container {
+      max-width: 1000px;
+      padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+    }
+  }
+
+  /* =========================================================================
+     SURFACES
+     ========================================================================= */
+
+  .card {
+    background: var(--ah-surface);
+    border: 1px solid var(--ah-border);
+    border-radius: var(--ah-radius);
+    box-shadow: var(--ah-shadow-sm);
+  }
+
+  .card-raised {
+    background: var(--ah-surface);
+    border: 1px solid var(--ah-border);
+    border-radius: var(--ah-radius);
+    box-shadow: var(--ah-shadow);
+  }
+
+  .card-flat {
+    background: var(--ah-surface);
+    border: 1px solid var(--ah-border);
+    border-radius: var(--ah-radius);
+    box-shadow: none;
+  }
+
+  .card-soft {
+    background: var(--ah-surface-2);
+    border: 1px solid var(--ah-border);
+    border-radius: var(--ah-radius);
+  }
+
+  .card-inset {
+    background: var(--ah-surface-inset);
+    border: 1px solid var(--ah-border);
+    border-radius: var(--ah-radius-sm);
+  }
+
+  .card-brand {
+    background: linear-gradient(145deg, var(--ah-brand-strong), var(--ah-header));
+    border: 1px solid transparent;
+    border-radius: var(--ah-radius);
+    color: var(--ah-brand-contrast);
+    box-shadow: var(--ah-shadow-brand);
+  }
+
+  .card-danger {
+    background: var(--ah-danger-soft);
+    border: 1px solid var(--ah-danger-border);
+    border-radius: var(--ah-radius);
+  }
+
+  .card-warning {
+    background: var(--ah-warning-soft);
+    border: 1px solid var(--ah-warning-border);
+    border-radius: var(--ah-radius);
+  }
+
+  .card-success {
+    background: var(--ah-success-soft);
+    border: 1px solid var(--ah-success-border);
+    border-radius: var(--ah-radius);
+  }
+
+  .card-info {
+    background: var(--ah-info-soft);
+    border: 1px solid var(--ah-info-border);
+    border-radius: var(--ah-radius);
+  }
+
+  .divider {
+    height: 1px;
+    background: var(--ah-border);
+    border: 0;
+  }
+
+  /* =========================================================================
+     TYPOGRAPHY HELPERS
+     ========================================================================= */
+
+  .page-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--ah-text);
+    letter-spacing: -0.01em;
+  }
+
+  .section-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--ah-text);
+    letter-spacing: 0.01em;
+  }
+
+  .section-sub {
+    font-size: 0.7rem;
+    color: var(--ah-text-3);
+  }
+
+  .label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--ah-text-2);
+    margin-bottom: 0.35rem;
+  }
+
+  .hint {
+    font-size: 0.68rem;
+    color: var(--ah-text-3);
+    margin-top: 0.3rem;
+  }
+
+  .text-ink {
+    color: var(--ah-text);
+  }
+  .text-ink-2 {
+    color: var(--ah-text-2);
+  }
+  .text-ink-3 {
+    color: var(--ah-text-3);
+  }
+  .text-brand {
+    color: var(--ah-brand);
+  }
+  .text-danger {
+    color: var(--ah-danger);
+  }
+  .text-success {
+    color: var(--ah-success);
+  }
+  .text-warning {
+    color: var(--ah-warning);
+  }
+  .text-info {
+    color: var(--ah-info);
+  }
+
+  /* =========================================================================
+     FORM CONTROLS
+     ========================================================================= */
+
+  .input,
+  .textarea,
+  .select-trigger {
+    width: 100%;
+    background: var(--ah-surface-2);
+    border: 1px solid var(--ah-border);
+    border-radius: var(--ah-radius-sm);
+    color: var(--ah-text);
+    font-size: 0.82rem;
+    line-height: 1.45;
+    padding: 0.62rem 0.75rem;
+    outline: none;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease,
+      background-color 0.15s ease;
+    color-scheme: light;
+  }
+
+  .dark .input,
+  .dark .textarea,
+  .dark .select-trigger {
+    color-scheme: dark;
+    background: var(--ah-surface-inset);
+  }
+
+  .input:focus,
+  .textarea:focus,
+  .select-trigger:focus {
+    border-color: var(--ah-brand);
+    box-shadow: 0 0 0 3px var(--ah-brand-ring);
+    background: var(--ah-surface);
+  }
+
+  .input:disabled,
+  .textarea:disabled,
+  .select-trigger:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .textarea {
+    resize: vertical;
+    min-height: 64px;
+  }
+
+  .select-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .select-trigger[aria-expanded="true"] {
+    border-color: var(--ah-brand);
+    box-shadow: 0 0 0 3px var(--ah-brand-ring);
+  }
+
+  .input-invalid,
+  .input-invalid:focus {
+    border-color: var(--ah-danger);
+    box-shadow: 0 0 0 3px rgba(204, 61, 61, 0.16);
+  }
+
+  .select-menu {
+    position: absolute;
+    z-index: 60;
+    margin-top: 4px;
+    width: 100%;
+    max-height: 15rem;
+    overflow: auto;
+    background: var(--ah-surface);
+    border: 1px solid var(--ah-border-strong);
+    border-radius: var(--ah-radius-sm);
+    box-shadow: var(--ah-shadow-lg);
+    padding: 4px;
+  }
+
+  .select-option {
+    display: block;
+    width: 100%;
+    text-align: left;
+    font-size: 0.8rem;
+    padding: 0.55rem 0.65rem;
+    border-radius: 8px;
+    color: var(--ah-text-2);
+    cursor: pointer;
+  }
+
+  .select-option:hover {
+    background: var(--ah-surface-3);
+  }
+
+  .select-option-active {
+    background: var(--ah-brand-soft);
+    color: var(--ah-brand-strong);
+    font-weight: 600;
+  }
+
+  .err {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--ah-danger);
+    margin-top: 0.3rem;
+  }
+
+  /* =========================================================================
+     BUTTONS
+     ========================================================================= */
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    border-radius: var(--ah-radius-sm);
+    font-weight: 600;
+    font-size: 0.8rem;
+    padding: 0.62rem 1rem;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition:
+      transform 0.12s ease,
+      filter 0.15s ease,
+      background-color 0.15s ease,
+      border-color 0.15s ease;
+    user-select: none;
+    -webkit-user-select: none;
+    min-height: 42px;
+  }
+
+  .btn:active:not(:disabled) {
+    transform: scale(0.975);
+  }
+
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn-primary {
+    background: var(--ah-brand);
+    color: var(--ah-brand-contrast);
+    box-shadow: var(--ah-shadow-brand);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: var(--ah-brand-strong);
+  }
+
+  .btn-secondary {
+    background: var(--ah-surface-2);
+    color: var(--ah-text);
+    border-color: var(--ah-border-strong);
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--ah-surface-3);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--ah-text-2);
+  }
+
+  .btn-ghost:hover:not(:disabled) {
+    background: var(--ah-surface-3);
+    color: var(--ah-text);
+  }
+
+  .btn-danger {
+    background: var(--ah-danger);
+    color: #fff;
+  }
+
+  .btn-danger:hover:not(:disabled) {
+    filter: brightness(0.92);
+  }
+
+  .btn-success {
+    background: var(--ah-success);
+    color: #fff;
+  }
+
+  .btn-block {
+    width: 100%;
+  }
+
+  .btn-sm {
+    font-size: 0.72rem;
+    padding: 0.42rem 0.7rem;
+    min-height: 34px;
+    border-radius: 9px;
+  }
+
+  .icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    border: 1px solid var(--ah-border);
+    background: var(--ah-surface-2);
+    color: var(--ah-text-2);
+    cursor: pointer;
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .icon-btn:hover {
+    background: var(--ah-surface-3);
+    color: var(--ah-text);
+  }
+
+  .icon-btn-danger:hover {
+    background: var(--ah-danger-soft);
+    color: var(--ah-danger);
+  }
+
+  /* Floating action buttons (income / expense) */
+  .fab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 999px;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    box-shadow: var(--ah-shadow-lg);
+    transition: transform 0.12s ease;
+  }
+
+  .fab:active {
+    transform: scale(0.93);
+  }
+
+  .fab-income {
+    background: var(--ah-brand);
+  }
+
+  .fab-expense {
+    background: var(--ah-danger);
+  }
+
+  /* =========================================================================
+     BADGES / CHIPS / PILLS
+     ========================================================================= */
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0.16rem 0.5rem;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  .badge-brand {
+    background: var(--ah-brand-soft);
+    color: var(--ah-brand-strong);
+  }
+  .badge-success {
+    background: var(--ah-success-soft);
+    color: var(--ah-success);
+  }
+  .badge-danger {
+    background: var(--ah-danger-soft);
+    color: var(--ah-danger);
+  }
+  .badge-warning {
+    background: var(--ah-warning-soft);
+    color: var(--ah-warning);
+  }
+  .badge-info {
+    background: var(--ah-info-soft);
+    color: var(--ah-info);
+  }
+  .badge-neutral {
+    background: var(--ah-neutral-soft);
+    color: var(--ah-text-2);
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.36rem 0.7rem;
+    border-radius: 999px;
+    border: 1px solid var(--ah-border);
+    background: var(--ah-surface-2);
+    color: var(--ah-text-2);
+    cursor: pointer;
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease,
+      border-color 0.15s ease;
+    white-space: nowrap;
+  }
+
+  .chip:hover {
+    border-color: var(--ah-border-strong);
+  }
+
+  .chip-active {
+    background: var(--ah-brand);
+    border-color: var(--ah-brand);
+    color: var(--ah-brand-contrast);
+  }
+
+  /* Segmented control (theme picker, period picker) */
+  .segment {
+    display: inline-flex;
+    padding: 3px;
+    gap: 2px;
+    background: var(--ah-surface-3);
+    border-radius: 999px;
+    border: 1px solid var(--ah-border);
+  }
+
+  .segment-item {
+    flex: 1;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.34rem 0.7rem;
+    border-radius: 999px;
+    color: var(--ah-text-2);
+    cursor: pointer;
+    white-space: nowrap;
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .segment-item-active {
+    background: var(--ah-surface);
+    color: var(--ah-brand-strong);
+    box-shadow: var(--ah-shadow-sm);
+  }
+
+  /* =========================================================================
+     DATA DISPLAY
+     ========================================================================= */
+
+  .stat {
+    background: var(--ah-surface-2);
+    border: 1px solid var(--ah-border);
+    border-radius: var(--ah-radius-sm);
+    padding: 0.7rem 0.8rem;
+  }
+
+  .stat-label {
+    font-size: 0.66rem;
+    font-weight: 600;
+    color: var(--ah-text-3);
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .stat-value {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--ah-text);
+    letter-spacing: -0.01em;
+    word-break: break-word;
+  }
+
+  .kv-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.4rem 0;
+    font-size: 0.76rem;
+  }
+
+  .kv-label {
+    color: var(--ah-text-3);
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  .kv-value {
+    color: var(--ah-text);
+    font-weight: 600;
+    text-align: right;
+    word-break: break-word;
+  }
+
+  .list-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    text-align: left;
+    padding: 0.75rem 0.85rem;
+    background: var(--ah-surface);
+    border: 1px solid var(--ah-border);
+    border-radius: var(--ah-radius-sm);
+    cursor: pointer;
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease;
+  }
+
+  .list-row:hover {
+    border-color: var(--ah-border-strong);
+  }
+
+  .list-row:active {
+    background: var(--ah-surface-2);
+  }
+
+  /* =========================================================================
+     STATES
+     ========================================================================= */
+
+  .empty {
+    text-align: center;
+    padding: 2.25rem 1rem;
+    color: var(--ah-text-3);
+  }
+
+  .empty-icon {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--ah-surface-3);
+    color: var(--ah-text-3);
+    font-size: 1.1rem;
+    margin-bottom: 0.6rem;
+  }
+
+  .empty-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--ah-text-2);
+  }
+
+  .empty-text {
+    font-size: 0.72rem;
+    color: var(--ah-text-3);
+    margin-top: 0.25rem;
+  }
+
+  .spinner {
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 999px;
+    border: 2px solid var(--ah-brand);
+    border-top-color: transparent;
+    animation: ah-spin 0.7s linear infinite;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--ah-border-strong);
+    border-radius: 4px;
+  }
 }
 
-:where(.dark) input:not([type="checkbox"]):not([type="radio"]),
-:where(.dark) select,
-:where(.dark) textarea,
-:where(.dark) .app-input {
-  color: #f3f4f6; /* gray-100, readable on dark-theme fields */
-  color-scheme: dark;
+/* ===========================================================================
+   ANIMATIONS
+   =========================================================================== */
+
+@keyframes ah-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes toastIn {
   from {
     opacity: 0;
-    transform: translateY(-8px);
+    transform: translateY(-10px) scale(0.98);
   }
   to {
     opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes sheetIn {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  to {
     transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 
@@ -81,8 +900,10 @@ textarea,
   animation: indeterminateBar 1.2s ease-in-out infinite;
 }
 
-/* Print / PDF: only the statement (marked with #report-print) is printed, not
-   the surrounding app chrome, filters, cards or the chart. */
+/* ===========================================================================
+   PRINT / PDF: only the statement (marked with #report-print) is printed, not
+   the surrounding app chrome, filters, cards or the chart.
+   =========================================================================== */
 @media print {
   @page {
     size: A4 landscape;
@@ -125,21 +946,11 @@ textarea,
 
   #report-print thead {
     display: table-header-group;
+    position: static !important;
   }
 
   #report-print tr {
     break-inside: avoid;
-  }
-
-  /* The on-screen statement list scrolls inside a capped box with a sticky
-     header; on paper it must expand fully so no row is clipped. */
-  #report-print .report-scroll {
-    max-height: none !important;
-    overflow: visible !important;
-  }
-
-  #report-print thead {
-    position: static !important;
   }
 
   /* Let long cells wrap on paper instead of being clipped by the on-screen

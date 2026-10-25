@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { api } from "../api.js";
+import { Badge, Button, EmptyState, ErrorState, LoadingState, PageHeader, SectionCard } from "../ui/index.jsx";
 
 export default function AuditLogView({ currentUser, onCancel }) {
   const [entries, setEntries] = useState(null);
@@ -84,115 +85,173 @@ export default function AuditLogView({ currentUser, onCancel }) {
     });
   };
 
+  // A short window around the current page keeps the pager usable when the
+  // log is long, instead of rendering one button per entry.
+  const pageWindow = [];
+  if (totalPages > 1) {
+    const from = Math.max(1, Math.min(page - 2, totalPages - 4));
+    const to = Math.min(totalPages, from + 4);
+    for (let n = from; n <= to; n++) pageWindow.push(n);
+  }
+
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <button onClick={onCancel} className="text-gray-500 dark:text-gray-400 hover:text-slate-800 dark:hover:text-gray-200">
-          <i className="fa-solid fa-arrow-left text-lg"></i>
-        </button>
-        <h3 className="font-bold text-slate-800 dark:text-gray-100 text-base">Audit Log</h3>
-        <span className="text-xs bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-full font-semibold">{loadError ? '—' : `${total} টি`}</span>
-      </div>
+      <PageHeader
+        title="Audit Log"
+        subtitle="হিসাবের কার্যক্রলের রেকর্ড"
+        icon="fa-clipboard-list"
+        onBack={onCancel}
+        right={
+          <Badge tone={loadError ? "danger" : "brand"}>
+            {loadError ? '—' : `${total} টি`}
+          </Badge>
+        }
+      />
 
-      <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl px-3 py-2 text-[11px] text-amber-800 dark:text-amber-200 flex items-start gap-1.5">
-        <i className="fa-solid fa-clock-rotate-left mt-0.5"></i>
-        <span>
+      <div className="card card-warning p-3 flex items-start gap-2">
+        <i className="fa-solid fa-clock-rotate-left mt-0.5 text-warning" />
+        <span className="text-[11px] text-ink-2">
           Audit Log সর্বশেষ {retention ? retention.months : 2} মাসের রেকর্ড সংরক্ষণ করে
           {retention && retention.cutoff ? <> — {retention.cutoff} এর আগের রেকর্ড স্বয়ংক্রিয়ভাবে মুছে যায়।</> : '।'}
         </span>
       </div>
 
       {isAdmin && retention && retention.lastCleanup && (
-        <div className="text-[10px] text-gray-400 dark:text-gray-500 -mt-1.5 px-1">
+        <div className="text-[10px] text-ink-3 -mt-1.5 px-1">
           সর্বশেষ ক্লিনআপ: {retention.lastCleanup.runAt || '—'} ({retention.lastCleanup.deleted || 0} টি মুছেছে)
         </div>
       )}
 
       {isAdmin && (
-        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3.5 shadow-2xs space-y-2">
-          <button onClick={handleCheckIntegrity} disabled={checking} className="w-full bg-slate-800 disabled:opacity-50 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5">
-            <i className="fa-solid fa-shield-halved"></i> {checking ? 'পরীক্ষা করা হচ্ছে...' : 'Check Transfer Pair Integrity'}
-          </button>
-          <button onClick={handleCleanup} disabled={cleaning} className="w-full bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5">
-            <i className="fa-solid fa-broom"></i> {cleaning ? 'পরিষ্কার করা হচ্ছে...' : 'Cleanup now'}
-          </button>
+        <SectionCard title="Admin Tools" icon="fa-shield-halved" bodyClassName="p-3.5 space-y-2">
+          <Button
+            variant="secondary"
+            block
+            icon="fa-shield-halved"
+            onClick={handleCheckIntegrity}
+            disabled={checking}
+          >
+            {checking ? 'পরীক্ষা করা হচ্ছে...' : 'Check Transfer Pair Integrity'}
+          </Button>
+          <Button
+            variant="danger"
+            block
+            icon="fa-broom"
+            onClick={handleCleanup}
+            disabled={cleaning}
+          >
+            {cleaning ? 'পরিষ্কার করা হচ্ছে...' : 'Cleanup now'}
+          </Button>
+
           {cleanResult && (
             cleanResult.error ? (
-              <div className="text-xs text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-lg px-2.5 py-2">
-                <i className="fa-solid fa-triangle-exclamation me-1"></i> {cleanResult.error}
+              <div className="card card-danger p-2.5 flex items-start gap-1.5">
+                <i className="fa-solid fa-triangle-exclamation mt-0.5 text-danger" />
+                <span className="text-xs text-ink-2">{cleanResult.error}</span>
               </div>
             ) : (
-              <div className="text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg px-2.5 py-2">
-                <i className="fa-solid fa-circle-check me-1"></i>
-                {cleanResult.skipped
-                  ? 'আরেকটি ক্লিনআপ চলছে — পরে আবার চেষ্টা করুন।'
-                  : `Cleanup সম্পন্ন — ${cleanResult.deleted} টি পুরনো এন্ট্রি মুছে ফেলা হয়েছে।`}
+              <div className="card card-success p-2.5 flex items-start gap-1.5">
+                <i className="fa-solid fa-circle-check mt-0.5 text-success" />
+                <span className="text-xs text-ink-2">
+                  {cleanResult.skipped
+                    ? 'আরেকটি ক্লিনআপ চলছে — পরে আবার চেষ্টা করুন।'
+                    : `Cleanup সম্পন্ন — ${cleanResult.deleted} টি পুরনো এন্ট্রি মুছে ফেলা হয়েছে।`}
+                </span>
               </div>
             )
           )}
-        {checkResult && (
-          checkResult.error ? (
-            <div className="text-xs text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-lg px-2.5 py-2">
-              <i className="fa-solid fa-triangle-exclamation me-1"></i> {checkResult.error}
-            </div>
-          ) : checkResult.count === 0 ? (
-            <div className="text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg px-2.5 py-2">
-              <i className="fa-solid fa-circle-check me-1"></i> কোনো Broken Transfer Pair পাওয়া যায়নি — সব ঠিক আছে।
-            </div>
-          ) : (
-            <div className="space-y-1.5">
-              <div className="text-xs text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-lg px-2.5 py-2">
-                <i className="fa-solid fa-triangle-exclamation me-1"></i> {checkResult.count} টি Broken Pair পাওয়া গেছে।
+
+          {checkResult && (
+            checkResult.error ? (
+              <div className="card card-danger p-2.5 flex items-start gap-1.5">
+                <i className="fa-solid fa-triangle-exclamation mt-0.5 text-danger" />
+                <span className="text-xs text-ink-2">{checkResult.error}</span>
               </div>
-              {checkResult.brokenPairs.map((b, i) => (
-                <div key={i} className="text-[11px] bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-gray-800 rounded-lg px-2.5 py-1.5">
-                  <span className="font-semibold">{b.WalletName}</span> — {b.Type} (ID: {b.ID}) — {b.Issue}
+            ) : checkResult.count === 0 ? (
+              <div className="card card-success p-2.5 flex items-start gap-1.5">
+                <i className="fa-solid fa-circle-check mt-0.5 text-success" />
+                <span className="text-xs text-ink-2">
+                  কোনো Broken Transfer Pair পাওয়া যায়নি — সব ঠিক আছে।
+                </span>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <div className="card card-danger p-2.5 flex items-start gap-1.5">
+                  <i className="fa-solid fa-triangle-exclamation mt-0.5 text-danger" />
+                  <span className="text-xs text-ink-2">
+                    {checkResult.count} টি Broken Pair পাওয়া গেছে।
+                  </span>
                 </div>
-              ))}
-            </div>
-          )
-        )}
-        </div>
+                {checkResult.brokenPairs.map((b, i) => (
+                  <div key={i} className="card card-inset px-2.5 py-1.5 text-[11px] text-ink-2">
+                    <span className="font-semibold text-ink">{b.WalletName}</span> — {b.Type} (ID: {b.ID}) — {b.Issue}
+                  </div>
+                ))}
+              </div>
+            )
+          )}
+        </SectionCard>
       )}
 
-      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-3.5 shadow-2xs">
-        {entries === null && <div className="text-center text-xs text-gray-400 dark:text-gray-500 py-8">লোড হচ্ছে...</div>}
-        {loadError ? (
-          <div className="text-center py-8 px-3">
-            <i className="fa-solid fa-triangle-exclamation text-amber-500 text-lg mb-2"></i>
-            <div className="text-xs text-rose-600 dark:text-rose-400">{loadError}</div>
-            <button onClick={() => load(page)}
-              className="mt-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-xl text-xs">
-              আবার চেষ্টা করুন
-            </button>
-          </div>
-        ) : null}
-        {!loadError && entries && entries.length === 0 && <div className="text-center text-xs text-gray-400 dark:text-gray-500 py-8">কোনো এন্ট্রি নেই।</div>}
-        {!loadError && entries && entries.map((e, i) => (
-          <div key={i} className={`py-2.5 ${i !== entries.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''}`}>
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-800 dark:text-gray-100">{e.Action}</span>
-              <span className="text-[10px] text-gray-400 dark:text-gray-500">{e.Date}</span>
+      <div className="card">
+        {entries === null ? (
+          <LoadingState label="অডিট লগ লোড হচ্ছে..." />
+        ) : loadError ? (
+          <ErrorState text={loadError} onRetry={() => load(page)} />
+        ) : entries.length === 0 ? (
+          <EmptyState icon="fa-inbox" title="কোনো এন্ট্রি নেই।" />
+        ) : (
+          entries.map((e, i) => (
+            <div
+              key={i}
+              className={`px-4 py-2.5 ${
+                i !== entries.length - 1 ? 'border-b border-[var(--ah-border)]' : ''
+              }`}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-semibold text-ink truncate">{e.Action}</span>
+                <span className="text-[10px] text-ink-3 shrink-0">{e.Date}</span>
+              </div>
+              <div className="text-[11px] text-ink-3 mt-0.5">
+                <i className="fa-solid fa-user me-1" />{e.User}
+                {e.Target ? <span> • {e.Target}</span> : null}
+              </div>
+              {e.Details && <div className="text-[10px] text-ink-3 mt-0.5">{e.Details}</div>}
             </div>
-            <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
-              <i className="fa-solid fa-user me-1"></i>{e.User}
-              {e.Target ? <span> • {e.Target}</span> : null}
-            </div>
-            {e.Details && <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{e.Details}</div>}
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
       {totalPages > 1 && (
         <div className="flex justify-center items-center gap-1.5 pt-2 flex-wrap">
-          <button disabled={page === 1} onClick={() => setPage(page - 1)} className="px-2.5 h-8 rounded-lg text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 disabled:opacity-30">
-            <i className="fa-solid fa-chevron-left"></i>
+          <button
+            disabled={page === 1}
+            onClick={() => setPage(page - 1)}
+            className="icon-btn"
+            aria-label="আগের পাতা"
+          >
+            <i className="fa-solid fa-chevron-left text-xs" />
           </button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
-            <button key={n} onClick={() => setPage(n)} className={`w-8 h-8 rounded-lg text-xs font-semibold ${page === n ? 'bg-slate-800 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300'}`}>{n}</button>
+          {pageWindow.map((n) => (
+            <button
+              key={n}
+              onClick={() => setPage(n)}
+              className={`w-8 h-8 rounded-lg text-xs font-semibold transition-colors ${
+                page === n
+                  ? "bg-[var(--ah-brand)] text-[var(--ah-brand-contrast)]"
+                  : "bg-[var(--ah-surface-3)] text-ink-2"
+              }`}
+            >
+              {n}
+            </button>
           ))}
-          <button disabled={page === totalPages} onClick={() => setPage(page + 1)} className="px-2.5 h-8 rounded-lg text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 disabled:opacity-30">
-            <i className="fa-solid fa-chevron-right"></i>
+          <button
+            disabled={page === totalPages}
+            onClick={() => setPage(page + 1)}
+            className="icon-btn"
+            aria-label="পরের পাতা"
+          >
+            <i className="fa-solid fa-chevron-right text-xs" />
           </button>
         </div>
       )}

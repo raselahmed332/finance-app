@@ -7,6 +7,17 @@ import { Field } from "../components/FormField.jsx";
 import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { formatMoney, fmtDate, todayStr } from "../utils/loan.js";
 import { accountName } from "../utils/accounts.js";
+import { compareSavingsTransactionsNewestFirst } from "../utils/savingsTransactions.js";
+import {
+  AmountField,
+  Badge,
+  Button,
+  EmptyState,
+  ErrorState,
+  IconButton,
+  LoadingState,
+  PageHeader,
+} from "../ui/index.jsx";
 
 const TYPE_META = {
   GROUP: { label: "গ্রুপ সঞ্চয় (কমিটি)", icon: "fa-people-group" },
@@ -14,14 +25,14 @@ const TYPE_META = {
   FLEXIBLE: { label: "নমনীয় সঞ্চয়", icon: "fa-wallet" },
 };
 
-const STATUS_STYLE = {
-  PAID: "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400",
-  PARTIAL: "bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-400",
-  DUE: "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400",
-  MISSED: "bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-400",
-  UNPAID: "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400",
-  OPEN: "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400",
-  UPCOMING: "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400",
+const STATUS_TONE = {
+  PAID: "success",
+  PARTIAL: "info",
+  DUE: "warning",
+  MISSED: "danger",
+  UNPAID: "neutral",
+  OPEN: "neutral",
+  UPCOMING: "neutral",
 };
 
 const STATUS_LABEL = {
@@ -37,17 +48,17 @@ const STATUS_LABEL = {
 function StatusBadge({ status }) {
   const key = String(status || "").toUpperCase();
   return (
-    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${STATUS_STYLE[key] || STATUS_STYLE.UNPAID}`}>
+    <Badge tone={STATUS_TONE[key] || "neutral"}>
       {STATUS_LABEL[key] || key}
-    </span>
+    </Badge>
   );
 }
 
 function Tile({ label, value, tone }) {
   return (
-    <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-2.5">
-      <div className="text-[9px] uppercase tracking-wide text-gray-400 dark:text-gray-500">{label}</div>
-      <div className={`text-[13px] font-bold mt-0.5 ${tone || "text-slate-800 dark:text-gray-100"}`}>{value}</div>
+    <div className="card card-inset p-2.5">
+      <div className="text-[9px] uppercase tracking-wide text-ink-3">{label}</div>
+      <div className={`text-[13px] font-bold mt-0.5 tnum ${tone || "text-ink"}`}>{value}</div>
     </div>
   );
 }
@@ -154,7 +165,7 @@ export default function SavingsDetailsView({ planId, currentUser, wallets, can, 
   );
 
   const openModal = (kind, extra = {}) => {
-    const base = { kind, date: todayStr(), account: plan?.Account || "Cash", ...extra };
+    const base = { kind, date: todayStr(), account: kind === "close-fixed" ? plan?.Account || "" : "", ...extra };
     if (kind === "contribution") {
       base.memberId = (details?.members || [])[0]?.MemberID || "";
       base.round = String(nextRoundNumber());
@@ -200,6 +211,10 @@ export default function SavingsDetailsView({ planId, currentUser, wallets, can, 
     if (busy) return;
     const kind = form.kind;
     const user = currentUser.username;
+    if (kind !== "add-member" && kind !== "edit-member" && kind !== "close-fixed" && !form.account) {
+      showAlert("একটি Account নির্বাচন করুন।", "error");
+      return;
+    }
     if (kind === "add-member") {
       return run(api.addSavingsGroupMember({ user, planId, memberName: form.memberName }));
     }
@@ -305,28 +320,26 @@ export default function SavingsDetailsView({ planId, currentUser, wallets, can, 
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <button className="text-sm px-3 py-1.5 rounded-xl border border-gray-300 dark:border-slate-600 text-slate-600 dark:text-gray-300" onClick={onBack}>
-          <i className="fa-solid fa-arrow-left me-1"></i> পিছনে
-        </button>
-        {closed && <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400">বন্ধ করা হয়েছে</span>}
-      </div>
+      <PageHeader
+        title={plan ? plan.Name : "সঞ্চয়"}
+        subtitle={
+          plan
+            ? `${meta.label} • ${plan.WalletName || plan.WalletID} • ${accountName(plan.WalletID, plan.Account)} • ${currency}`
+            : "সঞ্চয়ের বিস্তারিত"
+        }
+        icon={meta.icon}
+        onBack={onBack}
+        right={closed ? <Badge tone="neutral" icon="fa-lock">বন্ধ করা হয়েছে</Badge> : null}
+      />
 
-      {loading && !details && <div className="text-sm text-gray-500 flex items-center gap-2"><i className="fa-solid fa-spinner fa-spin"></i> লোড হচ্ছে...</div>}
-      {error && <div className="text-sm text-red-600">{error}</div>}
+      {loading && !details ? (
+        <LoadingState label="সঞ্চয়ের বিস্তারিত লোড হচ্ছে..." />
+      ) : error ? (
+        <ErrorState text={error} onRetry={load} />
+      ) : null}
 
       {plan && (
         <>
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-lg">
-              <i className={`fa-solid ${meta.icon}`}></i>
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-base font-bold text-slate-800 dark:text-gray-100 truncate">{plan.Name}</h1>
-              <div className="text-[11px] text-gray-500 dark:text-gray-400">{meta.label} • {plan.WalletName || plan.WalletID} • {accountName(plan.WalletID, plan.Account)} • {currency}</div>
-            </div>
-          </div>
-
           {type === "GROUP" && (
             <GroupSection
               plan={plan} details={details} money={money}
@@ -381,62 +394,74 @@ function GroupSection({ plan, details, money, canManage, canTxn, canAddMember, c
         <Tile label="মোট গ্রহণ" value={money(summary.PaidOut)} />
         <Tile label="ব্যালেন্স" value={money(summary.Balance)} />
       </div>
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-500 dark:text-gray-400">
-        <span>কিস্তি: <b className="text-slate-700 dark:text-gray-200">{money(group.Contribution)}</b></span>
-        <span>রাউন্ড: <b className="text-slate-700 dark:text-gray-200">{group.Rounds}</b></span>
-        <span>সদস্য: <b className="text-slate-700 dark:text-gray-200">{group.MemberCount}</b></span>
-        <span>ফ্রিকোয়েন্সি: <b className="text-slate-700 dark:text-gray-200">{group.Frequency}</b></span>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-ink-3">
+        <span>কিস্তি: <b className="text-ink">{money(group.Contribution)}</b></span>
+        <span>রাউন্ড: <b className="text-ink">{group.Rounds}</b></span>
+        <span>সদস্য: <b className="text-ink">{group.MemberCount}</b></span>
+        <span>ফ্রিকোয়েন্সি: <b className="text-ink">{group.Frequency}</b></span>
       </div>
 
       {canTxn && (
         <div className="grid grid-cols-2 gap-2">
-          <button onClick={() => onOpenModal("contribution")} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs shadow-sm">
-            <i className="fa-solid fa-arrow-down me-1"></i> কিস্তি জমা
-          </button>
-          <button
-            onClick={() => onOpenModal("payout")}
+          <Button icon="fa-arrow-down" onClick={() => onOpenModal("contribution")}>
+            কিস্তি জমা
+          </Button>
+          <Button
+            variant="info"
+            icon="fa-arrow-up"
             disabled={openRounds.length === 0}
-            className="bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl text-xs shadow-sm"
+            onClick={() => onOpenModal("payout")}
           >
-            <i className="fa-solid fa-arrow-up me-1"></i> পেআউট গ্রহণ
-          </button>
+            পেআউট গ্রহণ
+          </Button>
         </div>
       )}
 
       {canManage && !closed && orderedMembers.length > 0 && !orderedMembers.some((m) => m.IsSelf) && (
-        <div className="text-[11px] rounded-xl p-2.5 border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 flex items-start gap-2">
-          <i className="fa-solid fa-circle-info mt-0.5"></i>
-          <span>নিচের তালিকা থেকে একজন সদস্যকে <b>আমি</b> হিসেবে চিহ্নিত করুন। শুধু চিহ্নিত সদস্যের কিস্তি আপনার Wallet থেকে কাটবে এবং তার পেআউট Wallet-এ যোগ হবে।</span>
+        <div className="card card-warning p-2.5 flex items-start gap-2">
+          <i className="fa-solid fa-circle-info mt-0.5 text-warning" />
+          <span className="text-[11px] text-ink-2">
+            নিচের তালিকা থেকে একজন সদস্যকে <b>আমি</b> হিসেবে চিহ্নিত করুন। শুধু চিহ্নিত সদস্যের কিস্তি
+            আপনার Wallet থেকে কাটবে এবং তার পেআউট Wallet-এ যোগ হবে।
+          </span>
         </div>
       )}
 
       {/* Members */}
-      <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl p-3">
+      <section className="card p-3">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-xs font-bold text-slate-700 dark:text-gray-200">সদস্য ({orderedMembers.length})</h3>
+          <h3 className="section-title">সদস্য ({orderedMembers.length})</h3>
           <div className="flex gap-1.5">
             {canManage && orderedMembers.length > 1 && (
-              <button onClick={onSaveOrder} className="text-[10px] font-bold px-2 py-1 rounded-lg bg-slate-800 dark:bg-gray-700 text-white">ক্রম সংরক্ষণ</button>
+              <Button variant="secondary" size="sm" onClick={onSaveOrder}>
+                ক্রম সংরক্ষণ
+              </Button>
             )}
             {canAddMember && (
-              <button onClick={() => onOpenModal("add-member")} className="text-[10px] font-bold px-2 py-1 rounded-lg border border-gray-300 dark:border-slate-600 text-slate-600 dark:text-gray-300">
-                <i className="fa-solid fa-plus me-0.5"></i> যোগ
-              </button>
+              <Button variant="ghost" size="sm" icon="fa-plus" onClick={() => onOpenModal("add-member")}>
+                যোগ
+              </Button>
             )}
           </div>
         </div>
         {orderedMembers.length === 0 ? (
-          <div className="text-[11px] text-gray-400 dark:text-gray-500">কোনো সদস্য নেই</div>
+          <EmptyState icon="fa-user-group" title="কোনো সদস্য নেই" />
         ) : (
-          <ul className="divide-y divide-gray-100 dark:divide-slate-700">
+          <ul className="divide-y divide-[var(--ah-border)]">
             {orderedMembers.map((m, idx) => (
               <li key={m.MemberID} className="py-2 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="w-6 h-6 rounded-full bg-slate-100 dark:bg-gray-700 text-slate-600 dark:text-gray-300 text-[10px] font-bold flex items-center justify-center shrink-0">{idx + 1}</span>
-                  <span className="text-xs font-semibold text-slate-700 dark:text-gray-200 truncate">
+                  <span className="w-6 h-6 rounded-full bg-[var(--ah-surface-3)] text-ink-2 text-[10px] font-bold flex items-center justify-center shrink-0">
+                    {idx + 1}
+                  </span>
+                  <span className="text-xs font-semibold text-ink truncate">
                     {m.MemberName}
-                    {m.IsSelf && <span className="ms-1.5 text-[9px] font-bold text-sky-600 dark:text-sky-400">আমি</span>}
-                    {alreadyReceived[String(m.MemberID)] && <span className="ms-1.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400">✓ গ্রহণ করেছেন</span>}
+                    {m.IsSelf && <Badge tone="info" className="ms-1.5">আমি</Badge>}
+                    {alreadyReceived[String(m.MemberID)] && (
+                      <Badge tone="success" icon="fa-check" className="ms-1.5">
+                        গ্রহণ করেছেন
+                      </Badge>
+                    )}
                   </span>
                 </div>
                 {canManage && !closed && (
@@ -444,69 +469,98 @@ function GroupSection({ plan, details, money, canManage, canTxn, canAddMember, c
                     <button
                       onClick={() => onToggleSelf(m)}
                       title="আমার অ্যাকাউন্ট হিসেবে চিহ্নিত করুন"
-                      className={`h-6 px-1.5 rounded border text-[9px] font-bold ${m.IsSelf ? "border-sky-400 text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-900/30" : "border-gray-200 dark:border-slate-600 text-gray-500"}`}
+                      className={`h-6 px-1.5 rounded border text-[9px] font-bold ${
+                        m.IsSelf
+                          ? "border-[var(--ah-info)] text-[var(--ah-info)] bg-[var(--ah-info-soft)]"
+                          : "border-[var(--ah-border)] text-ink-3"
+                      }`}
                     >
                       আমি
                     </button>
-                    <button onClick={() => onMoveOrder(idx, -1)} disabled={idx === 0} className="w-6 h-6 rounded border border-gray-200 dark:border-slate-600 text-gray-500 disabled:opacity-30"><i className="fa-solid fa-chevron-up text-[9px]"></i></button>
-                    <button onClick={() => onMoveOrder(idx, 1)} disabled={idx === orderedMembers.length - 1} className="w-6 h-6 rounded border border-gray-200 dark:border-slate-600 text-gray-500 disabled:opacity-30"><i className="fa-solid fa-chevron-down text-[9px]"></i></button>
-                    <button onClick={() => onOpenModal("edit-member", { memberId: m.MemberID, memberName: m.MemberName })} className="w-6 h-6 rounded border border-gray-200 dark:border-slate-600 text-gray-500"><i className="fa-solid fa-pen text-[9px]"></i></button>
-                    <button onClick={() => onRemoveMember(m)} className="w-6 h-6 rounded border border-gray-200 dark:border-slate-600 text-rose-500"><i className="fa-solid fa-trash text-[9px]"></i></button>
+                    <IconButton
+                      icon="fa-chevron-up"
+                      label="উপরে"
+                      className="w-6 h-6"
+                      onClick={() => onMoveOrder(idx, -1)}
+                      disabled={idx === 0}
+                    />
+                    <IconButton
+                      icon="fa-chevron-down"
+                      label="নিচে"
+                      className="w-6 h-6"
+                      onClick={() => onMoveOrder(idx, 1)}
+                      disabled={idx === orderedMembers.length - 1}
+                    />
+                    <IconButton
+                      icon="fa-pen"
+                      label="সদস্যের নাম সম্পাদনা"
+                      className="w-6 h-6"
+                      onClick={() => onOpenModal("edit-member", { memberId: m.MemberID, memberName: m.MemberName })}
+                    />
+                    <IconButton
+                      icon="fa-trash"
+                      label="সদস্য মুছুন"
+                      variant="danger"
+                      className="w-6 h-6"
+                      onClick={() => onRemoveMember(m)}
+                    />
                   </div>
                 )}
               </li>
             ))}
           </ul>
         )}
-      </div>
+      </section>
 
       {/* Obligations */}
-      <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl p-3">
-        <h3 className="text-xs font-bold text-slate-700 dark:text-gray-200 mb-2">কিস্তি রেকর্ড ({obligations.length})</h3>
+      <section className="card p-3">
+        <h3 className="section-title mb-2">কিস্তি রেকর্ড ({obligations.length})</h3>
         {obligations.length === 0 ? (
-          <div className="text-[11px] text-gray-400 dark:text-gray-500">এখনো কোনো কিস্তি জমা হয়নি</div>
+          <EmptyState icon="fa-clipboard-list" title="এখনো কোনো কিস্তি জমা হয়নি" />
         ) : (
           <div className="space-y-1.5">
             {[...obligations].sort((a, b) => (Number(a.Round) - Number(b.Round)) || String(a.MemberID).localeCompare(String(b.MemberID))).map((o) => (
-              <div key={o.ObligationID} className="flex items-center justify-between text-[11px] py-1.5 border-b border-gray-50 dark:border-slate-700/50 last:border-0">
-                <div>
-                  <span className="font-semibold text-slate-700 dark:text-gray-200">{membersById[String(o.MemberID)]?.MemberName || "—"}</span>
-                  <span className="text-gray-400 dark:text-gray-500"> • রাউন্ড {o.Round}</span>
-                  {o.DueDate && <span className="text-gray-400 dark:text-gray-500"> • {fmtDate(o.DueDate)}</span>}
+              <div key={o.ObligationID} className="flex items-center justify-between gap-2 text-[11px] py-1.5 border-b border-[var(--ah-border)] last:border-0">
+                <div className="min-w-0">
+                  <span className="font-semibold text-ink">{membersById[String(o.MemberID)]?.MemberName || "—"}</span>
+                  <span className="text-ink-3"> • রাউন্ড {o.Round}</span>
+                  {o.DueDate && <span className="text-ink-3"> • {fmtDate(o.DueDate)}</span>}
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-slate-600 dark:text-gray-300">{money(o.PaidAmount)}/{money(o.RequiredAmount)}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="font-semibold text-ink-2 tnum">{money(o.PaidAmount)}/{money(o.RequiredAmount)}</span>
                   <StatusBadge status={o.EffectiveStatus || o.Status} />
                 </div>
               </div>
             ))}
           </div>
         )}
-      </div>
+      </section>
 
       {/* Rounds */}
-      <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl p-3">
-        <h3 className="text-xs font-bold text-slate-700 dark:text-gray-200 mb-2">রাউন্ড ({rounds.length})</h3>
+      <section className="card p-3">
+        <h3 className="section-title mb-2">রাউন্ড ({rounds.length})</h3>
         {rounds.length === 0 ? (
-          <div className="text-[11px] text-gray-400 dark:text-gray-500">এখনো কোনো রাউন্ড শুরু হয়নি</div>
+          <EmptyState icon="fa-arrows-rotate" title="এখনো কোনো রাউন্ড শুরু হয়নি" />
         ) : (
           <div className="space-y-1.5">
             {[...rounds].sort((a, b) => Number(a.Round) - Number(b.Round)).map((r) => (
-              <div key={r.RoundID} className="flex items-center justify-between text-[11px] py-1.5 border-b border-gray-50 dark:border-slate-700/50 last:border-0">
-                <div>
-                  <span className="font-semibold text-slate-700 dark:text-gray-200">রাউন্ড {r.Round}</span>
-                  {r.RecipientMemberID && <span className="text-gray-400 dark:text-gray-500"> • {membersById[String(r.RecipientMemberID)]?.MemberName || "—"}</span>}
+              <div key={r.RoundID} className="flex items-center justify-between gap-2 text-[11px] py-1.5 border-b border-[var(--ah-border)] last:border-0">
+                <div className="min-w-0">
+                  <span className="font-semibold text-ink">রাউন্ড {r.Round}</span>
+                  {r.RecipientMemberID && (
+                    <span className="text-ink-3"> • {membersById[String(r.RecipientMemberID)]?.MemberName || "—"}</span>
+                  )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-500 dark:text-gray-400">জমা {money(r.CollectedAmount)}/{money(r.ExpectedAmount)}</span>
-                  <span className="font-semibold text-slate-600 dark:text-gray-300">{money(r.PayoutAmount)}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-ink-3 tnum">জমা {money(r.CollectedAmount)}/{money(r.ExpectedAmount)}</span>
+                  <span className="font-semibold text-ink-2 tnum">{money(r.PayoutAmount)}</span>
                   <StatusBadge status={r.Status} />
                 </div>
               </div>
             ))}
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }
@@ -522,17 +576,17 @@ function FixedSection({ plan, details, money, canManage, canTxn, closed, onGener
     <div className="space-y-4">
       <div className="grid grid-cols-3 gap-2">
         <Tile label="নির্ধারিত" value={money(summary.Required)} />
-        <Tile label="পরিশোধিত" value={money(summary.Paid)} tone="text-emerald-600 dark:text-emerald-400" />
-        <Tile label="বাকি" value={money(summary.Balance)} tone="text-rose-600 dark:text-rose-400" />
+        <Tile label="পরিশোধিত" value={money(summary.Paid)} tone="text-success" />
+        <Tile label="বাকি" value={money(summary.Balance)} tone="text-danger" />
       </div>
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-500 dark:text-gray-400">
-        <span>কিস্তি: <b className="text-slate-700 dark:text-gray-200">{money(fixed.Amount)}</b></span>
-        <span>মেয়াদ: <b className="text-slate-700 dark:text-gray-200">{fixed.DurationMonths} মাস</b></span>
-        {fixed.DueDay ? <span>কিস্তির দিন: <b className="text-slate-700 dark:text-gray-200">{fixed.DueDay}</b></span> : null}
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-ink-3">
+        <span>কিস্তি: <b className="text-ink">{money(fixed.Amount)}</b></span>
+        <span>মেয়াদ: <b className="text-ink">{fixed.DurationMonths} মাস</b></span>
+        {fixed.DueDay ? <span>কিস্তির দিন: <b className="text-ink">{fixed.DueDay}</b></span> : null}
       </div>
 
       {fixed.ClosedDate && (
-        <div className="bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl p-3 text-[11px] text-gray-600 dark:text-gray-300">
+        <div className="card card-inset p-3 text-[11px] text-ink-2">
           <div>বন্ধের তারিখ: <b>{fmtDate(fixed.ClosedDate)}</b></div>
           {Number(fixed.ClosureAmount) > 0 && <div>ফেরত/উত্তোলন: <b>{money(fixed.ClosureAmount)}</b></div>}
           {fixed.ClosureNote && <div>নোট: {fixed.ClosureNote}</div>}
@@ -542,45 +596,46 @@ function FixedSection({ plan, details, money, canManage, canTxn, closed, onGener
       {!closed && (
         <div className="grid grid-cols-2 gap-2">
           {installments.length === 0 && canManage && (
-            <button onClick={onGenerate} className="col-span-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs shadow-sm">
-              <i className="fa-solid fa-list-check me-1"></i> কিস্তি তৈরি করুন
-            </button>
+            <div className="col-span-2">
+              <Button block icon="fa-list-check" onClick={onGenerate}>
+                কিস্তি তৈরি করুন
+              </Button>
+            </div>
           )}
           {installments.length > 0 && canManage && (
-            <button
-              onClick={() => onOpenModal("close-fixed")}
-              className="col-span-2 bg-slate-800 dark:bg-gray-700 hover:bg-slate-900 text-white font-bold py-2.5 rounded-xl text-xs shadow-sm"
-            >
-              <i className="fa-solid fa-lock me-1"></i> পরিকল্পনা বন্ধ করুন
-            </button>
+            <div className="col-span-2">
+              <Button block variant="secondary" icon="fa-lock" onClick={() => onOpenModal("close-fixed")}>
+                পরিকল্পনা বন্ধ করুন
+              </Button>
+            </div>
           )}
         </div>
       )}
 
-      <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl p-3">
-        <h3 className="text-xs font-bold text-slate-700 dark:text-gray-200 mb-2">কিস্তি ({installments.length})</h3>
+      <section className="card p-3">
+        <h3 className="section-title mb-2">কিস্তি ({installments.length})</h3>
         {installments.length === 0 ? (
-          <div className="text-[11px] text-gray-400 dark:text-gray-500">কোনো কিস্তি তৈরি হয়নি</div>
+          <EmptyState icon="fa-list-check" title="কোনো কিস্তি তৈরি হয়নি" />
         ) : (
           <div className="space-y-1.5">
             {[...installments].sort((a, b) => Number(a.InstallmentNo) - Number(b.InstallmentNo)).map((it) => {
               const remaining = Math.max(0, (Number(it.RequiredAmount) || 0) - (Number(it.ActualAmount) || 0));
               return (
-                <div key={it.InstallmentID} className="flex items-center justify-between text-[11px] py-1.5 border-b border-gray-50 dark:border-slate-700/50 last:border-0">
-                  <div>
-                    <span className="font-semibold text-slate-700 dark:text-gray-200">কিস্তি {it.InstallmentNo}</span>
-                    {it.DueDate && <span className="text-gray-400 dark:text-gray-500"> • {fmtDate(it.DueDate)}</span>}
+                <div key={it.InstallmentID} className="flex items-center justify-between gap-2 text-[11px] py-1.5 border-b border-[var(--ah-border)] last:border-0">
+                  <div className="min-w-0">
+                    <span className="font-semibold text-ink">কিস্তি {it.InstallmentNo}</span>
+                    {it.DueDate && <span className="text-ink-3"> • {fmtDate(it.DueDate)}</span>}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-500 dark:text-gray-400">{money(it.ActualAmount)}/{money(it.RequiredAmount)}</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-ink-3 tnum">{money(it.ActualAmount)}/{money(it.RequiredAmount)}</span>
                     <StatusBadge status={it.EffectiveStatus || it.Status} />
                     {canTxn && !closed && remaining > 0 && (
-                      <button
+                      <Button
+                        size="sm"
                         onClick={() => onOpenModal("pay-installment", { installmentId: it.InstallmentID })}
-                        className="text-[10px] font-bold px-2 py-1 rounded-lg bg-emerald-600 text-white"
                       >
                         পরিশোধ
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -588,7 +643,7 @@ function FixedSection({ plan, details, money, canManage, canTxn, closed, onGener
             })}
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }
@@ -599,74 +654,82 @@ function FlexSection({ plan, details, money, canTxn, canManage, canManageTxn, cl
   const summary = plan.Summary || {};
   const deposits = (details?.deposits || []).map((d) => ({ ...d, _kind: "deposit", _id: d.DepositID }));
   const withdrawals = (details?.withdrawals || []).map((w) => ({ ...w, _kind: "withdrawal", _id: w.WithdrawalID }));
-  const txns = [...deposits, ...withdrawals].sort((a, b) => {
-    const da = String(a.Date || ""), db = String(b.Date || "");
-    if (db !== da) return db > da ? 1 : -1;
-    const ca = String(a.CreatedAt || ""), cb = String(b.CreatedAt || "");
-    if (cb !== ca) return cb > ca ? 1 : -1;
-    return String(b._id).localeCompare(String(a._id));
-  });
+  const txns = [...deposits, ...withdrawals].sort(compareSavingsTransactionsNewestFirst);
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-3 gap-2">
         <Tile label="মোট জমা" value={money(summary.Deposited)} />
         <Tile label="মোট উত্তোলন" value={money(summary.Withdrawn)} />
-        <Tile label="ব্যালেন্স" value={money(summary.Balance)} tone="text-emerald-600 dark:text-emerald-400" />
+        <Tile label="ব্যালেন্স" value={money(summary.Balance)} tone="text-success" />
       </div>
 
       {canTxn && (
         <div className="grid grid-cols-2 gap-2">
-          <button onClick={() => onOpenModal("deposit")} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs shadow-sm">
-            <i className="fa-solid fa-arrow-down me-1"></i> জমা দিন
-          </button>
-          <button onClick={() => onOpenModal("withdraw")} className="bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl text-xs shadow-sm">
-            <i className="fa-solid fa-arrow-up me-1"></i> উত্তোলন
-          </button>
+          <Button icon="fa-arrow-down" onClick={() => onOpenModal("deposit")}>
+            জমা দিন
+          </Button>
+          <Button variant="warning" icon="fa-arrow-up" onClick={() => onOpenModal("withdraw")}>
+            উত্তোলন
+          </Button>
         </div>
       )}
 
       {canManage && !closed && (
-        <button
-          onClick={() => onOpenModal("close-flex")}
-          className="w-full border border-rose-300 dark:border-rose-800 text-rose-600 dark:text-rose-400 font-bold py-2.5 rounded-xl text-xs"
-        >
-          <i className="fa-solid fa-lock me-1"></i> সঞ্চয় বন্ধ করুন
-        </button>
+        <Button block variant="danger" icon="fa-lock" onClick={() => onOpenModal("close-flex")}>
+          সঞ্চয় বন্ধ করুন
+        </Button>
       )}
 
-      <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl p-3">
-        <h3 className="text-xs font-bold text-slate-700 dark:text-gray-200 mb-2">লেনদেন ({txns.length})</h3>
+      <section className="card p-3">
+        <h3 className="section-title mb-2">লেনদেন ({txns.length})</h3>
         {txns.length === 0 ? (
-          <div className="text-[11px] text-gray-400 dark:text-gray-500">কোনো লেনদেন নেই</div>
+          <EmptyState icon="fa-receipt" title="কোনো লেনদেন নেই" />
         ) : (
           <div className="space-y-1.5">
             {txns.map((t) => (
-              <div key={t._kind + t._id} className="flex items-center justify-between text-[11px] py-1.5 border-b border-gray-50 dark:border-slate-700/50 last:border-0">
-                <div className="flex items-center gap-2">
-                  <span className={`w-6 h-6 rounded-full flex items-center justify-center ${t._kind === "deposit" ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400" : "bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400"}`}>
-                    <i className={`fa-solid ${t._kind === "deposit" ? "fa-arrow-down" : "fa-arrow-up"} text-[9px]`}></i>
+              <div key={t._kind + t._id} className="flex items-center justify-between gap-2 text-[11px] py-1.5 border-b border-[var(--ah-border)] last:border-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span
+                    className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
+                      t._kind === "deposit"
+                        ? "bg-[var(--ah-success-soft)] text-[var(--ah-success)]"
+                        : "bg-[var(--ah-warning-soft)] text-[var(--ah-warning)]"
+                    }`}
+                  >
+                    <i className={`fa-solid ${t._kind === "deposit" ? "fa-arrow-down" : "fa-arrow-up"} text-[9px]`} />
                   </span>
-                  <div>
-                    <div className="font-semibold text-slate-700 dark:text-gray-200">{t._kind === "deposit" ? "জমা" : "উত্তোলন"}</div>
-                    <div className="text-gray-400 dark:text-gray-500">{fmtDate(t.Date)}{t.Description ? ` • ${t.Description}` : ""}</div>
+                  <div className="min-w-0">
+                    <div className="font-semibold text-ink">{t._kind === "deposit" ? "জমা" : "উত্তোলন"}</div>
+                    <div className="text-ink-3 truncate">
+                      {fmtDate(t.Date)}{t.Description ? ` • ${t.Description}` : ""}
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className={`font-bold ${t._kind === "deposit" ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
-                    {t._kind === "deposit" ? "-" : "+"}{money(t.Amount)}
+                <div className="flex items-center gap-2 shrink-0">
+                  <span
+                    className={`font-bold tnum ${
+                      t._kind === "deposit" ? "text-success" : "text-warning"
+                    }`}
+                  >
+                    {t._kind === "deposit" ? "+" : "-"}
+                    {money(t.Amount)}
                   </span>
                   {canManageTxn && !closed && (
-                    <button onClick={() => onDelete(t._id, t._kind === "deposit" ? "deposit" : "withdrawal")} className="w-6 h-6 rounded border border-gray-200 dark:border-slate-600 text-rose-500">
-                      <i className="fa-solid fa-trash text-[9px]"></i>
-                    </button>
+                    <IconButton
+                      icon="fa-trash"
+                      label="লেনদেন মুছুন"
+                      variant="danger"
+                      className="w-6 h-6"
+                      onClick={() => onDelete(t._id, t._kind === "deposit" ? "deposit" : "withdrawal")}
+                    />
                   )}
                 </div>
               </div>
             ))}
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }
@@ -707,7 +770,7 @@ function ModalPopup({ modal, form, set, busy, currency, walletId, plan, members,
               value={form.memberName || ""}
               onChange={(e) => set({ memberName: e.target.value })}
               placeholder="নাম লিখুন"
-              className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100"
+              className="input"
             />
           </Field>
         )}
@@ -720,9 +783,9 @@ function ModalPopup({ modal, form, set, busy, currency, walletId, plan, members,
               </Select>
             </Field>
             <Field label="রাউন্ড">
-              <input type="number" min="1" max={members?.length || undefined} value={form.round || ""} onChange={(e) => set({ round: e.target.value })} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" />
+              <input type="number" min="1" max={members?.length || undefined} value={form.round || ""} onChange={(e) => set({ round: e.target.value })} className="input" />
             </Field>
-            <div className={`text-[10px] rounded-xl p-2 ${selectedMember?.IsSelf ? "bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-300" : "bg-slate-50 dark:bg-slate-700/40 text-slate-500 dark:text-gray-400"}`}>
+            <div className={`text-[10px] rounded-xl p-2 ${selectedMember?.IsSelf ? "bg-[var(--ah-danger-soft)] text-[var(--ah-danger)]" : "bg-[var(--ah-surface-inset)] text-ink-2"}`}>
               {selectedMember?.IsSelf ? "এই সদস্য 'আমি' — Wallet থেকে টাকা কাটা হবে।" : "এই সদস্য 'আমি' নয় — শুধু রেকর্ড হবে, Wallet থেকে টাকা কাটা হবে না।"}
             </div>
           </>
@@ -745,21 +808,25 @@ function ModalPopup({ modal, form, set, busy, currency, walletId, plan, members,
                 {availableRecipients.map((m) => <option key={m.MemberID} value={m.MemberID}>{m.MemberName}</option>)}
               </Select>
             </Field>
-            <div className={`text-[10px] rounded-xl p-2 ${selectedRecipient?.IsSelf ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-300" : "bg-slate-50 dark:bg-slate-700/40 text-slate-500 dark:text-gray-400"}`}>
+            <div className={`text-[10px] rounded-xl p-2 ${selectedRecipient?.IsSelf ? "bg-[var(--ah-success-soft)] text-[var(--ah-success)]" : "bg-[var(--ah-surface-inset)] text-ink-2"}`}>
               {selectedRecipient?.IsSelf ? "গ্রহণকারী 'আমি' — টাকা Wallet-এ যোগ হবে।" : "গ্রহণকারী 'আমি' নয় — Wallet-এ টাকা যোগ হবে না, শুধু রেকর্ড হবে।"}
             </div>
           </>
         )}
 
         {isAmount && (
-          <Field label={`পরিমাণ (${currency})`}>
-            <input type="number" step="any" min="0.01" value={form.amount || ""} onChange={(e) => set({ amount: e.target.value })} placeholder="0.00" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm font-semibold bg-white dark:bg-gray-900 dark:text-gray-100" />
+          <Field label="পরিমাণ">
+            <AmountField
+              value={form.amount || ""}
+              onChange={(v) => set({ amount: v })}
+              currency={currency}
+            />
           </Field>
         )}
 
         {showDate && (
           <Field label="তারিখ">
-            <input type="date" value={form.date || ""} onChange={(e) => set({ date: e.target.value })} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" />
+            <input type="date" value={form.date || ""} onChange={(e) => set({ date: e.target.value })} className="input" />
           </Field>
         )}
 
@@ -771,52 +838,54 @@ function ModalPopup({ modal, form, set, busy, currency, walletId, plan, members,
 
         {kind === "contribution" && (
           <Field label="নোট (ঐচ্ছিক)">
-            <input type="text" value={form.note || ""} onChange={(e) => set({ note: e.target.value })} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" />
+            <input type="text" value={form.note || ""} onChange={(e) => set({ note: e.target.value })} className="input" />
           </Field>
         )}
 
         {(kind === "deposit" || kind === "withdraw") && (
           <Field label="বিবরণ (ঐচ্ছিক)">
-            <input type="text" value={form.description || ""} onChange={(e) => set({ description: e.target.value })} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" />
+            <input type="text" value={form.description || ""} onChange={(e) => set({ description: e.target.value })} className="input" />
           </Field>
         )}
 
         {kind === "close-fixed" && (
           <>
             <Field label="বন্ধের তারিখ">
-              <input type="date" value={form.closureDate || ""} onChange={(e) => set({ closureDate: e.target.value })} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" />
+              <input type="date" value={form.closureDate || ""} onChange={(e) => set({ closureDate: e.target.value })} className="input" />
             </Field>
-            <Field label={`ফেরত পরিমাণ (ঐচ্ছিক, ${currency})`}>
-              <input type="number" step="any" min="0" value={form.closureAmount || ""} onChange={(e) => set({ closureAmount: e.target.value })} placeholder="0.00" className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" />
+            <Field label="ফেরত পরিমাণ (ঐচ্ছিক)">
+              <input type="number" step="any" min="0" value={form.closureAmount || ""} onChange={(e) => set({ closureAmount: e.target.value })} placeholder="0.00" className="input" />
             </Field>
             <Field label="নোট (ঐচ্ছিক)">
-              <input type="text" value={form.closureNote || ""} onChange={(e) => set({ closureNote: e.target.value })} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" />
+              <input type="text" value={form.closureNote || ""} onChange={(e) => set({ closureNote: e.target.value })} className="input" />
             </Field>
           </>
         )}
 
         {kind === "close-flex" && (
           <>
-            <div className="text-[11px] rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 p-2.5">
+            <div className="text-[11px] rounded-xl bg-[var(--ah-warning-soft)] text-[var(--ah-warning)] p-2.5">
               বন্ধ করলে অবশিষ্ট সঞ্চয় ব্যালেন্স ({money(plan?.Summary?.Balance || 0)}) ওয়ালেটে ফেরত যাবে।
             </div>
             <Field label="বন্ধের তারিখ">
-              <input type="date" value={form.closureDate || ""} onChange={(e) => set({ closureDate: e.target.value })} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" />
+              <input type="date" value={form.closureDate || ""} onChange={(e) => set({ closureDate: e.target.value })} className="input" />
             </Field>
-            <Field label={`ফেরত পরিমাণ (${currency})`}>
-              <input type="number" step="any" min="0" value={form.closureAmount || ""} readOnly className="w-full border border-gray-200 dark:border-slate-600 rounded-xl px-3 py-2 text-sm bg-gray-50 dark:bg-slate-700 text-gray-500 dark:text-gray-400" />
+            <Field label="ফেরত পরিমাণ">
+              <input type="number" step="any" min="0" value={form.closureAmount || ""} readOnly className="input bg-[var(--ah-surface-2)] text-ink-3" />
             </Field>
             <Field label="নোট (ঐচ্ছিক)">
-              <input type="text" value={form.closureNote || ""} onChange={(e) => set({ closureNote: e.target.value })} className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 dark:text-gray-100" />
+              <input type="text" value={form.closureNote || ""} onChange={(e) => set({ closureNote: e.target.value })} className="input" />
             </Field>
           </>
         )}
 
         <div className="flex gap-2 pt-1">
-          <button type="button" onClick={onClose} disabled={busy} className="flex-1 border border-gray-300 dark:border-gray-700 text-slate-700 dark:text-gray-200 font-bold py-2.5 rounded-xl text-xs">বাতিল</button>
-          <button type="button" onClick={onSubmit} disabled={busy} className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl text-xs">
-            {busy ? <i className="fa-solid fa-spinner fa-spin"></i> : "নিশ্চিত করুন"}
-          </button>
+          <Button variant="secondary" className="flex-1" onClick={onClose} disabled={busy}>
+            বাতিল
+          </Button>
+          <Button className="flex-1" onClick={onSubmit} disabled={busy} icon={busy ? "fa-spinner fa-spin" : null}>
+            নিশ্চিত করুন
+          </Button>
         </div>
       </div>
     </Popup>
