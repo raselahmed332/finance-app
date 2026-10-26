@@ -149,13 +149,6 @@ function findCurrency_(code) {
   return null;
 }
 
-// Active currencies, ordered by code. Drives every dropdown in the app.
-function getActiveCurrencies_() {
-  return currencyRows_()
-    .filter(function (c) { return c.status === CURRENCY_STATUS_ACTIVE; })
-    .sort(function (a, b) { return a.code < b.code ? -1 : a.code > b.code ? 1 : 0; });
-}
-
 // Replaces the old hardcoded VALID_CURRENCIES check. Active only: a deactivated
 // currency is hidden from new wallets but must keep validating existing rows,
 // so callers that read a stored wallet/loan go through findCurrency_ instead.

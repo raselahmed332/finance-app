@@ -89,15 +89,6 @@ export function resetAccounts() {
   emit();
 }
 
-export function removeWalletAccounts(walletId) {
-  const w = String(walletId);
-  Array.from(registry.keys()).forEach((k) => {
-    const a = registry.get(k);
-    if (a && a.WalletID === w) registry.delete(k);
-  });
-  emit();
-}
-
 const SEED_ACCOUNTS = (walletId) => ([
   { AccountID: "Cash", WalletID: walletId, Name: "Cash", Status: "Active", OpeningBalance: 0 },
   { AccountID: "Bank", WalletID: walletId, Name: "Bank", Status: "Active", OpeningBalance: 0 },
@@ -123,22 +114,6 @@ export function getAccount(walletId, accountId) {
 export function accountName(walletId, accountId) {
   const a = getAccount(walletId, accountId);
   return a ? a.Name : String(accountId || "");
-}
-
-// Every account across a set of wallets, de-duplicated by wallet+id. Used by the
-// transaction/report account filters so a chip exists for each account that
-// actually appears.
-export function accountsAcrossWallets(walletIds) {
-  const set = new Set((walletIds || []).map((w) => String(w)));
-  return Array.from(registry.values()).filter((a) => set.has(a.WalletID));
-}
-
-export function getAllAccounts() {
-  return Array.from(registry.values());
-}
-
-export function isAccountsLoaded() {
-  return loaded;
 }
 
 // Fetches the accounts for the given wallets and merges them in. Never throws:

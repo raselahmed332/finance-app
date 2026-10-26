@@ -476,10 +476,6 @@ export async function downloadUpdate(release, onProgress) {
   }
 }
 
-export function isDownloading() {
-  return downloading;
-}
-
 // --- Installer --------------------------------------------------------------
 
 // Reduce any of the URI shapes Capacitor / Android may hand us down to the one
@@ -589,47 +585,10 @@ export function openInstallPermissionSettings() {
   // No dedicated Capacitor API; the OS settings intent is launched through the
   // App plugin's openUrl, which maps to ACTION_VIEW. The `package:` uri opens
   // this app's install-permission page on API 26+.
-  const pkg = "com.amarhisab.v2";
+  const pkg = "com.amarhisab.app";
   const url = `package:${pkg}`;
   return CapApp.openUrl({ url }).then(
     () => true,
     () => false,
   );
-}
-
-// --- Orchestration ----------------------------------------------------------
-
-// Full flow: check, ask, download, verify, open installer.
-//
-// `confirmUpdate` receives the release info and returns true to proceed.
-// `notify` receives short status strings ("downloading", "installing", ...).
-// Returns a status object; never throws.
-export async function checkAndPromptForUpdate({ confirmUpdate, notify } = {}) {
-  if (!isNativeAndroid()) return { status: "NOT_NATIVE" };
-
-  let check;
-  try {
-    check = await checkForUpdate();
-  } catch (err) {
-    return { status: "ERROR", error: err };
-  }
-
-  if (!check.hasUpdate) return check;
-
-  const proceed =
-    typeof confirmUpdate === "function"
-      ? await confirmUpdate(check.release, check.installed)
-      : true;
-  if (!proceed) return { status: "DECLINED", release: check.release };
-
-  try {
-    const result = await downloadUpdate(check.release, (p) => {
-      if (typeof notify === "function") notify({ phase: "downloading", ...p });
-    });
-    if (typeof notify === "function") notify({ phase: "installing" });
-    await openDownloadedApk(result.uri, { size: result.size });
-    return { status: "INSTALLER_OPENED", release: check.release, download: result };
-  } catch (err) {
-    return { status: "ERROR", release: check.release, error: err };
-  }
 }

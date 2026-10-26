@@ -16,12 +16,6 @@ export const THEME_KEY = "hisab_theme";
 export const LEGACY_DARK_KEY = "hisab_dark";
 export const THEME_MODES = ["system", "light", "dark"];
 
-export const THEME_LABELS = {
-  system: "সিস্টেম",
-  light: "লাইট",
-  dark: "ডার্ক",
-};
-
 export function readThemeMode() {
   try {
     const saved = localStorage.getItem(THEME_KEY);

@@ -34,14 +34,8 @@ var ERR = {
 
 // Codes that mean "this browser is no longer authenticated". The frontend
 // clears its token and returns to the Login screen for exactly these.
-var AUTH_FAILURE_CODES = [ERR.SESSION_EXPIRED, ERR.INVALID_SESSION, ERR.AUTH_REQUIRED];
-
 function errCode_(code, message) {
   return { status: "ERROR", code: code, message: message };
-}
-
-function isAuthFailureCode_(code) {
-  return AUTH_FAILURE_CODES.indexOf(String(code || "")) !== -1;
 }
 
 // ---------------- REQUEST / PARAM VALIDATION ----------------
@@ -517,12 +511,6 @@ function resolveSession_(token) {
     return { ok: false, code: ERR.SESSION_EXPIRED, message: "Your session has expired. Please log in again." };
   }
   return { ok: true, username: user.Username, version: session.version };
-}
-
-// Backwards-compatible helper: the session owner or null.
-function getSessionUsername_(token) {
-  var res = resolveSession_(token);
-  return res.ok ? res.username : null;
 }
 
 // Increments the user's session/security version, which invalidates every

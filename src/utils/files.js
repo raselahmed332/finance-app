@@ -7,8 +7,10 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import { Filesystem, Directory } from "@capacitor/filesystem";
 import { Share } from "@capacitor/share";
+import { isNative } from "./native.js";
 
-export const isNative = () => Capacitor.isNativePlatform();
+export { isNative };
+
 const PdfSaver = registerPlugin("PdfSaver");
 
 function blobToBase64(blob) {

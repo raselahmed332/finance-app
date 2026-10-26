@@ -58,17 +58,6 @@ function computeLoanStatus_(amount, totalRepaid, dueDate) {
   return "ACTIVE";
 }
 
-// Live read-time status. The persisted status column is only recomputed on
-// mutation and therefore goes stale the moment the dueDate passes — every
-// read derives it fresh so badges/filters always agree with the calendar.
-function liveLoanStatus_(loan) {
-  if (loan && loan.status === "CANCELLED") return "CANCELLED";
-  // RemainingAmount is persisted as totalLoan - totalRepaid, so the derived
-  // base amount (remaining + repaid) already includes any additions — status
-  // stays correct without an extra per-loan addition read.
-  return computeLoanStatus_(loan.remainingAmount + loan.totalRepaid, loan.totalRepaid, loan.dueDate);
-}
-
 // ---------------- AUTHORITATIVE FINANCIAL STATE ----------------
 //
 // The financial truth of a loan is ALWAYS derived from its ledger rows:
@@ -92,11 +81,6 @@ function readAllPayments_() {
     }
   }
   return out;
-}
-
-function paymentSumForLoan_(loanId) {
-  // Accumulated in integer cents so a long repayment ledger cannot drift.
-  return amountOf_(paymentCentsForLoan_(loanId));
 }
 
 function paymentCentsForLoan_(loanId) {
@@ -485,10 +469,6 @@ function additionSumMap_() {
     if (Object.prototype.hasOwnProperty.call(map, k)) out[k] = amountOf_(map[k]);
   }
   return out;
-}
-
-function totalLoanAmount_(loan) {
-  return amountOf_(centsOf_(loan.amount) + additionCentsForLoan_(loan.id));
 }
 
 // Same cent-exact shape as additionSumMap_(): accumulate in cents, expose as

@@ -52,8 +52,6 @@ var SAVINGS_TXN_EFFECT = {
   "Savings Payment": -1,
 };
 
-function isSavingsEffectType_(type) { return SAVINGS_TXN_EFFECT[type] !== undefined; }
-
 function savingsEffectDescription_(effectType) {
   if (effectType === "Savings Deposit") return "সঞ্চয় জমা";
   if (effectType === "Savings Withdrawal") return "সঞ্চয় উত্তোলন";

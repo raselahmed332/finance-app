@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { pushBackHandler } from "../utils/native.js";
+import { lockPageScroll, pushBackHandler } from "../utils/native.js";
 
 const ConfirmContext = createContext(null);
 
@@ -38,6 +38,11 @@ export function ConfirmProvider({ children }) {
     if (!state) return undefined;
     return pushBackHandler(() => close(false));
   }, [state, close]);
+
+  useEffect(() => {
+    if (!state) return undefined;
+    return lockPageScroll();
+  }, [state]);
 
   return (
     <ConfirmContext.Provider value={confirm}>

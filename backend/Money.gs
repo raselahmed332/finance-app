@@ -100,13 +100,6 @@ function isValidAmountCents_(value) {
   return cents > 0 && cents <= maxAmountCents_();
 }
 
-// Non-zero amounts may be negative: used for balance deltas and refunds.
-function isValidSignedAmountCents_(value) {
-  var cents = toCents_(value);
-  if (isNaN(cents)) return false;
-  return cents !== 0 && Math.abs(cents) <= maxAmountCents_();
-}
-
 // Opening balances are the one place where 0 is a legitimate amount, so they
 // cannot reuse isValidAmountCents_ (which requires a positive value).
 function isValidNonNegativeAmountCents_(value) {

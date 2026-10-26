@@ -392,7 +392,7 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
   const isEditSection = section === "edit";
 
   return (
-    <Card className="p-3 mb-3 space-y-3">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="text-[11px] font-bold text-ink">
           {isEditSection ? "Edit User" : "Manage User"} <span className="text-ink-3 font-normal">— {user.FullName || user.Username}</span>
@@ -524,7 +524,7 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
           </Button>
         </>
       )}
-    </Card>
+    </div>
   );
 });
 
@@ -532,10 +532,11 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
 
 const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefresh, showAlert, onUserAction }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
-  // Which editor modal is open: null | "edit" | "manage". Separate from
-  // detailsOpen because the editor is its own modal stacked over the details
-  // popup, not an inline section of it.
+  // Edit and Manage open as separate views; only one popup is visible at a time.
   const [editorOpen, setEditorOpen] = useState(null);
+  const [pinDialogOpen, setPinDialogOpen] = useState(false);
+  const [newPin, setNewPin] = useState("");
+  const [savingPin, setSavingPin] = useState(false);
   const confirm = useConfirm();
   const isAdmin = isAdminRole(user.Role);
   const isSelf = String(user.Username).toLowerCase() === String(currentUser.username || "").toLowerCase();
@@ -559,13 +560,40 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
 
   const closeDetails = () => {
     setDetailsOpen(false);
-    // Opening an editor leaves the details popup underneath it, so closing the
-    // details sheet must not leave a hidden editor stranded on screen.
     setEditorOpen(null);
   };
 
   const openEditor = (section) => setEditorOpen(section);
   const closeEditor = () => setEditorOpen(null);
+  const closePinDialog = () => {
+    if (savingPin) return;
+    setPinDialogOpen(false);
+    setNewPin("");
+  };
+
+  const handleResetPin = async (event) => {
+    event.preventDefault();
+    if (savingPin) return;
+    const normalized = normalizePinInput(newPin);
+    if (normalized === null) {
+      showAlert("PIN অবৈধ। " + MIN_PIN_LENGTH + "-" + MAX_PIN_LENGTH + " অক্ষরের হতে হবে।", "error");
+      return;
+    }
+
+    setSavingPin(true);
+    try {
+      const res = await api.resetPin(user.Username, normalized, currentUser.username);
+      showAlert(res.message, res.status === "ERROR" ? "error" : "success");
+      if (res.status !== "ERROR") {
+        setPinDialogOpen(false);
+        setNewPin("");
+      }
+    } catch {
+      showAlert("নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।", "error");
+    } finally {
+      setSavingPin(false);
+    }
+  };
 
   // Each user is its own bordered card with a gap to the next one, so the list
   // reads as separate items rather than divider-separated rows inside one
@@ -636,13 +664,7 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
           {canResetPin && (
             <button onClick={(e) => {
               e.stopPropagation();
-              const newPin = window.prompt("নতুন PIN লিখুন (min " + MIN_PIN_LENGTH + ", max " + MAX_PIN_LENGTH + " character):");
-              if (newPin === null) return;
-              const normalized = normalizePinInput(newPin);
-              if (normalized === null) { showAlert("PIN অবৈধ। " + MIN_PIN_LENGTH + "-" + MAX_PIN_LENGTH + " অক্ষরের হতে হবে।", "error"); return; }
-              api.resetPin(user.Username, normalized, currentUser.username).then((res) => {
-                showAlert(res.message, res.status === "ERROR" ? "error" : "success");
-              }).catch(() => showAlert("নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।", "error"));
+              setPinDialogOpen(true);
             }} title="Reset PIN" aria-label="Reset PIN" className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors flex items-center gap-1" style={{ background: "var(--ah-warning-soft)", color: "var(--ah-warning)" }}>
               <i className="fa-solid fa-key text-[9px]" /> PIN
             </button>
@@ -657,12 +679,10 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
       {row}
 
       <Popup
-        open={detailsOpen || !!editorOpen}
-        title={editorOpen === "edit" ? "Edit User" : editorOpen === "manage" ? "Manage User" : "User Details"}
-        onClose={editorOpen ? closeEditor : closeDetails}
+        open={detailsOpen && !editorOpen}
+        title="User Details"
+        onClose={closeDetails}
       >
-        {!editorOpen ? (
-          <>
         <div className="flex items-center gap-3">
           <div
             className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
@@ -753,14 +773,13 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
         {!canManageTarget && !canDel ? (
           <Button variant="secondary" block onClick={closeDetails}>Close</Button>
         ) : null}
-        </>
-      ) : (
-        /* Edit and Manage REPLACE the details content inside the same modal
-            rather than opening a second one on top. Two stacked modals both
-            render at z-[60], so the editor appeared embedded in the details
-            sheet with a second overlay behind it. Swapping the content keeps
-            one scrollable surface and one title bar; the back arrow below
-            returns to the details view. */
+      </Popup>
+
+      <Popup
+        open={!!editorOpen}
+        title={editorOpen === "edit" ? "Edit User" : "Manage User"}
+        onClose={closeEditor}
+      >
         <ManageUserPanel
           user={user}
           wallets={wallets}
@@ -772,7 +791,38 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
           onClose={closeEditor}
           section={editorOpen}
         />
-      )}
+      </Popup>
+
+      <Popup
+        open={pinDialogOpen}
+        title={`Reset PIN — ${user.FullName || user.Username}`}
+        onClose={closePinDialog}
+      >
+        <form onSubmit={handleResetPin} className="space-y-3">
+          <div className="text-xs text-ink-2">
+            নতুন PIN লিখুন ({MIN_PIN_LENGTH}-{MAX_PIN_LENGTH} অক্ষর)।
+          </div>
+          <Input
+            type="password"
+            value={newPin}
+            onChange={(event) => setNewPin(event.target.value)}
+            placeholder={`নতুন PIN (${MIN_PIN_LENGTH}-${MAX_PIN_LENGTH} অক্ষর)`}
+            minLength={MIN_PIN_LENGTH}
+            maxLength={MAX_PIN_LENGTH}
+            autoComplete="new-password"
+            autoFocus
+            required
+            disabled={savingPin}
+          />
+          <div className="flex gap-2">
+            <Button type="button" variant="secondary" block onClick={closePinDialog} disabled={savingPin}>
+              বাতিল
+            </Button>
+            <Button type="submit" block disabled={savingPin}>
+              {savingPin ? <><i className="fa-solid fa-spinner fa-spin" /> সংরক্ষণ হচ্ছে...</> : "PIN পরিবর্তন"}
+            </Button>
+          </div>
+        </form>
       </Popup>
     </div>
   );

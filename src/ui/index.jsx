@@ -8,8 +8,6 @@
 // business state and never change the meaning of a value. Data always comes in
 // as props from the page that owns it.
 
-import { useEffect, useRef, useState } from "react";
-
 export function Spinner({ className = "" }) {
   return <div className={`spinner ${className}`} />;
 }
@@ -182,15 +180,6 @@ export function Input({ className = "", invalid, ...rest }) {
   return (
     <input
       className={`input ${invalid ? "input-invalid" : ""} ${className}`}
-      {...rest}
-    />
-  );
-}
-
-export function Textarea({ className = "", invalid, ...rest }) {
-  return (
-    <textarea
-      className={`textarea ${invalid ? "input-invalid" : ""} ${className}`}
       {...rest}
     />
   );
@@ -380,33 +369,6 @@ export function Amount({
   );
 }
 
-// A horizontal money bar used in the report category breakdown.
-export function BarRow({ label, value, max, tone = "brand", right }) {
-  const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
-  const color =
-    tone === "danger"
-      ? "var(--ah-danger)"
-      : tone === "success"
-        ? "var(--ah-success)"
-        : tone === "info"
-          ? "var(--ah-info)"
-          : "var(--ah-brand)";
-  return (
-    <div className="mb-2.5">
-      <div className="flex items-center justify-between gap-3 mb-1">
-        <span className="text-xs font-semibold text-ink truncate">{label}</span>
-        <span className="text-xs font-bold tnum text-ink-2 shrink-0">{right}</span>
-      </div>
-      <div className="h-2 w-full rounded-full" style={{ background: "var(--ah-surface-3)" }}>
-        <div
-          className="h-full rounded-full transition-[width] duration-300"
-          style={{ width: `${pct}%`, background: color }}
-        />
-      </div>
-    </div>
-  );
-}
-
 // A title row for a standalone form (income, expense, loan, ...).
 export function FormHeader({ title, subtitle, icon, tone = "brand", onCancel }) {
   const color =
@@ -468,80 +430,6 @@ export function AmountField({ value, onChange, currency, tone = "brand", placeho
       <span className="absolute right-3 text-xs font-bold text-ink-3 pointer-events-none">
         {currency}
       </span>
-    </div>
-  );
-}
-
-// A dropdown that behaves like a native select on mobile: tap to open, tap a
-// row to choose, tap outside to dismiss. Used wherever a long list (wallets,
-// accounts, currencies, categories) has to be picked.
-export function Dropdown({
-  value,
-  onChange,
-  options,
-  placeholder = "নির্বাচন করুন",
-  disabled,
-  className = "",
-  id,
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const onDown = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("touchstart", onDown);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("touchstart", onDown);
-    };
-  }, [open]);
-
-  const current = options.find((o) => String(o.value) === String(value));
-
-  return (
-    <div className={`relative ${className}`} ref={ref} id={id}>
-      <button
-        type="button"
-        className="select-trigger"
-        aria-haspopup="listbox"
-        aria-expanded={open ? "true" : "false"}
-        disabled={disabled}
-        onClick={() => setOpen((v) => !v)}
-      >
-        <span className={`truncate ${current ? "" : "text-ink-3"}`}>
-          {current ? current.label : placeholder}
-        </span>
-        <i
-          className={`fa-solid fa-chevron-down text-[10px] text-ink-3 shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
-        />
-      </button>
-      {open ? (
-        <div className="select-menu" role="listbox">
-          {options.length === 0 ? (
-            <div className="px-3 py-3 text-xs text-ink-3 text-center">কোনো অপশন নেই</div>
-          ) : (
-            options.map((o) => (
-              <button
-                key={String(o.value)}
-                type="button"
-                role="option"
-                aria-selected={String(o.value) === String(value) ? "true" : "false"}
-                className={`select-option ${String(o.value) === String(value) ? "select-option-active" : ""}`}
-                onClick={() => {
-                  onChange(o.value);
-                  setOpen(false);
-                }}
-              >
-                {o.label}
-              </button>
-            ))
-          )}
-        </div>
-      ) : null}
     </div>
   );
 }

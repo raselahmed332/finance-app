@@ -1,7 +1,12 @@
 import { useEffect } from "react";
-import { pushBackHandler } from "../utils/native.js";
+import { lockPageScroll, pushBackHandler } from "../utils/native.js";
 
 export default function Popup({ open, title, onClose, children, maxWidth = "max-w-md", hideClose = false }) {
+  useEffect(() => {
+    if (!open) return undefined;
+    return lockPageScroll();
+  }, [open]);
+
   // Android Back closes this popup while it is open, before app navigation.
   useEffect(() => {
     if (!open) return undefined;
@@ -17,7 +22,7 @@ export default function Popup({ open, title, onClose, children, maxWidth = "max-
       onClick={hideClose ? undefined : onClose}
     >
       <div
-        className={`w-full ${maxWidth} max-h-[90vh] overflow-y-auto custom-scrollbar`}
+        className={`w-full ${maxWidth} max-h-[90vh] overflow-y-auto overscroll-contain custom-scrollbar`}
         style={{
           background: "var(--ah-surface)",
           border: "1px solid var(--ah-border)",

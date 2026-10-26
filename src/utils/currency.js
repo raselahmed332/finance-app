@@ -54,21 +54,8 @@ export function getActiveCurrencies() {
     .sort((a, b) => (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));
 }
 
-export function getLoanCurrencies() {
-  return getActiveCurrencies().filter((c) => c.loanEnabled);
-}
-
-export function isLoanCurrency(code) {
-  const c = getCurrency(code);
-  return !!c && c.status === "Active" && c.loanEnabled;
-}
-
 export function getAllCurrencies() {
   return Array.from(registry.values());
-}
-
-export function isCurrenciesLoaded() {
-  return loaded;
 }
 
 // Fetches the authoritative list once per session. Never throws: a failed load

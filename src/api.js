@@ -10,7 +10,7 @@ const API_URL = (typeof import.meta !== "undefined" && import.meta.env && import
 const TOKEN_KEY = "hisab_token";
 
 // Backend error codes that mean "this browser is no longer authenticated".
-// Mirrors AUTH_FAILURE_CODES in backend/Security.gs - keep the two in sync.
+// Backend error codes that indicate the current session is no longer valid.
 export const AUTH_FAILURE_CODES = ["SESSION_EXPIRED", "INVALID_SESSION", "AUTH_REQUIRED"];
 
 // Notified whenever the backend reports the stored token is dead, so the app can
@@ -247,12 +247,6 @@ export const ADMIN_ONLY_ACTIONS = [
 ];
 
 export const GRANTABLE_PERMISSIONS = ADDITIONAL_PERMISSIONS;
-
-export const ALL_PERMISSIONS = [
-  ...DEFAULT_WALLET_ACTIONS,
-  ...ADDITIONAL_PERMISSIONS,
-  ...ADMIN_ONLY_ACTIONS,
-];
 
 export const PERMISSION_LABELS = {
   // Defaults (auto via wallet access)

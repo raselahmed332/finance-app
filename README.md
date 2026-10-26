@@ -24,9 +24,9 @@ A Bengali-language personal finance app for tracking income, expense, transfers,
 
 **Audit log** — every mutation is recorded with user, target, and detail. Includes a broken-transfer-pair integrity checker. The log is auto-pruned to a **rolling two-calendar-month window**: a daily trigger deletes anything older than the same day two months back (e.g. on 16-Oct it removes records before 16-Aug). The read endpoint applies the same cutoff, so the screen never shows a record outside the window, and an Admin can run **Cleanup now** by hand. Rows whose date cannot be parsed are always kept, and the window can be widened or narrowed by editing `AUDIT_RETENTION_MONTHS` in `backend/AuditRetention.gs`.
 
-**Roles & permissions** — Admin, Sub-Admin, User. Actions are enforced in this order: **Wallet Access → Permission → Action**. Granting a wallet to a user automatically grants the default actions for that wallet; anything beyond that is an explicit, separately grantable permission. Four actions are Admin-only and can never be granted away: change role, change password, create admin, manage currencies. Separately from permissions, **only an Admin may assign the `Admin` or `Sub-Admin` role** — a non-Admin with `ADD_USER` can create plain users but cannot mint another privileged account, and cannot change an existing Admin.
+**Roles & permissions** — Admin, Sub-Admin, User. Actions are enforced in this order: **Wallet Access → Permission → Action**. Granting a wallet to a user automatically grants the default actions for that wallet; anything beyond that is an explicit, separately grantable permission. Five actions are Admin-only and can never be granted away: change role, change password, create admin, manage currencies, and manage accounts. Separately from permissions, **only an Admin may assign the `Admin` or `Sub-Admin` role** — a non-Admin with `ADD_USER` can create plain users but cannot mint another privileged account, and cannot change an existing Admin.
 
-**Security** — PIN stored as salted SHA-256 with a timing-safe comparison. Legacy plaintext PINs are verified once and migrated on next login. Changing a PIN, changing permissions, or deactivating a user bumps that user's session version, so every existing session dies immediately. Caller identity is bound server-side and can never be spoofed from the client payload. The last active Admin cannot be deleted, deactivated, or demoted. A user with financial history cannot be deleted, only deactivated.
+**Security** — PINs are stored as HMAC-SHA256 hashes with a per-PIN salt and a server-side pepper, and compared with a timing-safe check. Legacy plaintext PINs are verified once and migrated on next login. Changing a PIN, changing permissions, or deactivating a user bumps that user's session version, so every existing session dies immediately. Caller identity is bound server-side and can never be spoofed from the client payload. The last active Admin cannot be deleted, deactivated, or demoted. A user with financial history cannot be deleted, only deactivated.
 
 **Duplicate protection** — every financial write carries a client-generated request ID. A retry with the same ID returns the original record instead of creating a second one; the same ID with different data is rejected. The request is fingerprinted on loan, amount, wallet, account, date **and note**, so two genuinely separate repayments of the same amount on the same day are not swallowed as a duplicate. The duplicate check runs *after* shape validation but *before* the already-paid, overpayment and balance checks — those read the very ledger the request changes, so checking them first made a retry of a successful payment come back as a failure.
 
@@ -37,7 +37,7 @@ A Bengali-language personal finance app for tracking income, expense, transfers,
 ## Project layout
 
 ```
-amar-hisab-react/
+finance-app/                ← this repository
   backend/                  ← Google Apps Script (paste into your Apps Script project)
     Code.gs                   API router, action whitelist, caller identity binding
     Database.gs               sheet schemas, seed data, setup
@@ -54,13 +54,12 @@ amar-hisab-react/
     AuditRetention.gs         audit-log two-calendar-month auto-pruning + trigger
     Cache.gs                  ledger cache invalidation
     tests/                     zero-dependency node:test suite (not deployed)
-  finance-app/               ← this repo, the React front end
-    src/App.jsx                header, bottom nav, tab routing
-    src/api.js                 backend calls, session, permission constants
-    src/pages/                 one file per screen
-    src/components/            forms and reusable pieces
-    src/utils/                 loan math, CSV export
-    .github/workflows/deploy.yml   auto-deploys on every push to main
+  src/App.jsx                  header, bottom nav, tab routing
+  src/api.js                   backend calls, session, permission constants
+  src/pages/                   one file per screen
+  src/components/              forms and reusable pieces
+  src/utils/                   loan math, CSV export
+  .github/workflows/           deployment and Android release workflows
 ```
 
 ---
@@ -159,7 +158,7 @@ APK.
 
 - **App ID:** `com.amarhisab.app`
 - **App name:** Amar Hisab
-- **Current Android release:** versionCode `7`, versionName `1.6`, Git tag `v7`
+- **Current Android release:** versionCode `8`, versionName `1.7`, Git tag `v8`
 - **Capacitor config:** `capacitor.config.json`
 - **Native project:** `android/`
 - **Backend:** unchanged — the app still talks to the same Google Apps Script
@@ -213,7 +212,7 @@ an **unsigned** APK.
 ### Publish an APK with GitHub Actions
 
 The **Build and publish Android APK** workflow is manually started from the
-repository's Actions tab. Select the release tag to build (for example `v7`);
+repository's Actions tab. Select the release tag to build (for example `v8`);
 the tag number must match `versionCode` in `android/app/build.gradle`.
 The workflow replaces the release APK and checksum for that tag.
 

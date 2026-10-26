@@ -14,6 +14,67 @@ import { Keyboard, KeyboardResize } from "@capacitor/keyboard";
 
 export const isNative = () => Capacitor.isNativePlatform();
 
+let pageScrollLockCount = 0;
+let savedPageScrollY = 0;
+let savedPageStyles = null;
+
+export function lockPageScroll() {
+  if (typeof document === "undefined") return () => {};
+
+  pageScrollLockCount += 1;
+  if (pageScrollLockCount === 1) {
+    const body = document.body;
+    const html = document.documentElement;
+    savedPageScrollY = window.scrollY;
+    savedPageStyles = {
+      bodyPosition: body.style.position,
+      bodyTop: body.style.top,
+      bodyLeft: body.style.left,
+      bodyRight: body.style.right,
+      bodyWidth: body.style.width,
+      bodyOverflow: body.style.overflow,
+      bodyPaddingRight: body.style.paddingRight,
+      htmlOverflow: html.style.overflow,
+    };
+
+    const scrollbarWidth = window.innerWidth - html.clientWidth;
+    const bodyPaddingRight = parseFloat(window.getComputedStyle(body).paddingRight) || 0;
+
+    body.style.position = "fixed";
+    body.style.top = `-${savedPageScrollY}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.width = "100%";
+    body.style.overflow = "hidden";
+    if (scrollbarWidth > 0) {
+      body.style.paddingRight = `${bodyPaddingRight + scrollbarWidth}px`;
+    }
+    html.style.overflow = "hidden";
+  }
+
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    pageScrollLockCount = Math.max(0, pageScrollLockCount - 1);
+    if (pageScrollLockCount !== 0 || !savedPageStyles) return;
+
+    const body = document.body;
+    const html = document.documentElement;
+    body.style.position = savedPageStyles.bodyPosition;
+    body.style.top = savedPageStyles.bodyTop;
+    body.style.left = savedPageStyles.bodyLeft;
+    body.style.right = savedPageStyles.bodyRight;
+    body.style.width = savedPageStyles.bodyWidth;
+    body.style.overflow = savedPageStyles.bodyOverflow;
+    body.style.paddingRight = savedPageStyles.bodyPaddingRight;
+    html.style.overflow = savedPageStyles.htmlOverflow;
+
+    savedPageStyles = null;
+    window.scrollTo(0, savedPageScrollY);
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Back-press overlay stack.
 //

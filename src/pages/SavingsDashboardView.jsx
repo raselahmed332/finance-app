@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../api.js";
 import { formatMoney, fmtDate, fmtUpdated } from "../utils/loan.js";
 import { accountName } from "../utils/accounts.js";
+import { compareSavingsPlansNewestFirst } from "../utils/savingsPlans.js";
 import { Badge, Button, Chip, EmptyState, ErrorState, LoadingState, PageHeader, Segmented } from "../ui/index.jsx";
 
 const TYPE_META = {
@@ -168,13 +169,15 @@ export default function SavingsDashboardView({ currentUser, onOpenDetails, canCr
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return plans.filter((p) => {
-      const closed = String(p.Status).toUpperCase() === "CLOSED";
-      if (filter === "active" && closed) return false;
-      if (filter === "closed" && !closed) return false;
-      if (q && !String(p.Name || "").toLowerCase().includes(q)) return false;
-      return true;
-    });
+    return plans
+      .filter((p) => {
+        const closed = String(p.Status).toUpperCase() === "CLOSED";
+        if (filter === "active" && closed) return false;
+        if (filter === "closed" && !closed) return false;
+        if (q && !String(p.Name || "").toLowerCase().includes(q)) return false;
+        return true;
+      })
+      .sort(compareSavingsPlansNewestFirst);
   }, [plans, query, filter]);
 
   const groups = useMemo(() => filtered.filter((p) => String(p.Type).toUpperCase() === "GROUP"), [filtered]);
