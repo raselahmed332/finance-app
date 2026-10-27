@@ -14,8 +14,8 @@ const { loadBackend } = require("./load-backend.js");
 // 16-Oct-2026 12:00 → cutoff 16-Aug-2026 12:00.
 const NOW = new Date(2026, 9, 16, 12, 0, 0);
 
-function setup(rows) {
-  const ctx = loadBackend();
+function setup(rows, lock) {
+  const ctx = loadBackend(lock ? { globals: { LockService: { getScriptLock: () => lock } } } : undefined);
   ctx.setupDatabase();
   ctx.ss_().getSheetByName("Users").appendRow([
     "admin", "Admin", "x", "Admin", "Active", "[]", "[]", "", "", "", "", "", 0,
@@ -66,6 +66,50 @@ test("cleanup is idempotent and reports zero on a second run", () => {
   const second = ctx.runAuditCleanup_({ now: NOW });
   assert.equal(second.deleted, 0);
   assert.deepEqual(actions(ctx), ["NEW"]);
+});
+
+test("cleanup returns an error when the script lock times out", () => {
+  let releases = 0;
+  const ctx = setup(
+    [["01-Jul-2026 09:00", "admin", "OLD", "", ""]],
+    { tryLock: () => false, releaseLock: () => { releases++; } },
+  );
+  const result = ctx.runAuditCleanup_({ now: NOW });
+  assert.equal(result.status, "ERROR");
+  assert.equal(result.code, "AUDIT_CLEANUP_LOCKED");
+  assert.deepEqual(actions(ctx), ["OLD"]);
+  assert.equal(releases, 0);
+});
+
+test("cleanup reports sheet failures and always releases an acquired lock", () => {
+  let releases = 0;
+  const lock = {
+    tryLock: () => true,
+    releaseLock: () => { releases++; },
+  };
+  const ctx = setup([["01-Jul-2026 09:00", "admin", "OLD", "", ""]], lock);
+  ctx.getAuditSheet_().deleteRows = () => { throw new Error("sheet write failed"); };
+
+  const result = ctx.runAuditCleanup_({ now: NOW });
+  assert.equal(result.status, "ERROR");
+  assert.equal(result.code, "AUDIT_CLEANUP_FAILED");
+  assert.match(result.message, /sheet write failed/);
+  assert.equal(releases, 1);
+});
+
+test("manual cleanup acquires only its own lock after Admin authorization", () => {
+  let acquisitions = 0;
+  let releases = 0;
+  const lock = {
+    tryLock: () => { acquisitions++; return true; },
+    releaseLock: () => { releases++; },
+  };
+  const ctx = setup([["01-Jul-2026 09:00", "admin", "OLD", "", ""]], lock);
+  const result = ctx.runAuditCleanupAction("admin");
+  assert.equal(result.status, "SUCCESS");
+  assert.equal(result.deleted, 1);
+  assert.equal(acquisitions, 1);
+  assert.equal(releases, 1);
 });
 
 test("cleanup never touches a sheet other than Audit_Log", () => {

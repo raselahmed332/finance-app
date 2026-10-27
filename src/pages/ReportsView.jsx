@@ -132,7 +132,20 @@ export default function ReportsView({ wallets, currentUser, users }) {
     // clip the export to the visible rows ("full table" missing). Temporarily
     // expand the real DOM — reveal header, drop the scroll cap, drop buttons,
     // flatten the sticky thead — and remember the originals to restore them.
-    const scrollY = window.scrollY;
+    const scrollState = [];
+    const rememberScroll = (node) => {
+      if (!node) return;
+      if (node.scrollTop || node.scrollLeft) {
+        scrollState.push([node, node.scrollTop, node.scrollLeft]);
+      }
+    };
+    let ancestor = el.parentElement;
+    while (ancestor) {
+      rememberScroll(ancestor);
+      ancestor = ancestor.parentElement;
+    }
+    [el, ...el.querySelectorAll('*')].forEach(rememberScroll);
+    const windowScroll = { x: window.scrollX, y: window.scrollY };
     const restore = [];
     const patch = (node, style) => {
       restore.push([node, node.getAttribute('style')]);
@@ -192,7 +205,17 @@ export default function ReportsView({ wallets, currentUser, users }) {
         if (prev === null) node.removeAttribute('style');
         else node.setAttribute('style', prev);
       });
-      window.scrollTo(0, scrollY);
+      const restoreScroll = () => {
+        window.scrollTo(windowScroll.x, windowScroll.y);
+        scrollState.forEach(([node, top, left]) => {
+          node.scrollTop = top;
+          node.scrollLeft = left;
+        });
+      };
+      restoreScroll();
+      // Run once more after layout settles so scroll anchoring cannot move the
+      // page while the PDF preview opens.
+      if (typeof requestAnimationFrame === 'function') requestAnimationFrame(restoreScroll);
     }
   };
 
@@ -211,6 +234,8 @@ export default function ReportsView({ wallets, currentUser, users }) {
     if (pdfBusy) return;
     setPdfBusy(true);
     try {
+      // Let the spinner render before the synchronous DOM capture starts.
+      await new Promise((resolve) => setTimeout(resolve, 0));
       const result = await buildStatementPdf();
       if (!result) return;
       if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);

@@ -51,6 +51,14 @@ const PERMISSION_DESC = {
   BACKUP_RESTORE: "Download & restore backups",
   VIEW_AUDIT_LOG: "View the audit log",
   MANAGE_CATEGORIES: "Manage income/expense categories",
+  MANAGE_SHOP_LEDGER: "Create/edit/close shop ledgers",
+  ADD_MARKET_RECORD: "Add shop market records",
+  EDIT_MARKET_RECORD: "Edit shop market records",
+  DELETE_MARKET_RECORD: "Delete shop market records",
+  ADD_SHOP_PAYMENT: "Add shop credit payments",
+  EDIT_SHOP_PAYMENT: "Edit shop credit payments",
+  DELETE_SHOP_PAYMENT: "Delete shop credit payments",
+  VIEW_SHOP_REPORTS: "View monthly shop ledger reports",
 };
 
 const ADDITIONAL_GROUPS = [
@@ -69,6 +77,15 @@ const ADDITIONAL_GROUPS = [
     title: "Loan Management",
     bn: "হাওলাত ব্যবস্থাপনা",
     items: ["MANAGE_LOANS", "MANAGE_LOAN_TRANSACTIONS"],
+  },
+  {
+    title: "Shop Credit Ledger",
+    bn: "বাকির খাতা",
+    items: [
+      "MANAGE_SHOP_LEDGER", "ADD_MARKET_RECORD", "EDIT_MARKET_RECORD",
+      "DELETE_MARKET_RECORD", "ADD_SHOP_PAYMENT", "EDIT_SHOP_PAYMENT",
+      "DELETE_SHOP_PAYMENT", "VIEW_SHOP_REPORTS",
+    ],
   },
   {
     title: "User Management",

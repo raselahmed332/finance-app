@@ -169,6 +169,19 @@ var ACTION_PARAM_SCHEMAS = {
   addSavingsFlexWithdrawal: ["o!"],
   closeSavingsFlexPlan: ["o!"],
   deleteSavingsFlexTransaction: ["sn", "s", "sn"],
+
+  getShopLedgers: ["sn"],
+  getShopLedgerDetails: ["sn!", "sn"],
+  getShopLedgerReport: ["sn!", "sn!", "sn"],
+  createShopLedger: ["o!", "sn"],
+  updateShopLedger: ["sn!", "o!", "sn"],
+  setShopLedgerStatus: ["sn!", "o!", "sn"],
+  addShopMarket: ["sn!", "o!", "sn"],
+  updateShopMarket: ["sn!", "o!", "sn"],
+  deleteShopMarket: ["sn!", "o!", "sn"],
+  addShopPayment: ["sn!", "o!", "sn"],
+  updateShopPayment: ["sn!", "o!", "sn"],
+  deleteShopPayment: ["sn!", "o!", "sn"],
 };
 
 function isPlainObject_(v) {

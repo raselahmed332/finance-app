@@ -57,6 +57,15 @@ const SavingsDashboardView = lazy(() =>
   import("./pages/SavingsDashboardView.jsx"),
 );
 const SavingsDetailsView = lazy(() => import("./pages/SavingsDetailsView.jsx"));
+const ShopCreditLedgerDashboardView = lazy(() =>
+  import("./pages/ShopCreditLedgerDashboardView.jsx"),
+);
+const ShopLedgerDetailsView = lazy(() =>
+  import("./pages/ShopLedgerDetailsView.jsx"),
+);
+const ShopLedgerReportView = lazy(() =>
+  import("./pages/ShopLedgerReportView.jsx"),
+);
 
 const MoveMoneyForm = lazy(() =>
   import("./components/MoveMoneyForm.jsx"),
@@ -187,6 +196,7 @@ export default function App() {
   // Loan module: visible to everyone with wallet access (VIEW_LOANS is implied
   // by wallet access); Admins have it via their full effective permission set.
   const canLoan = can("VIEW_LOANS");
+  const canShopLedger = can("VIEW_SHOP_LEDGER");
   const canSavings =
     String(currentUser?.role).toLowerCase() === "admin" ||
     canAny([
@@ -1016,6 +1026,15 @@ export default function App() {
       setActiveTab("savings");
       return true;
     }
+    if (tab.indexOf("shop-ledger-report-") === 0) {
+      const shopId = tab.slice("shop-ledger-report-".length).split("|")[0];
+      setActiveTab("shop-ledger-details-" + shopId);
+      return true;
+    }
+    if (tab.indexOf("shop-ledger-details-") === 0) {
+      setActiveTab("shop-ledger");
+      return true;
+    }
     if (tab === "backup") {
       setActiveTab("profile");
       return true;
@@ -1494,6 +1513,65 @@ export default function App() {
               />
             )}
 
+            {canShopLedger && activeTab === "shop-ledger" && (
+              <ShopCreditLedgerDashboardView
+                wallets={wallets}
+                can={can}
+                showAlert={showAlert}
+                onOpenShop={(shopId, tab, action) => {
+                  const suffix = [
+                    tab && tab !== "markets" ? tab : "",
+                    action || "",
+                  ].filter(Boolean).join("|");
+                  setActiveTab(
+                    "shop-ledger-details-" + shopId + (suffix ? "|" + suffix : ""),
+                  );
+                }}
+              />
+            )}
+
+            {canShopLedger &&
+              activeTab.indexOf("shop-ledger-details-") === 0 &&
+              (() => {
+                const [shopId, initialTab, initialAction] = activeTab
+                  .slice("shop-ledger-details-".length)
+                  .split("|");
+                return (
+                  <ShopLedgerDetailsView
+                    key={"shop-ledger-details-" + shopId}
+                    shopId={shopId}
+                    can={can}
+                    showAlert={showAlert}
+                    initialTab={initialTab || "markets"}
+                    initialAction={initialAction || ""}
+                    onBack={() => setActiveTab("shop-ledger")}
+                    onOpenReport={() =>
+                      setActiveTab("shop-ledger-report-" + shopId)
+                    }
+                  />
+                );
+              })()}
+
+            {canShopLedger &&
+              can("VIEW_SHOP_REPORTS") &&
+              activeTab.indexOf("shop-ledger-report-") === 0 &&
+              (() => {
+                const shopId = activeTab
+                  .slice("shop-ledger-report-".length)
+                  .split("|")[0];
+                return (
+                  <ShopLedgerReportView
+                    key={"shop-ledger-report-" + shopId}
+                    shopId={shopId}
+                    can={can}
+                    showAlert={showAlert}
+                    onBack={() =>
+                      setActiveTab("shop-ledger-details-" + shopId)
+                    }
+                  />
+                );
+              })()}
+
             {canManageUsers && activeTab === "users" && (
               <UserManagementView
                 users={usersList}
@@ -1513,6 +1591,7 @@ export default function App() {
                 showAlert={showAlert}
                 walletSummaries={walletSummaries}
                 users={usersList}
+                onRefresh={loadData}
               />
             )}
 
@@ -1704,6 +1783,14 @@ export default function App() {
               activeTab === "savings" || activeTab.indexOf("savings-details-") === 0
             }
             onClick={() => setActiveTab("savings")}
+          />
+        )}
+        {canShopLedger && (
+          <NavItem
+            icon="fa-store"
+            label="বাকির খাতা"
+            active={activeTab.indexOf("shop-ledger") === 0}
+            onClick={() => setActiveTab("shop-ledger")}
           />
         )}
         {can("VIEW_REPORTS") && (

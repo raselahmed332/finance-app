@@ -26,6 +26,8 @@ const TYPE_BADGES = {
   Withdraw: { tone: "danger", icon: "fa-building-columns", label: "Withdraw" },
   "Bank Deposit": { tone: "success", icon: "fa-building-columns", label: "Bank Deposit" },
   "Bank Withdraw": { tone: "danger", icon: "fa-building-columns", label: "Bank Withdraw" },
+  "Shop Credit Payment": { tone: "danger", icon: "fa-store", label: "Shop Credit Payment" },
+  "Shop Credit Payment Reversal": { tone: "success", icon: "fa-store", label: "Shop Credit Reversal" },
 };
 
 // Bank operation rows are real Transfer In/Out PAIRS with a "Bank Operation"
@@ -60,6 +62,7 @@ function getBadge(t) {
 
 const LOAN_TXN_TYPES = ["Loan Out", "Loan In", "Loan Payment", "Loan Repaid"];
 const SAVINGS_TXN_TYPES = ["Savings Deposit", "Savings Withdrawal", "Savings Contribution", "Savings Payout", "Savings Payment"];
+const SHOP_LEDGER_TXN_TYPES = ["Shop Credit Payment", "Shop Credit Payment Reversal"];
 
 // Loan/savings-linked rows are never free-form editable, and they are not
 // deletable on their own — they are the other side of a record.
@@ -67,13 +70,13 @@ const EDITABLE_TYPES = ["Income", "Expense", "Transfer Out", "Transfer In"];
 
 export default function TransactionCard({ t, balanceAfter, userMap, canEdit, canDelete, onEdit, onDelete }) {
   const badge = getBadge(t);
-  const isIncome = t.Type === "Income" || t.Type === "Transfer In" || t.Type === "Loan In" || t.Type === "Loan Repaid" || t.Type === "Bank Deposit" || t.Type === "Savings Withdrawal" || t.Type === "Savings Payout";
-  const isExpense = t.Type === "Expense" || t.Type === "Transfer Out" || t.Type === "Loan Out" || t.Type === "Loan Payment" || t.Type === "Bank Withdraw" || t.Type === "Savings Deposit" || t.Type === "Savings Contribution" || t.Type === "Savings Payment";
+  const isIncome = t.Type === "Income" || t.Type === "Transfer In" || t.Type === "Loan In" || t.Type === "Loan Repaid" || t.Type === "Bank Deposit" || t.Type === "Savings Withdrawal" || t.Type === "Savings Payout" || t.Type === "Shop Credit Payment Reversal";
+  const isExpense = t.Type === "Expense" || t.Type === "Transfer Out" || t.Type === "Loan Out" || t.Type === "Loan Payment" || t.Type === "Bank Withdraw" || t.Type === "Savings Deposit" || t.Type === "Savings Contribution" || t.Type === "Savings Payment" || t.Type === "Shop Credit Payment";
   const [detailsOpen, setDetailsOpen] = useState(false);
   const balanceVisibility = useBalanceReveal(`${t.ID}:${balanceAfter ?? "unavailable"}`);
 
   const canEditThis = canEdit && EDITABLE_TYPES.includes(t.Type);
-  const canDeleteThis = canDelete && !LOAN_TXN_TYPES.includes(t.Type) && !SAVINGS_TXN_TYPES.includes(t.Type);
+  const canDeleteThis = canDelete && !LOAN_TXN_TYPES.includes(t.Type) && !SAVINGS_TXN_TYPES.includes(t.Type) && !SHOP_LEDGER_TXN_TYPES.includes(t.Type);
 
   const amountColor = isIncome
     ? "var(--ah-success)"

@@ -111,6 +111,7 @@ var DEFAULT_WALLET_ACTIONS = [
   "VIEW_TRANSACTIONS", "VIEW_REPORTS", "VIEW_LOANS",
   "LOAN_GIVE", "LOAN_TAKE", "LOAN_PAYMENT",
   "VIEW_SAVINGS", "SAVINGS_GROUP", "SAVINGS_FIXED", "SAVINGS_FLEXIBLE",
+  "VIEW_SHOP_LEDGER",
 ];
 
 // Admin-grantable additional permissions (Sub-Admin/User).
@@ -121,6 +122,8 @@ var ADDITIONAL_PERMISSIONS = [
   "MANAGE_SAVINGS", "MANAGE_SAVINGS_TRANSACTIONS",
   "ADD_USER", "EDIT_USER", "DELETE_USER", "MANAGE_USER_PERMISSIONS",
   "BACKUP_RESTORE", "VIEW_AUDIT_LOG", "MANAGE_CATEGORIES",
+  "MANAGE_SHOP_LEDGER", "ADD_MARKET_RECORD", "EDIT_MARKET_RECORD", "DELETE_MARKET_RECORD",
+  "ADD_SHOP_PAYMENT", "EDIT_SHOP_PAYMENT", "DELETE_SHOP_PAYMENT", "VIEW_SHOP_REPORTS",
 ];
 
 // Reserved for the Admin role — never stored/granted on non-Admin users.
@@ -181,7 +184,8 @@ var WALLET_DATA_START_ROW = 8;
 var VALID_ACCOUNTS = ["Cash", "Bank"];
 var VALID_STORED_TXN_TYPES = ["Income", "Expense", "Transfer In", "Transfer Out",
   "Loan Out", "Loan In", "Loan Repaid", "Loan Payment",
-  "Savings Deposit", "Savings Withdrawal", "Savings Contribution", "Savings Payout", "Savings Payment"];
+  "Savings Deposit", "Savings Withdrawal", "Savings Contribution", "Savings Payout", "Savings Payment",
+  "Shop Credit Payment", "Shop Credit Payment Reversal"];
 var VALID_INCOMING_OPERATION_TYPES = ["Income", "Expense", "Transfer", "Bank Withdraw", "Bank Deposit", "Bank Operation"];
 
 // Currency codes used to be hardcoded as VALID_CURRENCIES /
@@ -269,9 +273,8 @@ function normDateStr_(v) {
 function getAccountBalance_(walletId, account, excludeTxnId) {
   var resolved = resolveWalletSheet_(walletId);
   if (!resolved) return 0;
-  // Opening balance now lives on the financial account row (openingBalanceCentsFor_
-  // lazily seeds the wallet's Cash/Bank accounts from the legacy columns on first
-  // read, so this is still the same number for an untouched spreadsheet).
+  // Opening balance now lives on the financial account row. For a legacy wallet
+  // with no account records, the fallback copies the old Cash/Bank columns once.
   var opening = openingBalanceCentsFor_(walletId, account);
   var txns = readWalletTransactions_(resolved.sheet, resolved.wallet);
   // Accumulate in integer cents so a long ledger cannot drift by fractions of a
@@ -281,8 +284,8 @@ function getAccountBalance_(walletId, account, excludeTxnId) {
     if (t.Account !== account) return;
     if (excludeTxnId && String(t.ID) === String(excludeTxnId)) return;
     var amt = centsOf_(t.Amount);
-    if (t.Type === "Income" || t.Type === "Transfer In" || t.Type === "Loan In" || t.Type === "Loan Repaid" || t.Type === "Savings Withdrawal" || t.Type === "Savings Payout") balanceCents += amt;
-    else if (t.Type === "Expense" || t.Type === "Transfer Out" || t.Type === "Loan Out" || t.Type === "Loan Payment" || t.Type === "Savings Deposit" || t.Type === "Savings Contribution" || t.Type === "Savings Payment") balanceCents -= amt;
+    if (t.Type === "Income" || t.Type === "Transfer In" || t.Type === "Loan In" || t.Type === "Loan Repaid" || t.Type === "Savings Withdrawal" || t.Type === "Savings Payout" || t.Type === "Shop Credit Payment Reversal") balanceCents += amt;
+    else if (t.Type === "Expense" || t.Type === "Transfer Out" || t.Type === "Loan Out" || t.Type === "Loan Payment" || t.Type === "Savings Deposit" || t.Type === "Savings Contribution" || t.Type === "Savings Payment" || t.Type === "Shop Credit Payment") balanceCents -= amt;
   });
   return amountOf_(balanceCents);
 }
@@ -549,8 +552,8 @@ function setupDatabase() {
   // Currency registry (idempotent, seeds itself on a spreadsheet that predates it)
   ensureCurrenciesSeeded_();
 
-  // Account types + financial accounts (idempotent; seeds the two default types
-  // and lazily back-fills every wallet's Cash/Bank accounts on first balance read)
+  // Account types + financial accounts (idempotent; seeds the types and applies
+  // the legacy Cash/Bank fallback only to wallets with no account records)
   ensureAccountsSeeded_();
   // Back-fill on a spreadsheet that predates the module so the registry is
   // consistent immediately, not only after the first balance read.
@@ -604,6 +607,11 @@ function ensureBaseSheetsExistOnly_(ss) {
     ["SavingsFixedInstallments", SAVINGS_FIXED_INSTALLMENT_HEADERS],
     ["SavingsFlexDeposits", SAVINGS_FLEX_DEPOSIT_HEADERS],
     ["SavingsFlexWithdrawals", SAVINGS_FLEX_WITHDRAWAL_HEADERS],
+    ["ShopLedgers", SHOP_LEDGER_HEADERS],
+    ["ShopMarkets", SHOP_MARKET_HEADERS],
+    ["ShopPayments", SHOP_PAYMENT_HEADERS],
+    ["ShopLedgerHistory", SHOP_LEDGER_HISTORY_HEADERS],
+    ["ShopLedgerOperations", SHOP_LEDGER_OPERATION_HEADERS],
   ];
   base.forEach(function (d) {
     if (!ss.getSheetByName(d[0])) {

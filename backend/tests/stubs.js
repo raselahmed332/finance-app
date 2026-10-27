@@ -140,8 +140,8 @@ function createSpreadsheet(sheets) {
       map.set(n, s);
       return s;
     },
-    deleteSheet: (n) => {
-      map.delete(n);
+    deleteSheet: (sheet) => {
+      map.delete(typeof sheet === "string" ? sheet : sheet.getName());
     },
     getSheets: () => Array.from(map.values()),
   };

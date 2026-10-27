@@ -7,10 +7,9 @@
 //                       opening balance and the ID stored on money rows.
 //
 // The two behaviours that keep this migration invisible are pinned here: a
-// brand-new spreadsheet seeds Cash/Bank types, and every wallet is lazily
-// back-filled with a "Cash" and a "Bank" financial account whose opening balance
-// is copied from the legacy OpeningCash/OpeningBank columns, so old rows and
-// getAccountBalance_ keep working unchanged.
+// brand-new spreadsheet seeds Cash/Bank types, and wallets with no financial
+// account records receive the legacy pair with opening balances copied from the
+// OpeningCash/OpeningBank columns.
 
 const test = require("node:test");
 const assert = require("node:assert");

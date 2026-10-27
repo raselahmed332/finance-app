@@ -7,6 +7,7 @@ import { DetailCell } from "../components/FormField.jsx";
 import { getActiveCurrencies } from "../utils/currency.js";
 import { useBalanceReveal, BalanceRevealToggle, MASK } from "../utils/balanceReveal.jsx";
 import { getWalletAccounts, onAccountsChange } from "../utils/accounts.js";
+import { parseOpeningBalanceCents } from "../utils/money.js";
 import {
   Badge, Button, Card, EmptyState, Input, LoadingState, PageHeader,
 } from "../ui/index.jsx";
@@ -338,14 +339,15 @@ function EditWalletRow({ wallet, walletSummaries, currentUser, can, onRefresh, s
   );
 }
 
-function AddWalletForm({ currentUser, showAlert, onRefresh, onClose }) {
+function AddWalletForm({ currentUser, showAlert, onRefresh, onWalletCreated, onClose }) {
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState('');
   // Default to a still-active preferred currency, never to a literal 'BDT' that
   // the registry might no longer offer.
   const [currency, setCurrency] = useState(() => defaultCurrency());
-  const [openingCash, setOpeningCash] = useState('');
-  const [openingBank, setOpeningBank] = useState('');
+  const [accountTypes, setAccountTypes] = useState([]);
+  const [accounts, setAccounts] = useState([{ key: 0, name: '', accountTypeId: '', openingBalance: '' }]);
+  const [nextAccountKey, setNextAccountKey] = useState(1);
 
   // The registry loads asynchronously. If this form was mounted before the fetch
   // resolved, the preselected code may not be in the list that just arrived, and
@@ -355,18 +357,86 @@ function AddWalletForm({ currentUser, showAlert, onRefresh, onClose }) {
     if (options.length && options.indexOf(currency) === -1) setCurrency(defaultCurrency());
   }, [options.join(","), currency]);
 
+  useEffect(() => {
+    api.getAccountTypes(currentUser.username).then((res) => {
+      if (res.status === 'ERROR') {
+        showAlert(res.message || 'Account Type লোড করা যায়নি।', 'error');
+        return;
+      }
+      if (res.status === 'SUCCESS') setAccountTypes(res.accountTypes || []);
+    }).catch(() => showAlert('Account Type লোড করা যায়নি।', 'error'));
+  }, [currentUser.username, showAlert]);
+
+  const eligibleTypes = accountTypes.filter((type) => {
+    if (type.Status !== 'Active') return false;
+    const applicable = type.ApplicableCurrencies || [];
+    return applicable.length === 0 || applicable.map((code) => String(code).toUpperCase()).includes(currency.toUpperCase());
+  });
+
+  useEffect(() => {
+    setAccounts((current) => current.map((account) => ({
+      ...account,
+      accountTypeId: eligibleTypes.some((type) => type.AccountTypeID === account.accountTypeId)
+        ? account.accountTypeId
+        : (eligibleTypes[0]?.AccountTypeID || ''),
+    })));
+  }, [currency, accountTypes]);
+
+  const updateAccount = (key, field, value) => {
+    setAccounts((current) => current.map((account) => (
+      account.key === key ? { ...account, [field]: value } : account
+    )));
+  };
+
+  const openingTotalCents = accounts.reduce((total, account) => {
+    const cents = parseOpeningBalanceCents(account.openingBalance);
+    return total + (cents === null ? 0 : cents);
+  }, 0);
+
   const handleAdd = (e) => {
     e.preventDefault();
     if (adding) return;
     if (!name.trim()) { showAlert("Wallet এর নাম দিন!", "error"); return; }
     if (!options.length || options.indexOf(currency) === -1) { showAlert("কারেন্সি নির্বাচন করুন।", "error"); return; }
-    const oc = parseFloat(openingCash) || 0;
-    const ob = parseFloat(openingBank) || 0;
-    if (oc < 0 || ob < 0) { showAlert('Opening balance ঋণাত্মক হতে পারবে না।', 'error'); return; }
+    if (accounts.length === 0) { showAlert('কমপক্ষে একটি অ্যাকাউন্ট যোগ করুন।', 'error'); return; }
+
+    const seenNames = new Set();
+    for (const account of accounts) {
+      const trimmedName = account.name.trim();
+      if (!trimmedName || trimmedName.length > 60) {
+        showAlert('অ্যাকাউন্টের নাম দিন (সর্বোচ্চ ৬০ অক্ষর)।', 'error');
+        return;
+      }
+      const nameKey = trimmedName.toLowerCase();
+      if (seenNames.has(nameKey)) {
+        showAlert('একই Wallet-এ অ্যাকাউন্টের নাম একাধিকবার ব্যবহার করা যাবে না।', 'error');
+        return;
+      }
+      seenNames.add(nameKey);
+      if (!eligibleTypes.some((type) => type.AccountTypeID === account.accountTypeId)) {
+        showAlert('প্রতিটি অ্যাকাউন্টের বৈধ Account Type নির্বাচন করুন।', 'error');
+        return;
+      }
+      if (parseOpeningBalanceCents(account.openingBalance) === null) {
+        showAlert('Opening balance শূন্য বা সর্বোচ্চ দুই দশমিকসহ বৈধ অঋণাত্মক সংখ্যা দিন।', 'error');
+        return;
+      }
+    }
+
     setAdding(true);
-    api.addWallet(name.trim(), currency, oc, ob).then((res) => {
+    const initialAccounts = accounts.map((account) => ({
+      name: account.name.trim(),
+      accountTypeId: account.accountTypeId,
+      openingBalance: account.openingBalance.trim() || '0',
+    }));
+    api.addWallet(name.trim(), currency, initialAccounts).then((res) => {
       showAlert(res.message, res.status === 'ERROR' ? 'error' : 'success');
-      if (res.status === 'SUCCESS') { setName(''); setOpeningCash(''); setOpeningBank(''); onRefresh(); onClose(); }
+      if (res.status === 'SUCCESS') {
+        setName('');
+        onRefresh();
+        if (onWalletCreated) onWalletCreated();
+        onClose();
+      }
     }).catch(() => showAlert('নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।', 'error')).finally(() => setAdding(false));
   };
 
@@ -383,23 +453,86 @@ function AddWalletForm({ currentUser, showAlert, onRefresh, onClose }) {
         <i className="fa-solid fa-triangle-exclamation me-1" />
         কারেন্সি একবার নির্ধারণ করলে পরে পরিবর্তন করা যাবে না।
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="label">Opening Cash ({currency})</label>
-          <Input type="number" step="0.01" min="0" value={openingCash} onChange={(e) => setOpeningCash(e.target.value)} placeholder="0.00" />
+
+      <section className="space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="label mb-0">Accounts</div>
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            onClick={() => {
+              setAccounts((current) => [...current, {
+                key: nextAccountKey,
+                name: '',
+                accountTypeId: eligibleTypes[0]?.AccountTypeID || '',
+                openingBalance: '',
+              }]);
+              setNextAccountKey((key) => key + 1);
+            }}
+          >
+            <i className="fa-solid fa-plus" /> Add account
+          </Button>
         </div>
-        <div>
-          <label className="label">Opening Bank ({currency})</label>
-          <Input type="number" step="0.01" min="0" value={openingBank} onChange={(e) => setOpeningBank(e.target.value)} placeholder="0.00" />
+        {accounts.map((account, index) => (
+          <div key={account.key} className="card-inset p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-xs font-semibold text-ink">Account {index + 1}</div>
+              {accounts.length > 1 ? (
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-[var(--ah-danger)] px-2 py-1"
+                  onClick={() => setAccounts((current) => current.filter((item) => item.key !== account.key))}
+                  aria-label={`Remove account ${index + 1}`}
+                >
+                  <i className="fa-solid fa-trash-can me-1" />Remove
+                </button>
+              ) : null}
+            </div>
+            <div>
+              <label className="label">Account name</label>
+              <Input
+                value={account.name}
+                onChange={(e) => updateAccount(account.key, 'name', e.target.value)}
+                placeholder="যেমন: Cash, Al Rajhi Bank, bKash"
+                maxLength={60}
+              />
+            </div>
+            <div>
+              <label className="label">Account type</label>
+              <Select
+                value={account.accountTypeId}
+                onChange={(value) => updateAccount(account.key, 'accountTypeId', value)}
+              >
+                {eligibleTypes.map((type) => (
+                  <option key={type.AccountTypeID} value={type.AccountTypeID}>{type.Name}</option>
+                ))}
+              </Select>
+              {eligibleTypes.length === 0 ? (
+                <div className="text-[10px] text-[var(--ah-danger)] mt-1">এই কারেন্সির জন্য কোনো সক্রিয় Account Type নেই।</div>
+              ) : null}
+            </div>
+            <div>
+              <label className="label">Opening balance ({currency})</label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={account.openingBalance}
+                onChange={(e) => updateAccount(account.key, 'openingBalance', e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+          </div>
+        ))}
+        <div className="flex items-center justify-between gap-2 text-sm font-bold text-ink px-1">
+          <span>Total opening balance</span>
+          <span className="tnum">{fmtMoney(openingTotalCents / 100, currency)}</span>
         </div>
-      </div>
-      <div
-        className="text-[10px] rounded-lg px-2.5 py-1.5"
-        style={{ background: "var(--ah-info-soft)", color: "var(--ah-info)" }}
-      >
-        <i className="fa-solid fa-circle-info me-1" />
-        শুরুর ব্যালেন্স — পরে "Edit Wallet" থেকে পরিবর্তন করা যাবে না।
-      </div>
+        <div className="text-[10px] text-ink-3 px-1">
+          শুরুর ব্যালেন্স প্রতিটি অ্যাকাউন্টে একবারই সংরক্ষিত হবে।
+        </div>
+      </section>
       <div className="grid grid-cols-2 gap-2">
         <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
         <Button type="submit" disabled={adding}>
@@ -410,7 +543,7 @@ function AddWalletForm({ currentUser, showAlert, onRefresh, onClose }) {
   );
 }
 
-export default function WalletManagementView({ currentUser, can, showAlert, walletSummaries, users }) {
+export default function WalletManagementView({ currentUser, can, showAlert, walletSummaries, users, onRefresh }) {
   const [allWallets, setAllWallets] = useState(null);
   const [addOpen, setAddOpen] = useState(false);
 
@@ -437,7 +570,13 @@ export default function WalletManagementView({ currentUser, can, showAlert, wall
       />
 
       <Popup open={addOpen} title="নতুন Wallet তৈরি করুন" onClose={() => setAddOpen(false)}>
-        <AddWalletForm currentUser={currentUser} showAlert={showAlert} onRefresh={load} onClose={() => setAddOpen(false)} />
+        <AddWalletForm
+          currentUser={currentUser}
+          showAlert={showAlert}
+          onRefresh={load}
+          onWalletCreated={onRefresh}
+          onClose={() => setAddOpen(false)}
+        />
       </Popup>
 
       <div>

@@ -18,11 +18,10 @@
 //                       ID stored on every transaction / loan / savings row.
 //
 // BACKWARD COMPATIBILITY. Legacy data stores the literal strings "Cash" and
-// "Bank" on every row. Rather than rewrite history, every wallet is lazily
-// seeded with two financial accounts whose AccountID is exactly "Cash" and
-// "Bank" and whose opening balance is copied from the wallet's OpeningCash /
-// OpeningBank columns. Old rows therefore keep matching, and a brand-new account
-// that simply reuses the ID "Cash" cannot collide because the seed runs first.
+// "Bank" on every row. Rather than rewrite history, a wallet with no financial
+// account records is seeded with the legacy Cash/Bank pair, with opening
+// balances copied from OpeningCash / OpeningBank. Existing wallets with any
+// account record keep it unchanged.
 //
 // The seeded IDs are intentionally human-readable rather than generated: an ID
 // that is safe to show in an audit row and stable to migrate is worth more here
@@ -53,8 +52,7 @@ var DEFAULT_ACCOUNT_TYPES = [
   { id: "AT-BANK", name: "Bank", code: "BANK", icon: "landmark", description: "Bank account" },
 ];
 
-// The two financial accounts every wallet is guaranteed to have. "openingField"
-// names the legacy wallet column their opening balance is copied from.
+// The fallback pair for wallets with no financial account records.
 var DEFAULT_WALLET_ACCOUNTS = [
   { accountId: "Cash", typeId: "AT-CASH", name: "Cash", openingField: "OpeningCash" },
   { accountId: "Bank", typeId: "AT-BANK", name: "Bank", openingField: "OpeningBank" },
@@ -71,10 +69,8 @@ function getFinancialAccountsSheet_() { return getOrCreateSheet_("FinancialAccou
 function isValidAccountTypeStatus_(status) { return VALID_ACCOUNT_TYPE_STATUSES.indexOf(status) !== -1; }
 function isValidAccountStatus_(status) { return VALID_ACCOUNT_STATUSES.indexOf(status) !== -1; }
 
-// Default seed accounts (Cash/Bank) are auto-recreated by
-// ensureWalletDefaultAccounts_, so they must never be hard-deleted — only
-// retired. Otherwise a delete followed by any read would silently resurrect
-// them as ACTIVE.
+// Keep the legacy fallback IDs out of hard-delete flows so an empty wallet can
+// still recover its defaults without silently changing a referenced ID.
 function isDefaultWalletAccountId_(accountId) {
   var id = String(accountId || "").trim();
   return DEFAULT_WALLET_ACCOUNTS.some(function (d) { return d.accountId === id; });
@@ -266,26 +262,23 @@ function accountNameFor_(walletId, accountId) {
 
 // ---------------- SEEDING / MIGRATION ----------------
 
-// Every wallet must own at least the legacy "Cash" and "Bank" accounts. This is
-// idempotent and covers partial states (a wallet that somehow gained a custom
-// account but never got the defaults) because it checks each default ID
-// independently rather than "does this wallet have any account yet".
+// Existing account records, including inactive ones, are authoritative. Only a
+// wallet with no account records at all receives the legacy Cash/Bank fallback.
 function ensureWalletDefaultAccounts_(walletId) {
   var wallet = getWalletById_(walletId);
   if (!wallet) return;
 
-  var rows = financialAccountRows_();
-  var present = {};
-  rows.forEach(function (a) {
-    if (a.WalletID === String(walletId)) present[a.AccountID] = true;
-  });
-
-  var missing = DEFAULT_WALLET_ACCOUNTS.filter(function (d) { return !present[d.accountId]; });
-  if (!missing.length) return;
-
   var sheet = getFinancialAccountsSheet_();
+  var lastRow = sheet.getLastRow();
+  if (lastRow >= 2) {
+    var records = sheet.getRange(2, 1, lastRow - 1, 2).getValues();
+    for (var i = 0; i < records.length; i++) {
+      if (String(records[i][1] || "").trim() === String(walletId)) return;
+    }
+  }
+
   var ts = nowStr();
-  missing.forEach(function (d) {
+  DEFAULT_WALLET_ACCOUNTS.forEach(function (d) {
     var opening = centsOf_(wallet[d.openingField]);
     sheet.appendRow([
       d.accountId, wallet.WalletID, d.typeId, d.name, wallet.Currency,
@@ -387,8 +380,8 @@ function requireActiveAccount_(walletId, accountId) {
 
 function accountTypeInUse_(typeId) {
   var target = String(typeId || "");
-  // A wallet that has never had a balance read may not be seeded yet, so make
-  // sure every wallet's defaults exist before asking whether the type is used.
+  // A wallet with no account records may not be seeded yet, so apply the
+  // fallback before asking whether the type is used.
   walletsRows_().forEach(function (r) { ensureWalletDefaultAccounts_(String(r[0])); });
   return financialAccountRows_().some(function (a) { return a.AccountTypeID === target; });
 }
@@ -612,7 +605,7 @@ function deleteAccountType(accountTypeId, adminUsername) {
 
 function addFinancialAccount(data, adminUsername) {
   setupDatabase();
-  if (!data || typeof data !== "object") return validationError_("Invalid request.");
+  if (!data || typeof data !== "object" || Array.isArray(data)) return validationError_("Invalid request.");
 
   var walletId = String(data.walletId || "").trim();
   if (!walletId) return err_("Wallet নির্বাচন করুন।", "WALLET_REQUIRED");
@@ -622,10 +615,8 @@ function addFinancialAccount(data, adminUsername) {
   var wallet = getWalletById_(walletId);
   if (!wallet) return err_("Wallet পাওয়া যায়নি!", "WALLET_NOT_FOUND");
   if (String(wallet.Status) !== "Active") return err_("এই Wallet নিষ্ক্রিয় — নতুন অ্যাকাউন্ট যোগ করা যাবে না।", "WALLET_INACTIVE");
-  // Seed the wallet's defaults first so the name-uniqueness check below sees the
-  // guaranteed Cash/Bank rows (and never lets a "Cash" duplicate slip in).
-  ensureWalletDefaultAccounts_(walletId);
 
+  if (typeof data.accountTypeId !== "string") return err_("Account Type সঠিক নয়।", "ACCOUNT_TYPE_NOT_FOUND");
   var type = findAccountTypeById_(data.accountTypeId);
   if (!type) return err_("Account Type পাওয়া যায়নি!", "ACCOUNT_TYPE_NOT_FOUND");
   if (type.Status !== ACCOUNT_TYPE_STATUS_ACTIVE) return err_("এই Account Type নিষ্ক্রিয়।", "ACCOUNT_TYPE_INACTIVE");
@@ -633,14 +624,18 @@ function addFinancialAccount(data, adminUsername) {
     return err_("এই Account Type " + wallet.Currency + " কারেন্সির জন্য প্রযোজ্য নয়।", "ACCOUNT_TYPE_CURRENCY_MISMATCH");
   }
 
-  var name = normalizeAccountName_(data.name) || type.Name;
+  if (typeof data.name !== "string") return err_("অ্যাকাউন্টের নাম সঠিক নয়।", "INVALID_ACCOUNT_NAME");
+  var name = normalizeAccountName_(data.name);
+  if (!name) return err_("অ্যাকাউন্টের নাম আবশ্যক এবং " + MAX_ACCOUNT_NAME_LENGTH + " অক্ষরের বেশি হতে পারবে না।", "INVALID_ACCOUNT_NAME");
+
+  var openingCents = openingAmountCents_(data.openingBalance);
+  if (isNaN(openingCents)) return err_(amountError_(data.openingBalance), "INVALID_AMOUNT");
+
+  ensureWalletDefaultAccounts_(walletId);
   var duplicate = financialAccountRows_().some(function (a) {
     return a.WalletID === walletId && a.Name.toLowerCase() === name.toLowerCase();
   });
   if (duplicate) return err_("এই Wallet-এ এই নামে একটি অ্যাকাউন্ট আগে থেকেই আছে।", "ACCOUNT_EXISTS");
-
-  var openingCents = openingAmountCents_(data.openingBalance);
-  if (isNaN(openingCents)) return err_(amountError_(data.openingBalance), "INVALID_AMOUNT");
 
   var existingIds = {};
   financialAccountRows_().forEach(function (a) { if (a.WalletID === walletId) existingIds[a.AccountID] = true; });
@@ -749,8 +744,7 @@ function deleteFinancialAccount(accountId, data, adminUsername) {
 
   // Empty + zero balance: hard delete. Nothing references it, so the row (and
   // its ID) can go entirely instead of lingering as an invisible Inactive row.
-  // Default seed accounts (Cash/Bank) are exempt: they would be auto-recreated
-  // as ACTIVE by ensureWalletDefaultAccounts_, so they can only be retired.
+  // Default seed IDs are kept out of hard-delete flows for safe legacy fallback.
   if (!isDefaultWalletAccountId_(target) && !financialAccountInUse_(walletId, target) && getAccountBalance_(walletId, target) === 0) {
     var delIdx = findFinancialAccountRowIndex_(walletId, target);
     getFinancialAccountsSheet_().deleteRow(delIdx);

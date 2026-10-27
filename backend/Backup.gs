@@ -393,9 +393,29 @@ function getBackupData(username) {
     savingsFlexWithdrawals = savingsChildrenByPlan_(getSavingsFlexWithdrawalsSheet_(), SAVINGS_FLEX_WITHDRAWAL_HEADERS, savingsPlanIds);
   }
 
+  var shopSheets = shopLedgerSheets_();
+  var shopLedgers = savingsRawRows_(shopSheets.shops, SHOP_LEDGER_HEADERS).filter(function (row) {
+    return walletIds.indexOf(String(row[4])) !== -1;
+  });
+  var shopIds = {};
+  shopLedgers.forEach(function (row) { shopIds[String(row[0])] = true; });
+  var shopMarkets = savingsRawRows_(shopSheets.markets, SHOP_MARKET_HEADERS).filter(function (row) {
+    return shopIds[String(row[1])] === true;
+  });
+  var shopPayments = savingsRawRows_(shopSheets.payments, SHOP_PAYMENT_HEADERS).filter(function (row) {
+    return shopIds[String(row[1])] === true;
+  });
+  var shopLedgerHistory = savingsRawRows_(shopSheets.history, SHOP_LEDGER_HISTORY_HEADERS).filter(function (row) {
+    return shopIds[String(row[1])] === true;
+  });
+  var shopLedgerOperations = savingsRawRows_(shopSheets.operations, SHOP_LEDGER_OPERATION_HEADERS).filter(function (row) {
+    return walletIds.indexOf(String(row[3])) !== -1;
+  });
+
   logAudit(username, "Backup exported", "", transactions.length + " transactions across " + walletIds.length + " wallet(s)"
     + (canSeeLoans ? " and " + loans.length + " loan(s)" + (loanAdditions.length ? " and " + loanAdditions.length + " addition(s)" : "") : "")
-    + (canSeeSavings && savingsPlans.length ? " and " + savingsPlans.length + " savings plan(s)" : ""));
+    + (canSeeSavings && savingsPlans.length ? " and " + savingsPlans.length + " savings plan(s)" : "")
+    + (shopLedgers.length ? " and " + shopLedgers.length + " shop ledger(s)" : ""));
   return {
     status: "SUCCESS", transactions: transactions,
     wallets: getAllWalletsSafe_().filter(function (w) { return walletIds.indexOf(w.WalletID) !== -1; }),
@@ -407,7 +427,265 @@ function getBackupData(username) {
     accountTypes: savingsRawRows_(getAccountTypesSheet_(), ACCOUNT_TYPE_HEADERS),
     financialAccounts: savingsRawRows_(getFinancialAccountsSheet_(), FINANCIAL_ACCOUNT_HEADERS)
       .filter(function (r) { return walletIds.indexOf(String(r[1])) !== -1; }),
+    shopLedgers: shopLedgers.map(function (row) { return { shopId: String(row[0]), walletId: String(row[4]), row: row }; }),
+    shopMarkets: shopMarkets.map(function (row) { return { shopId: String(row[1]), row: row }; }),
+    shopPayments: shopPayments.map(function (row) { return { shopId: String(row[1]), row: row }; }),
+    shopLedgerHistory: shopLedgerHistory.map(function (row) { return { shopId: String(row[1]), row: row }; }),
+    shopLedgerOperations: shopLedgerOperations.map(function (row) { return { walletId: String(row[3]), row: row }; }),
+    shopLedgerWalletIds: walletIds.slice(),
   };
+}
+
+function validateShopLedgerBackup_(backup, username, backupAccountsByWallet) {
+  var keys = ["shopLedgers", "shopMarkets", "shopPayments", "shopLedgerHistory", "shopLedgerOperations"];
+  var hasAny = keys.some(function (key) { return Array.isArray(backup && backup[key]); });
+  if (!hasAny) return { skip: true, paymentWallets: {} };
+  for (var k = 0; k < keys.length; k++) {
+    if (!Array.isArray(backup[keys[k]])) return { error: "Backup shop ledger section is incomplete (" + keys[k] + ")." };
+  }
+
+  var walletIds = Array.isArray(backup.shopLedgerWalletIds) ? backup.shopLedgerWalletIds.map(String) : [];
+  if (!walletIds.length && Array.isArray(backup.wallets)) {
+    walletIds = backup.wallets.map(function (wallet) { return String(wallet && wallet.WalletID || ""); }).filter(Boolean);
+  }
+  var walletSet = {};
+  for (var w = 0; w < walletIds.length; w++) {
+    if (!hasWalletAccess_(username, walletIds[w])) return { error: "Backup includes a shop ledger wallet outside your access." };
+    walletSet[walletIds[w]] = true;
+  }
+
+  var shopMap = {};
+  var shopRows = [];
+  for (var i = 0; i < backup.shopLedgers.length; i++) {
+    var item = backup.shopLedgers[i];
+    var row = item && item.row;
+    if (!row || row.length !== SHOP_LEDGER_HEADERS.length || !row[0] || !row[4]) {
+      return { error: "Backup shop ledger #" + (i + 1) + " is malformed." };
+    }
+    var shopId = String(row[0]);
+    var walletId = String(row[4]);
+    if (item.shopId && String(item.shopId) !== shopId) return { error: "Backup shop ID does not match its row." };
+    if (item.walletId && String(item.walletId) !== walletId) return { error: "Backup shop wallet does not match its row." };
+    if (!walletSet[walletId] || !hasWalletAccess_(username, walletId)) return { error: "Backup shop " + shopId + " is outside your wallet access." };
+    if (shopMap[shopId]) return { error: "Backup contains duplicate shop ID " + shopId + "." };
+    if (row[5] !== SHOP_LEDGER_ACTIVE && row[5] !== SHOP_LEDGER_INACTIVE) return { error: "Backup shop " + shopId + " has an invalid status." };
+    if (!row[1] || !row[2] || isNaN(openingAmountCents_(row[6]))) return { error: "Backup shop " + shopId + " has invalid details or opening balance." };
+    shopMap[shopId] = { walletId: walletId, status: row[5] };
+    shopRows.push(row);
+  }
+
+  function childRows_(items, headers, label, keyColumn) {
+    var result = [];
+    var seen = {};
+    for (var j = 0; j < items.length; j++) {
+      var child = items[j];
+      var childRow = child && child.row;
+      if (!childRow || childRow.length !== headers.length || !childRow[0] || !childRow[keyColumn]) {
+        return { error: "Backup " + label + " #" + (j + 1) + " is malformed." };
+      }
+      var id = String(childRow[0]);
+      var parentId = String(childRow[keyColumn]);
+      if (child.shopId && String(child.shopId) !== parentId) {
+        return { error: "Backup " + label + " parent does not match its row." };
+      }
+      if (!shopMap[parentId]) return { error: "Backup " + label + " " + id + " refers to a shop not in the backup." };
+      if (seen[id]) return { error: "Backup contains duplicate " + label + " ID " + id + "." };
+      if (childRow[5] !== SHOP_LEDGER_ACTIVE && childRow[5] !== "Deleted") {
+        return { error: "Backup " + label + " " + id + " has an invalid status." };
+      }
+      if (!shopLedgerDate_(String(childRow[2]))) return { error: "Backup " + label + " " + id + " has an invalid date." };
+      seen[id] = true;
+      result.push(childRow);
+    }
+    return { rows: result, ids: seen };
+  }
+
+  var marketData = childRows_(backup.shopMarkets, SHOP_MARKET_HEADERS, "market", 1);
+  if (marketData.error) return marketData;
+  for (var m = 0; m < marketData.rows.length; m++) {
+    var marketRow = marketData.rows[m];
+    var products;
+    try { products = JSON.parse(String(marketRow[3])); } catch (error) { return { error: "Backup market " + marketRow[0] + " has malformed product data." }; }
+    if (!Array.isArray(products) || !products.length) return { error: "Backup market " + marketRow[0] + " has no products." };
+    var productTotal = 0;
+    for (var p = 0; p < products.length; p++) {
+      var productCents = toCents_(products[p] && products[p].Total);
+      if (!products[p] || !products[p].Name || !isFinite(productCents) || productCents < 0) {
+        return { error: "Backup market " + marketRow[0] + " has an invalid product." };
+      }
+      productTotal += productCents;
+    }
+    if (productTotal <= 0 || productTotal !== toCents_(marketRow[4])) {
+      return { error: "Backup market " + marketRow[0] + " total does not match its products." };
+    }
+  }
+
+  var paymentData = childRows_(backup.shopPayments, SHOP_PAYMENT_HEADERS, "payment", 1);
+  if (paymentData.error) return paymentData;
+  var paymentWallets = {};
+  var paymentBalances = {};
+  for (var q = 0; q < paymentData.rows.length; q++) {
+    var paymentRow = paymentData.rows[q];
+    var allocations;
+    try { allocations = JSON.parse(String(paymentRow[3])); } catch (error2) { return { error: "Backup payment " + paymentRow[0] + " has malformed allocations." }; }
+    if (!Array.isArray(allocations) || !allocations.length) return { error: "Backup payment " + paymentRow[0] + " has no allocations." };
+    var paymentTotal = 0;
+    var paymentWalletId = shopMap[String(paymentRow[1])].walletId;
+    for (var a = 0; a < allocations.length; a++) {
+      var allocation = allocations[a];
+      var allocationCents = toCents_(allocation && allocation.Amount);
+      if (!allocation || !accountKnownInWallet_(paymentWalletId, allocation.AccountID, backupAccountsByWallet) ||
+          !isFinite(allocationCents) || allocationCents <= 0) {
+        return { error: "Backup payment " + paymentRow[0] + " has an invalid account allocation." };
+      }
+      paymentTotal += allocationCents;
+    }
+    if (paymentTotal !== toCents_(paymentRow[4])) return { error: "Backup payment " + paymentRow[0] + " total does not match its allocations." };
+    paymentWallets[String(paymentRow[0])] = paymentWalletId;
+    paymentBalances[String(paymentRow[0])] = {};
+    if (paymentRow[5] === SHOP_LEDGER_ACTIVE) {
+      allocations.forEach(function (allocation) {
+        paymentBalances[String(paymentRow[0])][String(allocation.AccountID)] =
+          (paymentBalances[String(paymentRow[0])][String(allocation.AccountID)] || 0) - toCents_(allocation.Amount);
+      });
+    }
+  }
+
+  var effectBalances = {};
+  var backupTransactions = Array.isArray(backup.transactions) ? backup.transactions : [];
+  for (var t = 0; t < backupTransactions.length; t++) {
+    var transaction = backupTransactions[t];
+    if (!transaction || (transaction.Type !== SHOP_LEDGER_PAYMENT_TYPE && transaction.Type !== SHOP_LEDGER_PAYMENT_REVERSAL_TYPE)) continue;
+    var effectMatch = String(transaction.Note || "").match(/ShopPaymentID=([A-Za-z0-9_-]+)/);
+    if (!effectMatch || !paymentWallets[effectMatch[1]]) {
+      return { error: "Backup transaction " + (transaction.ID || (t + 1)) + " has no matching shop payment." };
+    }
+    if (String(paymentWallets[effectMatch[1]]) !== String(transaction.WalletID)) {
+      return { error: "Backup shop payment effect belongs to a different wallet." };
+    }
+    var effectAmount = toCents_(transaction.Amount);
+    var effectAccount = String(transaction.Account || "");
+    if (!isFinite(effectAmount) || effectAmount <= 0 ||
+        !accountKnownInWallet_(transaction.WalletID, effectAccount, backupAccountsByWallet)) {
+      return { error: "Backup shop payment effect has an invalid account or amount." };
+    }
+    if (!effectBalances[effectMatch[1]]) effectBalances[effectMatch[1]] = {};
+    effectBalances[effectMatch[1]][effectAccount] =
+      (effectBalances[effectMatch[1]][effectAccount] || 0) +
+      (transaction.Type === SHOP_LEDGER_PAYMENT_TYPE ? -effectAmount : effectAmount);
+  }
+  var paymentIds = Object.keys(paymentWallets);
+  for (var e = 0; e < paymentIds.length; e++) {
+    var paymentId = paymentIds[e];
+    var accountIds = {};
+    Object.keys(paymentBalances[paymentId]).forEach(function (accountId) { accountIds[accountId] = true; });
+    Object.keys(effectBalances[paymentId] || {}).forEach(function (accountId) { accountIds[accountId] = true; });
+    var effectAccountIds = Object.keys(accountIds);
+    for (var ea = 0; ea < effectAccountIds.length; ea++) {
+      var accountId = effectAccountIds[ea];
+      if ((effectBalances[paymentId] && effectBalances[paymentId][accountId] || 0) !==
+          (paymentBalances[paymentId][accountId] || 0)) {
+        return { error: "Backup shop payment effects do not match payment " + paymentId + "." };
+      }
+    }
+  }
+
+  var historyRows = [];
+  for (var h = 0; h < backup.shopLedgerHistory.length; h++) {
+    var history = backup.shopLedgerHistory[h];
+    if (!history || !history.row || history.row.length !== SHOP_LEDGER_HISTORY_HEADERS.length ||
+        !history.row[0] || !shopMap[String(history.row[1])] ||
+        (history.shopId && String(history.shopId) !== String(history.row[1]))) {
+      return { error: "Backup shop history #" + (h + 1) + " is malformed or has no matching shop." };
+    }
+    historyRows.push(history.row);
+  }
+
+  var operationRows = [];
+  var operationIds = {};
+  for (var o = 0; o < backup.shopLedgerOperations.length; o++) {
+    var operation = backup.shopLedgerOperations[o];
+    var operationRow = operation && operation.row;
+    if (!operationRow || operationRow.length !== SHOP_LEDGER_OPERATION_HEADERS.length ||
+        !operationRow[0] || !operationRow[3] || !walletSet[String(operationRow[3])] ||
+        (operation.walletId && String(operation.walletId) !== String(operationRow[3]))) {
+      return { error: "Backup shop operation #" + (o + 1) + " is malformed or outside your wallet access." };
+    }
+    if (operationIds[String(operationRow[0])]) return { error: "Backup contains duplicate shop request ID " + operationRow[0] + "." };
+    if (["PROCESSING", "COMPLETE", "RECONCILIATION_REQUIRED"].indexOf(String(operationRow[4])) === -1) {
+      return { error: "Backup shop operation " + operationRow[0] + " has an invalid status." };
+    }
+    try { JSON.parse(String(operationRow[2])); } catch (error3) { return { error: "Backup shop operation " + operationRow[0] + " has malformed payload data." }; }
+    operationIds[String(operationRow[0])] = true;
+    operationRows.push(operationRow);
+  }
+  return {
+    skip: false,
+    walletIds: walletIds,
+    shops: shopRows,
+    markets: marketData.rows,
+    payments: paymentData.rows,
+    history: historyRows,
+    operations: operationRows,
+    shopMap: shopMap,
+    paymentWallets: paymentWallets,
+    paymentBalances: paymentBalances,
+  };
+}
+
+function restoreShopLedgerBackup_(validation) {
+  if (!validation || validation.skip) return { restored: 0 };
+  var sheets = shopLedgerSheets_();
+  var definitions = [
+    { sheet: sheets.shops, headers: SHOP_LEDGER_HEADERS, key: "shops" },
+    { sheet: sheets.markets, headers: SHOP_MARKET_HEADERS, key: "markets" },
+    { sheet: sheets.payments, headers: SHOP_PAYMENT_HEADERS, key: "payments" },
+    { sheet: sheets.history, headers: SHOP_LEDGER_HISTORY_HEADERS, key: "history" },
+    { sheet: sheets.operations, headers: SHOP_LEDGER_OPERATION_HEADERS, key: "operations" },
+  ];
+  var snapshots = {};
+  definitions.forEach(function (definition) {
+    snapshots[definition.key] = definition.sheet.getLastRow() >= 2
+      ? definition.sheet.getRange(2, 1, definition.sheet.getLastRow() - 1, definition.headers.length).getValues()
+      : [];
+  });
+  var walletSet = {};
+  validation.walletIds.forEach(function (id) { walletSet[String(id)] = true; });
+  var replaceShopIds = {};
+  snapshots.shops.forEach(function (row) {
+    if (row[0] && walletSet[String(row[4])]) replaceShopIds[String(row[0])] = true;
+  });
+  validation.shops.forEach(function (row) { replaceShopIds[String(row[0])] = true; });
+
+  var finalRows = {
+    shops: snapshots.shops.filter(function (row) { return !walletSet[String(row[4])]; }).concat(validation.shops),
+    markets: snapshots.markets.filter(function (row) { return !replaceShopIds[String(row[1])]; }).concat(validation.markets),
+    payments: snapshots.payments.filter(function (row) { return !replaceShopIds[String(row[1])]; }).concat(validation.payments),
+    history: snapshots.history.filter(function (row) { return !replaceShopIds[String(row[1])]; }).concat(validation.history),
+    operations: snapshots.operations.filter(function (row) { return !walletSet[String(row[3])]; }).concat(validation.operations),
+  };
+
+  function writeRows_(rowsByKey) {
+    definitions.forEach(function (definition) {
+      wipeRows_(definition.sheet, 2);
+      var rows = rowsByKey[definition.key];
+      if (rows.length) definition.sheet.getRange(2, 1, rows.length, definition.headers.length).setValues(rows);
+      if (populatedRowCount_(definition.sheet, 2, definition.headers.length) !== rows.length) {
+        throw new Error("Shop ledger row count mismatch for " + definition.key);
+      }
+    });
+  }
+  try {
+    writeRows_(finalRows);
+  } catch (error) {
+    try {
+      writeRows_(snapshots);
+    } catch (restoreError) {
+      throw new Error("shop ledger restore failed and recovery also failed: " + String(error) + " / " + String(restoreError));
+    }
+    throw error;
+  }
+  return { restored: validation.shops.length };
 }
 
 // ----------------- ACCOUNT BACKUP SHAPING -----------------
@@ -658,7 +936,8 @@ function importBackup(backup, adminUsername) {
   var transactions = backup && backup.transactions ? backup.transactions : [];
   var hasLoans = Array.isArray(backup && backup.loans);
   var hasSavings = Array.isArray(backup && backup.savingsPlans) && backup.savingsPlans.length > 0;
-  if ((!Array.isArray(transactions) || transactions.length === 0) && (!hasLoans || !backup.loans.length) && !hasSavings) {
+  var hasShopLedger = Array.isArray(backup && backup.shopLedgers) && backup.shopLedgers.length > 0;
+  if ((!Array.isArray(transactions) || transactions.length === 0) && (!hasLoans || !backup.loans.length) && !hasSavings && !hasShopLedger) {
     return err_("ব্যাকআপে কোনো লেনদেন পাওয়া যায়নি!");
   }
 
@@ -671,6 +950,9 @@ function importBackup(backup, adminUsername) {
     if (!backupAccountsByWallet[bwid]) backupAccountsByWallet[bwid] = {};
     backupAccountsByWallet[bwid][String(r[0])] = true;
   });
+
+  var shopLedgerVal = validateShopLedgerBackup_(backup, adminUsername, backupAccountsByWallet);
+  if (shopLedgerVal.error) return validationError_(shopLedgerVal.error);
 
   var seenIds = {};
   var walletCache = {};
@@ -729,6 +1011,15 @@ function importBackup(backup, adminUsername) {
         }
         if (effectOwners[effectId] !== String(t.WalletID)) {
           return validationError_(where + ": Ledger effect row " + effectId + " belongs to wallet " + effectOwners[effectId] + ", not " + t.WalletID + ".");
+        }
+      }
+      if (t.Type === SHOP_LEDGER_PAYMENT_TYPE || t.Type === SHOP_LEDGER_PAYMENT_REVERSAL_TYPE) {
+        var shopPaymentMatch = String(t.Note || "").match(/ShopPaymentID=([A-Za-z0-9_-]+)/);
+        if (!shopPaymentMatch || !shopLedgerVal.paymentWallets[shopPaymentMatch[1]]) {
+          return validationError_(where + ": Shop payment effect has no matching payment in this backup.");
+        }
+        if (String(shopLedgerVal.paymentWallets[shopPaymentMatch[1]]) !== String(t.WalletID)) {
+          return validationError_(where + ": Shop payment effect belongs to a different wallet.");
         }
       }
     }
@@ -1003,6 +1294,9 @@ function importBackup(backup, adminUsername) {
     // back on failure, while the outer catch still restores wallets/loans.
     if (!savingsVal.skip) {
       restoreSavings_(backup);
+    }
+    if (!shopLedgerVal.skip) {
+      restoreShopLedgerBackup_(shopLedgerVal);
     }
   } catch (writeErr) {
     try {

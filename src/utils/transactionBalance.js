@@ -7,6 +7,7 @@ const INFLOW_TYPES = new Set([
   "Loan Repaid",
   "Savings Withdrawal",
   "Savings Payout",
+  "Shop Credit Payment Reversal",
 ]);
 
 const OUTFLOW_TYPES = new Set([
@@ -17,6 +18,7 @@ const OUTFLOW_TYPES = new Set([
   "Savings Deposit",
   "Savings Contribution",
   "Savings Payment",
+  "Shop Credit Payment",
 ]);
 
 export function transactionBalanceDelta(transaction) {

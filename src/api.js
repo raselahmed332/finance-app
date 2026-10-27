@@ -121,7 +121,8 @@ export const api = {
   // Wallets
   getWallets: (username) => callApi("getWallets", [username]),
   getAllWallets: (username) => callApi("getAllWallets", [username]),
-  addWallet: (walletName, currency, openingCash, openingBank) => callApi("addWallet", [walletName, currency, openingCash, openingBank]),
+  addWallet: (walletName, currency, initialAccounts) =>
+    callApi("addWallet", [walletName, currency, null, null, null, initialAccounts]),
   updateWallet: (walletId, newName, newStatus, adminUsername) =>
     callApi("updateWallet", [walletId, newName, newStatus, adminUsername]),
   deleteWallet: (walletId, adminUsername) => callApi("deleteWallet", [walletId, adminUsername]),
@@ -165,6 +166,20 @@ export const api = {
   closeSavingsFlexPlan: (data) => callApi("closeSavingsFlexPlan", [data]),
   addSavingsFlexWithdrawal: (data) => callApi("addSavingsFlexWithdrawal", [data]),
   deleteSavingsFlexTransaction: (txnId, type, adminUsername) => callApi("deleteSavingsFlexTransaction", [txnId, type, adminUsername]),
+
+  // Shop credit ledger
+  getShopLedgers: () => callApi("getShopLedgers", [null]),
+  getShopLedgerDetails: (shopId) => callApi("getShopLedgerDetails", [shopId, null]),
+  getShopLedgerReport: (shopId, month) => callApi("getShopLedgerReport", [shopId, month, null]),
+  createShopLedger: (data) => callApi("createShopLedger", [data, null]),
+  updateShopLedger: (shopId, data) => callApi("updateShopLedger", [shopId, data, null]),
+  setShopLedgerStatus: (shopId, data) => callApi("setShopLedgerStatus", [shopId, data, null]),
+  addShopMarket: (shopId, data) => callApi("addShopMarket", [shopId, data, null]),
+  updateShopMarket: (marketId, data) => callApi("updateShopMarket", [marketId, data, null]),
+  deleteShopMarket: (marketId, data) => callApi("deleteShopMarket", [marketId, data, null]),
+  addShopPayment: (shopId, data) => callApi("addShopPayment", [shopId, data, null]),
+  updateShopPayment: (paymentId, data) => callApi("updateShopPayment", [paymentId, data, null]),
+  deleteShopPayment: (paymentId, data) => callApi("deleteShopPayment", [paymentId, data, null]),
 
   // Accounts (types + per-wallet financial accounts)
   getAccountTypes: (username) => callApi("getAccountTypes", [username]),
@@ -225,6 +240,7 @@ export const DEFAULT_WALLET_ACTIONS = [
   "VIEW_TRANSACTIONS", "VIEW_REPORTS", "VIEW_LOANS",
   "LOAN_GIVE", "LOAN_TAKE", "LOAN_PAYMENT",
   "VIEW_SAVINGS", "SAVINGS_GROUP", "SAVINGS_FIXED", "SAVINGS_FLEXIBLE",
+  "VIEW_SHOP_LEDGER",
 ];
 
 // Actions an Admin may additionally grant to a Sub-Admin/User.
@@ -235,6 +251,8 @@ export const ADDITIONAL_PERMISSIONS = [
   "MANAGE_SAVINGS", "MANAGE_SAVINGS_TRANSACTIONS",
   "ADD_USER", "EDIT_USER", "DELETE_USER", "MANAGE_USER_PERMISSIONS",
   "BACKUP_RESTORE", "VIEW_AUDIT_LOG", "MANAGE_CATEGORIES",
+  "MANAGE_SHOP_LEDGER", "ADD_MARKET_RECORD", "EDIT_MARKET_RECORD", "DELETE_MARKET_RECORD",
+  "ADD_SHOP_PAYMENT", "EDIT_SHOP_PAYMENT", "DELETE_SHOP_PAYMENT", "VIEW_SHOP_REPORTS",
 ];
 
 // Reserved for the Admin role — never grantable to non-Admins.
@@ -263,6 +281,7 @@ export const PERMISSION_LABELS = {
   SAVINGS_GROUP: "গ্রুপ সঞ্চয়",
   SAVINGS_FIXED: "মেয়াদি সঞ্চয়",
   SAVINGS_FLEXIBLE: "নমনীয় সঞ্চয়",
+  VIEW_SHOP_LEDGER: "দোকানের বাকির খাতা দেখা",
   // Grantable (additional)
   ADD_INCOME: "আয় যোগ করা",
   TRANSFER_MONEY: "ট্রান্সফার করা",
@@ -281,6 +300,14 @@ export const PERMISSION_LABELS = {
   BACKUP_RESTORE: "ব্যাকআপ / রিস্টোর করা",
   VIEW_AUDIT_LOG: "Audit Log দেখা",
   MANAGE_CATEGORIES: "ক্যাটাগরি ম্যানেজ করা",
+  MANAGE_SHOP_LEDGER: "দোকানের খাতা তৈরি/এডিট/বন্ধ করা",
+  ADD_MARKET_RECORD: "বাজার রেকর্ড যোগ করা",
+  EDIT_MARKET_RECORD: "বাজার রেকর্ড এডিট করা",
+  DELETE_MARKET_RECORD: "বাজার রেকর্ড বাদ দেওয়া",
+  ADD_SHOP_PAYMENT: "দোকানের পেমেন্ট যোগ করা",
+  EDIT_SHOP_PAYMENT: "দোকানের পেমেন্ট এডিট করা",
+  DELETE_SHOP_PAYMENT: "দোকানের পেমেন্ট বাদ দেওয়া",
+  VIEW_SHOP_REPORTS: "দোকানের মাসিক রিপোর্ট দেখা",
   MANAGE_CURRENCIES: "কারেন্সি ম্যানেজ করা",
   MANAGE_ACCOUNTS: "অ্যাকাউন্ট ম্যানেজ করা",
   // Admin-only

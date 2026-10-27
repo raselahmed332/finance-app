@@ -73,10 +73,10 @@ function getReport(username, walletId, period, periodValue) {
       var cat = t.SourceCategory || "Other";
       categoryCents[cat] = (categoryCents[cat] || 0) + amt;
     }
-    if (t.Type === "Income" || t.Type === "Transfer In" || t.Type === "Loan In" || t.Type === "Loan Repaid" || t.Type === "Savings Withdrawal" || t.Type === "Savings Payout") {
+    if (t.Type === "Income" || t.Type === "Transfer In" || t.Type === "Loan In" || t.Type === "Loan Repaid" || t.Type === "Savings Withdrawal" || t.Type === "Savings Payout" || t.Type === "Shop Credit Payment Reversal") {
       accountCents[t.Account] = (accountCents[t.Account] || 0) + amt;
     }
-    if (t.Type === "Expense" || t.Type === "Transfer Out" || t.Type === "Loan Out" || t.Type === "Loan Payment" || t.Type === "Savings Deposit" || t.Type === "Savings Contribution" || t.Type === "Savings Payment") {
+    if (t.Type === "Expense" || t.Type === "Transfer Out" || t.Type === "Loan Out" || t.Type === "Loan Payment" || t.Type === "Savings Deposit" || t.Type === "Savings Contribution" || t.Type === "Savings Payment" || t.Type === "Shop Credit Payment") {
       accountCents[t.Account] = (accountCents[t.Account] || 0) - amt;
     }
   });

@@ -8,7 +8,7 @@ A Bengali-language personal finance app for tracking income, expense, transfers,
 
 ## Features
 
-**Wallets** — multiple wallets, each with a fixed currency (BDT/SAR/USD/EUR/KWD/GBP/AED) and separate Cash and Bank accounts. Set an opening balance per account. Rename a wallet or deactivate it; a wallet with history is deactivated rather than deleted so old records stay intact.
+**Wallets** — multiple wallets, each with a fixed currency and user-defined accounts with separate opening balances. Existing legacy wallets with no account records receive the Cash/Bank fallback; wallets that already have accounts keep them unchanged. Rename a wallet or deactivate it; a wallet with history is deactivated rather than deleted so old records stay intact.
 
 **Income & expense** — per-wallet, per-account, with category, vendor, description, note, and date. Edit and delete any transaction you have permission to manage.
 
@@ -17,6 +17,8 @@ A Bengali-language personal finance app for tracking income, expense, transfers,
 **Bank operations** — Cash ↔ Bank movement inside one wallet as a single action, recorded as a real transfer pair.
 
 **Loans (হাওলাত)** — give and take loans, track repayments and extra additions, and see live remaining balances. A loan's financial state is always derived from its ledger rows, never from a stored total. Statuses: Active, Partial, পরিশোধিত, Overdue. Creating a loan for someone who still has one outstanding requires explicit confirmation. Loans can be filtered by status, date range, currency, and remaining amount. A loan's **wallet is pinned for good once the loan has any money recorded against it** (the initial disbursement, any addition, or any repayment): additions and repayments always move money through the loan's own wallet, and changing the wallet afterwards is refused — cancel the loan and create a new one instead.
+
+**Shop credit ledger (বাকির খাতা)** — manage shop credit accounts with search, filters, sorting, and status changes. Each shop has market and payment entries backed by wallet accounts, plus a monthly statement with PDF preview, download, and share. Payment entries create matching wallet transactions, and edited or deleted payments keep the ledger and wallet balances in sync.
 
 **Reports** — daily, weekly, monthly, and yearly charts, plus CSV export per wallet.
 
@@ -47,6 +49,7 @@ finance-app/                ← this repository
     Wallets.gs                wallet CRUD, balances
     Transactions.gs           income, expense, transfer, bank operations
     Loans.gs                  loans, repayments, additions (largest file)
+    ShopCreditLedger.gs       shops, markets, payments, history, reports
     Backup.gs                 backup export, scoped restore, validation
     Money.gs                  cent-exact amount parsing and arithmetic
     Reports.gs                report aggregation
@@ -69,7 +72,7 @@ finance-app/                ← this repository
 ### Step 1 — Deploy the backend
 
 1. Open the Google Apps Script project attached to your Google Sheet.
-2. Add the contents of each file in `backend/` as a script file of the same name.
+2. Add the contents of each `.gs` source file in `backend/` as a script file of the same name. Do not deploy `.gs.tmp` files, `package.json`, or `tests/`.
 3. **Deploy → New deployment → Web app**.
 4. Execute as **Me**, Who has access: **Anyone**.
 5. Copy the Web app URL (ends in `/exec`).
@@ -258,6 +261,9 @@ cd backend
 node --test tests/*.test.js
 ```
 
+`backend/package.json` scopes these CommonJS tests without changing the root
+frontend package's ES-module runtime.
+
 | File | Covers |
 |---|---|
 | `tests/money.test.js` | strict amount/date parsing, cent-exact arithmetic |
@@ -266,6 +272,7 @@ node --test tests/*.test.js
 | `tests/loans-payment-idempotency.test.js` | payment validation/idempotency ordering |
 | `tests/transactions-transfer.test.js` | transfer raw-amount validation |
 | `tests/audit-retention.test.js` | two-month cutoff, safe/idempotent deletion, trigger idempotency |
+| `tests/wallets-accounts.test.js` | dynamic wallet accounts, account preservation, rollback |
 | `tests/loans-sort.test.js` | loan ordering by parsed `updatedAt`, timestamp parsing |
 
 `tests/load-backend.js` and `tests/stubs.js` are the harness, not tests.
@@ -292,6 +299,7 @@ npm test
 | Reports & chart | `src/pages/ReportsView.jsx` |
 | Loan dashboard | `src/pages/LoanDashboardView.jsx` |
 | Loan details | `src/pages/LoanDetailsView.jsx` |
+| Shop credit ledger | `src/pages/ShopCreditLedgerDashboardView.jsx`, `ShopLedgerDetailsView.jsx`, `ShopLedgerReportView.jsx` |
 | Wallet management | `src/pages/WalletManagementView.jsx` |
 | User management | `src/pages/UserManagementView.jsx` |
 | Audit log | `src/pages/AuditLogView.jsx` |

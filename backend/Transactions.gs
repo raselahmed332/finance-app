@@ -468,6 +468,9 @@ function updateTransaction(data, adminUsername) {
   if (isLoanEffectType_(currentType)) {
     return err_("এই লেনদেনটি হাওলাত (Loan) ব্যবস্থাপনার অংশ — এখানে এডিট করা যাবে না।");
   }
+  if (currentType === "Shop Credit Payment" || currentType === "Shop Credit Payment Reversal") {
+    return err_("এই লেনদেনটি দোকানের বাকির পেমেন্টের অংশ — দোকানের খাতা থেকেই পরিবর্তন করুন।");
+  }
   if (currentType === "Transfer Out" || currentType === "Transfer In") {
     return updateTransferPair_(data, adminUsername);
   }
@@ -632,6 +635,9 @@ function deleteTransaction(id, adminUsernameOrWalletId, maybeAdminUsername) {
     if (pair.notFound) return err_("লেনদেন পাওয়া যায়নি!");
     if (isLoanEffectType_(pair.single.row.Type)) {
       return err_("এই লেনদেনটি হাওলাত (Loan) ব্যবস্থাপনার অংশ — এখানে মুছে ফেলা যাবে না।");
+    }
+    if (pair.single.row.Type === "Shop Credit Payment" || pair.single.row.Type === "Shop Credit Payment Reversal") {
+      return err_("এই লেনদেনটি দোকানের বাকির পেমেন্টের অংশ — দোকানের খাতা থেকেই পরিবর্তন করুন।");
     }
     pair.single.sheet.deleteRow(pair.single.rowNum);
     cacheRemove_("txns", "txns_" + walletIdFound);

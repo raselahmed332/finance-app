@@ -1,6 +1,15 @@
 import { useState, useRef, useEffect } from "react";
 
-export default function Select({ value, onChange, children, className = "", ...props }) {
+export default function Select({
+  value,
+  onChange,
+  children,
+  className = "",
+  triggerClassName = "",
+  menuClassName = "",
+  disabled = false,
+  ...props
+}) {
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(-1);
   const ref = useRef(null);
@@ -12,6 +21,12 @@ export default function Select({ value, onChange, children, className = "", ...p
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  useEffect(() => {
+    if (!disabled) return;
+    setOpen(false);
+    setHighlight(-1);
+  }, [disabled]);
 
   const options = [];
   let label = "";
@@ -43,7 +58,7 @@ export default function Select({ value, onChange, children, className = "", ...p
   };
 
   const handleKeyDown = (e) => {
-    if (options.length === 0) return;
+    if (disabled || options.length === 0) return;
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
       if (!open) {
@@ -71,7 +86,9 @@ export default function Select({ value, onChange, children, className = "", ...p
     <div ref={ref} className={`relative ${className}`} {...props} onKeyDown={handleKeyDown}>
       <button
         type="button"
+        disabled={disabled}
         onClick={() => {
+          if (disabled) return;
           if (open) {
             setOpen(false);
             setHighlight(-1);
@@ -81,7 +98,7 @@ export default function Select({ value, onChange, children, className = "", ...p
         }}
         aria-haspopup="listbox"
         aria-expanded={open ? "true" : "false"}
-        className="select-trigger"
+        className={`select-trigger ${triggerClassName}`}
       >
         <span className="truncate">{label || "Select..."}</span>
         <i
@@ -89,7 +106,7 @@ export default function Select({ value, onChange, children, className = "", ...p
         />
       </button>
       {open && (
-        <div role="listbox" className="select-menu">
+        <div role="listbox" className={`select-menu ${menuClassName}`}>
           {options.map((opt, i) => (
             <button
               key={i}

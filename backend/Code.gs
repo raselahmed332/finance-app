@@ -53,6 +53,7 @@ var ALLOWED_ACTIONS = {
   deleteFinancialAccount: deleteFinancialAccount,
 
   getAuditLog: getAuditLogAction,
+  // runAuditCleanupAction manages its own shared script lock.
   runAuditCleanup: runAuditCleanupAction,
   findBrokenTransferPairs: findBrokenTransferPairs,
 
@@ -103,6 +104,19 @@ var ALLOWED_ACTIONS = {
   addSavingsFlexWithdrawal: addSavingsFlexWithdrawal,
   closeSavingsFlexPlan: closeSavingsFlexPlan,
   deleteSavingsFlexTransaction: deleteSavingsFlexTransaction,
+
+  getShopLedgers: getShopLedgers,
+  getShopLedgerDetails: getShopLedgerDetails,
+  getShopLedgerReport: getShopLedgerReport,
+  createShopLedger: createShopLedger,
+  updateShopLedger: updateShopLedger,
+  setShopLedgerStatus: setShopLedgerStatus,
+  addShopMarket: addShopMarket,
+  updateShopMarket: updateShopMarket,
+  deleteShopMarket: deleteShopMarket,
+  addShopPayment: addShopPayment,
+  updateShopPayment: updateShopPayment,
+  deleteShopPayment: deleteShopPayment,
 };
 
 function loginUserAction(username, pin) {
@@ -137,6 +151,9 @@ var MUTATING_ACTIONS = {
   setSavingsGroupRecipientOrder: true, recordSavingsGroupContribution: true, recordSavingsGroupPayout: true,
   generateSavingsFixedInstallments: true, addSavingsFixedPayment: true, closeSavingsFixedPlan: true,
   addSavingsFlexDeposit: true, addSavingsFlexWithdrawal: true, closeSavingsFlexPlan: true, deleteSavingsFlexTransaction: true,
+  createShopLedger: true, updateShopLedger: true, setShopLedgerStatus: true,
+  addShopMarket: true, updateShopMarket: true, deleteShopMarket: true,
+  addShopPayment: true, updateShopPayment: true, deleteShopPayment: true,
 };
 
 function doPost(e) {
@@ -259,6 +276,14 @@ function bindCallerToParams_(action, params, caller) {
       action === "closeSavingsFlexPlan") {
     p[0] = p[0] || {}; p[0].user = caller;
   }
+  else if (action === "getShopLedgers") p[0] = caller;
+  else if (action === "getShopLedgerDetails") p[1] = caller;
+  else if (action === "getShopLedgerReport") p[2] = caller;
+  else if (action === "createShopLedger") p[1] = caller;
+  else if (action === "updateShopLedger" || action === "setShopLedgerStatus" ||
+      action === "addShopMarket" || action === "updateShopMarket" ||
+      action === "deleteShopMarket" || action === "addShopPayment" ||
+      action === "updateShopPayment" || action === "deleteShopPayment") p[2] = caller;
   return p;
 }
 

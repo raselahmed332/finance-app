@@ -75,18 +75,17 @@ function runAuditCleanup_(opts) {
   var now = opts.now ? new Date(opts.now) : new Date();
   var cutoffMs = auditRetentionCutoffMs_(now);
   var cutoffStr = auditFormatCutoff_(cutoffMs);
-
-  var lock = LockService.getScriptLock();
+  var lock = null;
   var locked = false;
-  if (!lock.tryLock(opts.lockMs || AUDIT_CLEANUP_LOCK_MS)) {
-    return {
-      status: "SUCCESS", skipped: true, deleted: 0, scanned: 0,
-      cutoff: cutoffStr, months: AUDIT_RETENTION_MONTHS,
-      message: "আরেকটি ক্লিনআপ চলছে।",
-    };
-  }
-  locked = true;
+  var result;
   try {
+    lock = LockService.getScriptLock();
+    var lockMs = opts.lockMs === undefined ? AUDIT_CLEANUP_LOCK_MS : opts.lockMs;
+    if (!lock.tryLock(lockMs)) {
+      return err_("আরেকটি ক্লিনআপ চলছে। আবার চেষ্টা করুন।", "AUDIT_CLEANUP_LOCKED");
+    }
+    locked = true;
+
     var sheet = getAuditSheet_();
     var lastRow = sheet.getLastRow();
     var scanned = lastRow < 2 ? 0 : lastRow - 1;
@@ -125,13 +124,25 @@ function runAuditCleanup_(opts) {
     };
     auditRecordCleanupStatus_(status);
 
-    return {
+    result = {
       status: "SUCCESS", skipped: false, deleted: deleted, scanned: scanned,
       cutoff: cutoffStr, months: AUDIT_RETENTION_MONTHS, lastRun: status,
     };
+  } catch (e) {
+    result = err_("Audit cleanup failed: " + (e && e.message ? e.message : "unknown error"), "AUDIT_CLEANUP_FAILED");
   } finally {
-    if (locked && lock.hasLock && lock.hasLock()) lock.releaseLock();
+    if (locked) {
+      try {
+        lock.releaseLock();
+      } catch (releaseError) {
+        var releaseMessage = "Audit cleanup could not release its lock: " +
+          (releaseError && releaseError.message ? releaseError.message : "unknown error");
+        if (result && result.status === "SUCCESS") result = err_(releaseMessage, "AUDIT_CLEANUP_LOCK_RELEASE_FAILED");
+        else if (result) result.message += " " + releaseMessage;
+      }
+    }
   }
+  return result;
 }
 
 // Trigger entry point (see installAuditCleanupTrigger_). Uses the real clock and

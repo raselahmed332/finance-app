@@ -6,6 +6,7 @@ import { useToast } from "../components/Toast.jsx";
 import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { getAllCurrencies, getActiveCurrencies, refreshCurrencies, onCurrenciesChange } from "../utils/currency.js";
 import { loadAccounts } from "../utils/accounts.js";
+import { parseOpeningBalanceCents } from "../utils/money.js";
 import { toneStyle } from "../ui/index.jsx";
 
 // Shared input look for every form control on this screen so the two manager
@@ -813,14 +814,17 @@ function FinancialAccountsManager({ currentUser, can, showAlert, wallets }) {
     if (adding) return;
     if (!selectedWalletId) return toast.error('Wallet নির্বাচন করুন।');
     if (!typeId) return toast.error('Account Type নির্বাচন করুন।');
-    const open = parseFloat(opening) || 0;
-    if (open < 0) return toast.error('Opening balance ঋণাত্মক হতে পারবে না।');
+    const accountName = name.trim();
+    if (!accountName || accountName.length > 60) return toast.error('অ্যাকাউন্টের নাম দিন (সর্বোচ্চ ৬০ অক্ষর)।');
+    if (parseOpeningBalanceCents(opening) === null) {
+      return toast.error('Opening balance শূন্য বা সর্বোচ্চ দুই দশমিকসহ বৈধ অঋণাত্মক সংখ্যা দিন।');
+    }
     setAdding(true);
     api.addFinancialAccount({
       walletId: selectedWalletId,
       accountTypeId: typeId,
-      name: name.trim(),
-      openingBalance: open,
+      name: accountName,
+      openingBalance: opening.trim() || '0',
     }, currentUser.username).then((res) => {
       showAlert(res.message, res.status === 'ERROR' ? 'error' : 'success');
       if (res.status === 'SUCCESS') { setName(''); setOpening(''); refreshBoth(); }
