@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import Popup from "./Popup.jsx";
 import { formatBytes } from "../utils/updater.js";
 
@@ -89,7 +90,7 @@ export default function UpdateDialog({
               পরে
             </button>
             <button onClick={onUpdate} className="btn btn-primary flex-1">
-              <i className="fa-solid fa-download" /> এখনই আপডেট
+              <Icon name="download" /> এখনই আপডেট
             </button>
           </div>
         </>
@@ -139,11 +140,11 @@ export default function UpdateDialog({
       {state === "download-complete" && (
         <>
           <div className="flex items-center gap-2 text-[12px] text-ink">
-            <i className="fa-solid fa-circle-check" style={{ color: "var(--ah-success)" }} />
+            <Icon name="circle-check" style={{ color: "var(--ah-success)" }} />
             ডাউনলোড সম্পন্ন। Android ইনস্টলার খোলা হচ্ছে...
           </div>
           <button onClick={onOpenInstaller} className="btn btn-primary btn-block">
-            <i className="fa-solid fa-mobile-screen" /> ইনস্টলার আবার খুলুন
+            <Icon name="smartphone" /> ইনস্টলার আবার খুলুন
           </button>
         </>
       )}
@@ -172,7 +173,7 @@ export default function UpdateDialog({
               className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
               style={{ background: "var(--ah-danger-soft)", color: "var(--ah-danger)" }}
             >
-              <i className="fa-solid fa-triangle-exclamation" />
+              <Icon name="triangle-alert" />
             </div>
             <div className="text-[12px] text-ink leading-relaxed">
               {message || "আপডেট করা সম্ভব হয়নি। আবার চেষ্টা করুন।"}

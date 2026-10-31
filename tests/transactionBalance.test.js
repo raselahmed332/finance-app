@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { calculateBalancesAfterTransactions } from "../src/utils/transactionBalance.js";
+import {
+  calculateBalancesAfterTransactions,
+  transactionBalanceDelta,
+} from "../src/utils/transactionBalance.js";
 
 test("calculates each transaction balance from opening balances in ledger order", () => {
   const oldestExpense = {
@@ -96,4 +99,16 @@ test("leaves unknown transaction types unchanged and skips rows without an accou
 
   assert.equal(balances.get(unknown), 100);
   assert.equal(balances.has(noAccount), false);
+});
+
+test("shop credit payments move accounts out and their reversals move them back", () => {
+  assert.equal(
+    transactionBalanceDelta({ Type: "Shop Credit Payment", Amount: "15.00" }),
+    -15,
+  );
+  assert.equal(
+    transactionBalanceDelta({ Type: "Shop Credit Payment Reversal", Amount: "15.00" }),
+    15,
+  );
+  assert.equal(Math.abs(transactionBalanceDelta({ Type: "Shop Credit Payment", Amount: 0 })), 0);
 });

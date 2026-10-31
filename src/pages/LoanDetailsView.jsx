@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api.js";
 import {
@@ -179,9 +180,9 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
   if (!initialLoan) {
     return (
       <div className="space-y-4">
-        <PageHeader title="লোন বিস্তারিত" icon="fa-hand-holding-dollar" onBack={onBack} />
+        <PageHeader title="লোন বিস্তারিত" icon="hand-coins" onBack={onBack} />
         <EmptyState
-          icon="fa-hand-holding-dollar"
+          icon="hand-coins"
           title="লোন পাওয়া যায়নি।"
           action={<Button onClick={onBack}>লিষ্টে ফিরে যান</Button>}
         />
@@ -195,11 +196,11 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
     <div className="space-y-4">
       <PageHeader
         title="লোন বিস্তারিত"
-        icon="fa-hand-holding-dollar"
+        icon="hand-coins"
         subtitle={loan?.personName}
         onBack={onBack}
         right={
-          <IconButton icon="fa-house" label="হোমে যান" onClick={onGoHome} />
+          <IconButton icon="house" label="হোমে যান" onClick={onGoHome} />
         }
       />
 
@@ -211,7 +212,7 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
           <div className="flex-1 min-w-0">
             <div className="font-bold text-base text-ink truncate">{loan.personName}</div>
             <div className="text-xs text-ink-3 mt-0.5 flex items-center gap-1.5 min-w-0">
-              <i className="fa-solid fa-phone text-[10px] me-1" />
+              <Icon name="phone" className="text-[10px] me-1" />
               <span className="truncate">{loan.phone || "নাম্বার নেই"}</span>
               <Badge className="shrink-0" tone={isGiven ? "danger" : "success"}>{meta.short}</Badge>
             </div>
@@ -244,7 +245,7 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
         title="হাওলাতের বিস্তারিত"
         action={
           showAddExtra ? (
-            <Button size="sm" icon="fa-plus" disabled={remaining <= 0} onClick={() => { setEditingAddition(null); setShowAdd(true); }}>
+            <Button size="sm" icon="plus" disabled={remaining <= 0} onClick={() => { setEditingAddition(null); setShowAdd(true); }}>
               টাকা যোগ করুন
             </Button>
           ) : null
@@ -277,8 +278,8 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
                   </span>
                   {canEditLoan && !isCancelled && remaining > 0 ? (
                     <>
-                      <IconButton icon="fa-pen" label="এডিট" onClick={() => setEditingAddition(ad)} />
-                      <IconButton icon="fa-trash" label="মুছে ফেলুন" variant="danger" onClick={() => handleDeleteAddition(ad)} />
+                      <IconButton icon="pencil" label="এডিট" onClick={() => setEditingAddition(ad)} />
+                      <IconButton icon="trash-2" label="মুছে ফেলুন" variant="danger" onClick={() => handleDeleteAddition(ad)} />
                     </>
                   ) : null}
                 </div>
@@ -304,21 +305,21 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
       </SectionCard>
 
       <div className={`grid gap-2 ${actionCount === 4 ? "grid-cols-2" : actionCount === 3 ? "grid-cols-3" : actionCount === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
-        <Button icon="fa-plus" disabled={remaining <= 0 || isCancelled} onClick={() => { setEditingPayment(null); setShowRepay(true); }}>
+        <Button icon="plus" disabled={remaining <= 0 || isCancelled} onClick={() => { setEditingPayment(null); setShowRepay(true); }}>
           ফেরত যোগ করুন
         </Button>
         {showAddExtra ? (
-          <Button variant="secondary" icon="fa-circle-plus" disabled={remaining <= 0} onClick={() => { setEditingAddition(null); setShowAdd(true); }}>
+          <Button variant="secondary" icon="circle-plus" disabled={remaining <= 0} onClick={() => { setEditingAddition(null); setShowAdd(true); }}>
             টাকা যোগ করুন
           </Button>
         ) : null}
         {showEditLoan ? (
-          <Button variant="secondary" icon="fa-pen" disabled={remaining <= 0} onClick={onEdit}>
+          <Button variant="secondary" icon="pencil" disabled={remaining <= 0} onClick={onEdit}>
             এডিট করুন
           </Button>
         ) : null}
         {showCancelLoan ? (
-          <Button variant="danger" icon="fa-ban" disabled={remaining <= 0 || isCancelled} onClick={handleCancel}>
+          <Button variant="danger" icon="ban" disabled={remaining <= 0 || isCancelled} onClick={handleCancel}>
             {isCancelled ? "বাতিল হয়েছে" : "হাওলাট বাতিল করুন"}
           </Button>
         ) : null}
@@ -326,14 +327,14 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
 
       {remaining <= 0 ? (
         <div className="text-center text-[11px] font-semibold rounded-xl p-2.5" style={{ background: "var(--ah-success-soft)", color: "var(--ah-success)" }}>
-          <i className="fa-solid fa-circle-check me-1" />
+          <Icon name="circle-check" className="me-1" />
           এই হাওলাত সম্পূর্ণ ফেরত হয়েছে।
         </div>
       ) : null}
 
       {remaining > 0 && loan.dueDate && loan.dueDate < todayStr() ? (
         <div className="text-center text-[11px] font-semibold rounded-xl p-2.5" style={{ background: "var(--ah-danger-soft)", color: "var(--ah-danger)" }}>
-          <i className="fa-solid fa-triangle-exclamation me-1" />
+          <Icon name="triangle-alert" className="me-1" />
           ডিউ তারিখ অতিক্রান্ত — হাওলাত ওভারডিউ।
         </div>
       ) : null}
@@ -348,7 +349,7 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
             onRetry={() => setRefreshKey((k) => k + 1)}
           />
         ) : timeline.length === 0 ? (
-          <EmptyState icon="fa-receipt" title="কোনো লেনদেন নেই।" />
+          <EmptyState icon="receipt" title="কোনো লেনদেন নেই।" />
         ) : (
           <div className="relative">
             <div className="absolute left-[5px] top-2 bottom-2 w-0.5 bg-[var(--ah-surface-3)]" />
@@ -383,10 +384,10 @@ export default function LoanDetailsView({ loan: initialLoan, wallets, currentUse
                   ) : null}
                   {item.payment && canManageLoanTxns && !isCancelled ? (
                     <div className="flex items-center gap-2 mt-1.5">
-                      <Button size="sm" variant="ghost" icon="fa-pen" onClick={() => { setEditingPayment(item.payment); setShowRepay(false); }}>
+                      <Button size="sm" variant="ghost" icon="pencil" onClick={() => { setEditingPayment(item.payment); setShowRepay(false); }}>
                         এডিট
                       </Button>
-                      <Button size="sm" variant="ghost" icon="fa-trash" onClick={() => handleDeletePayment(item.payment)}>
+                      <Button size="sm" variant="ghost" icon="trash-2" onClick={() => handleDeletePayment(item.payment)}>
                         মুছে ফেলুন
                       </Button>
                     </div>

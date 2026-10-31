@@ -119,7 +119,9 @@ export async function initNativeUi() {
     // content on a matching dark background. This matches both themes.
     await StatusBar.setStyle({ style: Style.Light });
     await StatusBar.setBackgroundColor({ color: "#111827" });
-    await StatusBar.setOverlaysWebView({ overlay: false });
+    // Overlay mode comes from capacitor.config.json (overlaysWebView: false).
+    // Re-applying it here would reset the Android decor flags AFTER MainActivity
+    // hides the navigation bar, making the bar reappear at startup.
   } catch {
     /* plugin unavailable - non-fatal */
   }
@@ -138,6 +140,14 @@ export async function hideNativeSplash() {
 
   try {
     await SplashScreen.hide();
+  } catch {
+    /* plugin unavailable - non-fatal */
+  }
+
+  try {
+    // A full-screen launch splash can hide the status bar on older Android
+    // versions; restore it as soon as the splash is gone.
+    await StatusBar.show();
   } catch {
     /* plugin unavailable - non-fatal */
   }

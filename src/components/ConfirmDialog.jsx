@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { lockPageScroll, pushBackHandler } from "../utils/native.js";
 
@@ -77,7 +78,7 @@ export function ConfirmProvider({ children }) {
                 style={{ width: 30, height: 30, border: "none", background: "transparent" }}
                 title="বন্ধ করুন"
               >
-                <i className="fa-solid fa-xmark text-base" />
+                <Icon name="x" className="text-base" />
               </button>
             </div>
 
@@ -92,9 +93,7 @@ export function ConfirmProvider({ children }) {
                     color: state.danger ? "var(--ah-danger)" : "var(--ah-warning)",
                   }}
                 >
-                  <i
-                    className={`fa-solid ${state.danger ? "fa-triangle-exclamation" : "fa-circle-question"} text-lg`}
-                  />
+                  <Icon name={state.danger ? "triangle-alert" : "circle-question-mark"} className="text-lg" />
                 </div>
                 <div className="min-w-0">
                   <div

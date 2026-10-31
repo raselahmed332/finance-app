@@ -1,3 +1,4 @@
+import { Icon } from "./Icon.jsx";
 // ---------------- SHARED UI PRIMITIVES ----------------
 //
 // One implementation of every recurring visual element. Every screen is built
@@ -21,11 +22,11 @@ export function LoadingState({ label = "লোড হচ্ছে..." }) {
   );
 }
 
-export function EmptyState({ icon = "fa-inbox", title, text, action }) {
+export function EmptyState({ icon = "inbox", title, text, action }) {
   return (
     <div className="empty">
       <div className="empty-icon">
-        <i className={`fa-solid ${icon}`} />
+        <Icon name={icon} />
       </div>
       <div className="empty-title">{title}</div>
       {text ? <div className="empty-text">{text}</div> : null}
@@ -38,13 +39,13 @@ export function ErrorState({ title = "কিছু একটা সমস্য�
   return (
     <div className="empty">
       <div className="empty-icon" style={{ color: "var(--ah-danger)" }}>
-        <i className="fa-solid fa-triangle-exclamation" />
+        <Icon name="triangle-alert" />
       </div>
       <div className="empty-title">{title}</div>
       {text ? <div className="empty-text">{text}</div> : null}
       {onRetry ? (
         <button type="button" className="btn btn-secondary btn-sm mt-4" onClick={onRetry}>
-          <i className="fa-solid fa-rotate-right" /> আবার চেষ্টা করুন
+          <Icon name="rotate-cw" /> আবার চেষ্টা করুন
         </button>
       ) : null}
     </div>
@@ -84,7 +85,7 @@ export function SectionCard({
         <header className="flex items-start justify-between gap-3 px-4 pt-4 pb-3">
           <div className="min-w-0">
             <h2 className="section-title flex items-center gap-2">
-              {icon ? <i className={`fa-solid ${icon} text-brand`} /> : null}
+              {icon ? <Icon name={icon} className="text-brand" /> : null}
               {title}
             </h2>
             {subtitle ? <p className="section-sub mt-0.5">{subtitle}</p> : null}
@@ -129,9 +130,9 @@ export function Button({
     .join(" ");
   return (
     <button type={type} className={cls} {...rest}>
-      {icon ? <i className={`fa-solid ${icon}`} /> : null}
+      {icon ? <Icon name={icon} /> : null}
       {children}
-      {iconRight ? <i className={`fa-solid ${iconRight}`} /> : null}
+      {iconRight ? <Icon name={iconRight} /> : null}
     </button>
   );
 }
@@ -152,7 +153,7 @@ export function IconButton({
     .join(" ");
   return (
     <button type="button" className={cls} aria-label={label} title={label} {...rest}>
-      <i className={`fa-solid ${icon}`} />
+      <Icon name={icon} />
     </button>
   );
 }
@@ -166,7 +167,7 @@ export function Field({ label, error, hint, children, className = "" }) {
       {children}
       {error ? (
         <p className="err">
-          <i className="fa-solid fa-circle-exclamation" />
+          <Icon name="circle-alert" />
           {error}
         </p>
       ) : hint ? (
@@ -218,7 +219,7 @@ export function toneStyle(tone) {
 export function Badge({ tone = "neutral", icon, className = "", children }) {
   return (
     <span className={`badge ${BADGE_TONES[tone] || BADGE_TONES.neutral} ${className}`}>
-      {icon ? <i className={`fa-solid ${icon}`} /> : null}
+      {icon ? <Icon name={icon} /> : null}
       {children}
     </span>
   );
@@ -232,7 +233,7 @@ export function Chip({ active, icon, className = "", children, ...rest }) {
       aria-pressed={active ? "true" : "false"}
       {...rest}
     >
-      {icon ? <i className={`fa-solid ${icon}`} /> : null}
+      {icon ? <Icon name={icon} /> : null}
       {children}
     </button>
   );
@@ -255,7 +256,7 @@ export function Segmented({ options, value, onChange, className = "" }) {
             className={`segment-item ${value === val ? "segment-item-active" : ""}`}
             onClick={() => onChange(val)}
           >
-            {icon ? <i className={`fa-solid ${icon} me-1`} /> : null}
+            {icon ? <Icon name={icon} className="me-1" /> : null}
             {label}
           </button>
         );
@@ -282,7 +283,7 @@ export function Stat({ label, icon, value, tone, className = "", children }) {
   return (
     <div className={`stat ${className}`}>
       <div className="stat-label">
-        {icon ? <i className={`fa-solid ${icon}`} /> : null}
+        {icon ? <Icon name={icon} /> : null}
         <span>{label}</span>
       </div>
       <div
@@ -317,12 +318,12 @@ export function PageHeader({ title, subtitle, icon, onBack, right, className = "
           aria-label="ফিরে যান"
           title="ফিরে যান"
         >
-          <i className="fa-solid fa-arrow-left" />
+          <Icon name="arrow-left" />
         </button>
       ) : null}
       <div className="min-w-0 flex-1">
         <h1 className="page-title flex items-center gap-2">
-          {icon ? <i className={`fa-solid ${icon} text-brand`} /> : null}
+          {icon ? <Icon name={icon} className="text-brand" /> : null}
           <span className="truncate">{title}</span>
         </h1>
         {subtitle ? <p className="section-sub mt-0.5">{subtitle}</p> : null}
@@ -383,7 +384,7 @@ export function FormHeader({ title, subtitle, icon, tone = "brand", onCancel }) 
     <div className="flex items-center gap-3 pb-1">
       {onCancel ? (
         <button type="button" onClick={onCancel} className="icon-btn" aria-label="ফিরে যান">
-          <i className="fa-solid fa-arrow-left" />
+          <Icon name="arrow-left" />
         </button>
       ) : null}
       <div className="min-w-0 flex-1">
@@ -393,7 +394,7 @@ export function FormHeader({ title, subtitle, icon, tone = "brand", onCancel }) 
               className="w-7 h-7 rounded-lg flex items-center justify-center text-[12px] shrink-0"
               style={{ background: "var(--ah-surface-3)", color }}
             >
-              <i className={`fa-solid ${icon}`} />
+              <Icon name={icon} />
             </span>
           ) : null}
           <span className="truncate" style={{ color }}>{title}</span>

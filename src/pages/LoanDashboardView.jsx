@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api.js";
 import {
@@ -46,7 +47,7 @@ function SummaryCard({ meta, total, remaining }) {
           className="w-8 h-8 rounded-lg text-white flex items-center justify-center text-xs shrink-0"
           style={{ background: style.color }}
         >
-          <i className={`fa-solid ${isGiven ? "fa-hand-holding-dollar" : "fa-sack-dollar"}`} />
+          <Icon name={isGiven ? "hand-coins" : "badge-dollar-sign"} />
         </div>
         <span className="text-sm font-bold text-ink truncate">{meta.label}</span>
       </div>
@@ -123,7 +124,7 @@ function LoanCard({ loan, onSelect, creatorName }) {
         <div className="flex-1 min-w-0">
           <div className="font-bold text-sm text-ink truncate">{loan.personName}</div>
           <div className="text-[11px] text-ink-3 mt-0.5 flex items-center gap-1 min-w-0">
-            <i className="fa-solid fa-phone text-[9px]" />
+            <Icon name="phone" className="text-[9px]" />
             <span className="truncate">{loan.phone || "নাম্বার নেই"}</span>
             <Badge className="shrink-0" tone={isGiven ? "danger" : "success"}>{meta.short}</Badge>
           </div>
@@ -147,16 +148,16 @@ function LoanCard({ loan, onSelect, creatorName }) {
       <div className="flex items-center justify-between gap-2 mt-2.5 pt-2 border-t border-[var(--ah-border)]">
         <div className="text-[10px] text-ink-3 flex items-center gap-2 min-w-0">
           <span className="truncate max-w-[45%]">
-            <i className="fa-solid fa-wallet me-1" />
+            <Icon name="wallet" className="me-1" />
             {loan.walletName || "—"}
           </span>
           <span className="shrink-0">
-            <i className="fa-solid fa-calendar-day me-1" />
+            <Icon name="calendar-1" className="me-1" />
             {fmtDate(loan.loanDate)}
           </span>
           {loan.dueDate ? (
             <span className="shrink-0">
-              <i className="fa-solid fa-hourglass-half me-1" />
+              <Icon name="hourglass" className="me-1" />
               {fmtDate(loan.dueDate)}
             </span>
           ) : null}
@@ -164,13 +165,13 @@ function LoanCard({ loan, onSelect, creatorName }) {
         <div className="text-right ml-2 flex items-center justify-end gap-x-2 flex-wrap">
           {creatorName ? (
             <span className="text-[9px] text-ink-3 flex items-center gap-1">
-              <i className="fa-solid fa-user-pen" />
+              <Icon name="user-pen" />
               <span className="font-semibold">{creatorName}</span>
             </span>
           ) : null}
           {loan.updatedAt ? (
             <span className="text-[9px] text-ink-3 flex items-center gap-1">
-              <i className="fa-solid fa-clock-rotate-left" />
+              <Icon name="history" />
               <span className="font-semibold">{fmtUpdated(loan.updatedAt)}</span>
             </span>
           ) : null}
@@ -380,11 +381,11 @@ export default function LoanDashboardView({ currentUser, loans, onLoansChange, c
     <div className="space-y-4">
       <PageHeader
         title="হাওলাত (Loan)"
-        icon="fa-hand-holding-dollar"
+        icon="hand-coins"
         subtitle="দেওয়া ও নেওয়া হাওলাতের হিসাব"
         right={
           canAddLoan ? (
-            <Button size="sm" icon="fa-plus" onClick={onAdd}>হাওলাত যোগ করুন</Button>
+            <Button size="sm" icon="plus" onClick={onAdd}>হাওলাত যোগ করুন</Button>
           ) : (
             <span className="text-[10px] text-ink-3">যোগ করতে অনুমতি নেই</span>
           )
@@ -407,7 +408,7 @@ export default function LoanDashboardView({ currentUser, loans, onLoansChange, c
 
       <div className="flex gap-2">
         <div className="relative flex-1">
-          <i className="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-ink-3 text-xs" />
+          <Icon name="search" className="absolute left-3 top-2.5 text-ink-3 text-xs" />
           <Input
             type="text"
             value={search}
@@ -420,7 +421,7 @@ export default function LoanDashboardView({ currentUser, loans, onLoansChange, c
           variant="secondary"
           onClick={() => setShowFilter(true)}
           className="relative"
-          icon="fa-arrow-up-wide-short"
+          icon="arrow-up-wide-narrow"
         >
           Filter
           {activeFilterCount > 0 ? (
@@ -443,12 +444,12 @@ export default function LoanDashboardView({ currentUser, loans, onLoansChange, c
 
       {!loading && !loadError && !hasAnyLoan ? (
         <EmptyState
-          icon="fa-hand-holding-dollar"
+          icon="hand-coins"
           title="এখনো কোনো হাওলাতের হিসাব নেই"
           text="প্রথম হাওলাত যোগ করে শুরু করুন।"
           action={
             canAddLoan ? (
-              <Button icon="fa-plus" onClick={onAdd}>হাওলাত যোগ করুন</Button>
+              <Button icon="plus" onClick={onAdd}>হাওলাত যোগ করুন</Button>
             ) : null
           }
         />
@@ -456,7 +457,7 @@ export default function LoanDashboardView({ currentUser, loans, onLoansChange, c
 
       {!loading && !loadError && hasAnyLoan && filtered.length === 0 ? (
         <EmptyState
-          icon="fa-magnifying-glass"
+          icon="search"
           title="কোনো হাওলাত পাওয়া যায়নি"
           text="সার্চ বা ফিল্টার পরিবর্তন করুন।"
           action={

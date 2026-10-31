@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import { useState } from "react";
 import Select from "./Select.jsx";
 import AccountSelect from "./AccountSelect.jsx";
@@ -35,7 +36,7 @@ export default function EditTransactionForm({ transaction, onSave, onCancel }) {
   return (
     <Popup open title="Edit Transaction" onClose={submitting ? undefined : onCancel}>
       <div className="card-inset px-3 py-2 text-xs text-ink-2 flex items-center gap-2">
-        <i className="fa-solid fa-vault"></i> Wallet: <span className="font-semibold text-ink">{transaction.WalletName || transaction.WalletID}</span>
+        <Icon name="vault" /> Wallet: <span className="font-semibold text-ink">{transaction.WalletName || transaction.WalletID}</span>
       </div>
       <form onSubmit={handleSubmit} className="space-y-3">
         <input type="date" value={form.date || ''} onChange={(e) => change('date', e.target.value)} className="input" required />
@@ -46,7 +47,7 @@ export default function EditTransactionForm({ transaction, onSave, onCancel }) {
         <input value={form.description || ''} onChange={(e) => change('description', e.target.value)} placeholder="Description" className="input" />
         <input type="number" step="any" value={form.amount || ''} onChange={(e) => change('amount', e.target.value)} placeholder="Amount" className="input" required />
         <textarea value={form.note || ''} onChange={(e) => change('note', e.target.value)} placeholder="Note" rows="2" className="textarea"></textarea>
-        <button disabled={submitting} className="btn btn-primary btn-block">{submitting ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-floppy-disk"></i>} {submitting ? 'Updating...' : 'Update Transaction'}</button>
+        <button disabled={submitting} className="btn btn-primary btn-block">{submitting ? <Icon name="loader-circle" /> : <Icon name="save" />} {submitting ? 'Updating...' : 'Update Transaction'}</button>
       </form>
     </Popup>
   );

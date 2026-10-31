@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import { useState } from "react";
 import Select from "./Select.jsx";
 import AccountSelect from "./AccountSelect.jsx";
@@ -47,7 +48,7 @@ export default function IncomeForm({ wallets, categories, currentUser, onSave, o
       {!embedded && (
         <FormHeader
           title="Income (আয় যোগ করুন)"
-          icon="fa-arrow-down"
+          icon="arrow-down"
           tone="success"
           onCancel={onCancel}
         />
@@ -104,7 +105,7 @@ export default function IncomeForm({ wallets, categories, currentUser, onSave, o
         </div>
 
         <button type="submit" disabled={submitting} className="btn btn-primary btn-block mt-2">
-          <i className={`${submitting ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-floppy-disk"}`}></i> {submitting ? 'Saving...' : 'Save Income'}
+          <Icon name={submitting ? "loader-circle" : "save"} /> {submitting ? 'Saving...' : 'Save Income'}
         </button>
       </form>
     </div>

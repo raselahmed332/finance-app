@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import { useState } from "react";
 import Select from "./Select.jsx";
 import AccountSelect from "./AccountSelect.jsx";
@@ -43,7 +44,7 @@ export default function ExpenseForm({ wallets, categories, currentUser, onSave, 
       {!embedded && (
         <FormHeader
           title="Expense (খরচ যোগ করুন)"
-          icon="fa-arrow-up"
+          icon="arrow-up"
           tone="danger"
           onCancel={onCancel}
         />
@@ -105,7 +106,7 @@ export default function ExpenseForm({ wallets, categories, currentUser, onSave, 
         </div>
 
         <button type="submit" disabled={submitting} className="btn btn-danger btn-block mt-2">
-          <i className={`${submitting ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-floppy-disk"}`}></i> {submitting ? 'Saving...' : 'Save Expense'}
+          <Icon name={submitting ? "loader-circle" : "save"} /> {submitting ? 'Saving...' : 'Save Expense'}
         </button>
       </form>
     </div>

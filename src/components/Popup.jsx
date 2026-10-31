@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import { useEffect } from "react";
 import { lockPageScroll, pushBackHandler } from "../utils/native.js";
 
@@ -49,7 +50,7 @@ export default function Popup({ open, title, onClose, children, maxWidth = "max-
               style={{ width: 30, height: 30, border: "none", background: "transparent" }}
               title="বন্ধ করুন"
             >
-              <i className="fa-solid fa-xmark text-base" />
+              <Icon name="x" className="text-base" />
             </button>
           )}
         </div>

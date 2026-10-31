@@ -101,6 +101,10 @@ test("shop ledger computes outstanding and monthly balances and replays idempote
     { AccountID: "A_CASH", AccountName: "Cash", Amount: 5 },
   ]);
 
+  const details = context.getShopLedgerDetails(created.shopId, "admin");
+  assert.equal(details.markets[0].CreatedByName, "Admin User");
+  assert.equal(details.payments[0].CreatedByName, "Admin User");
+
   const report = context.getShopLedgerReport(created.shopId, "2025-04", "admin");
   assert.equal(report.status, "SUCCESS");
   assert.equal(report.report.BeginningOutstanding, 20);
@@ -387,4 +391,111 @@ test("shop payment effects update account balances and account movement reports,
   assert.equal(report.totalExpense, 0);
   assert.equal(report.netChange, 0);
   assert.equal(report.accountBreakdown.A_CASH, -12);
+});
+
+test("wallet report counts each active shop market purchase as an expense exactly once", () => {
+  const context = createLedgerContext();
+  const shop = context.createShopLedger({
+    name: "Report Shop",
+    address: "Dhaka",
+    walletId: "W001",
+    openingBalance: "20",
+    requestId: "report-shop-create",
+  }, "admin");
+  context.addShopMarket(shop.shopId, {
+    date: "2025-04-01",
+    products: [{ name: "Rice", quantity: "1", unit: "kg", total: "10" }],
+    requestId: "report-market-boundary",
+  }, "admin");
+  context.addShopMarket(shop.shopId, {
+    date: "2025-04-30",
+    products: [{ name: "Oil", quantity: "1", unit: "ltr", total: "15" }],
+    requestId: "report-market-inside",
+  }, "admin");
+  context.addShopMarket(shop.shopId, {
+    date: "2025-05-01",
+    products: [{ name: "Sugar", quantity: "1", unit: "kg", total: "99" }],
+    requestId: "report-market-outside",
+  }, "admin");
+
+  const report = context.getReport("admin", "W001", "monthly", "2025-04");
+  assert.equal(report.status, "SUCCESS");
+  assert.equal(report.totalIncome, 0);
+  assert.equal(report.totalExpense, 25);
+  assert.equal(report.netChange, -25);
+  assert.equal(report.categoryBreakdown["Shop Credit"], 25);
+  assert.equal(report.transactionCount, 2);
+  assert.equal(report.transactions.length, 2);
+  assert.ok(report.transactions.every((row) => row.ShopMarket === true && row.Account === ""));
+  // The shop opening balance is debt, never an expense.
+  assert.equal(report.accountBreakdown.A_CASH, 0);
+  assert.equal(report.accountBreakdown.A_BANK, 0);
+  assert.ok(!Object.prototype.hasOwnProperty.call(report.accountBreakdown, ""));
+
+  // A payment is a debt settlement recorded on wallet accounts, not a second
+  // expense. Its account movement is still reported.
+  context.readWalletTransactions_ = () => [
+    { ID: "pay", Date: "2025-04-12", Type: "Shop Credit Payment", Account: "A_CASH", Amount: "5.00" },
+  ];
+  const withPayment = context.getReport("admin", "W001", "monthly", "2025-04");
+  assert.equal(withPayment.totalExpense, 25);
+  assert.equal(withPayment.categoryBreakdown["Shop Credit"], 25);
+  assert.equal(withPayment.accountBreakdown.A_CASH, -5);
+  assert.equal(withPayment.transactionCount, 3);
+});
+
+test("deleted shop markets disappear from the wallet expense report", () => {
+  const context = createLedgerContext();
+  const shop = context.createShopLedger({
+    name: "Deleted Market Shop",
+    address: "Dhaka",
+    walletId: "W001",
+    openingBalance: "0",
+    requestId: "deleted-market-shop",
+  }, "admin");
+  const market = context.addShopMarket(shop.shopId, {
+    date: "2025-04-10",
+    products: [{ name: "Tea", quantity: "1", unit: "kg", total: "12" }],
+    requestId: "deleted-market-create",
+  }, "admin");
+
+  assert.equal(context.getReport("admin", "W001", "monthly", "2025-04").totalExpense, 12);
+  assert.equal(context.deleteShopMarket(market.marketId, { requestId: "deleted-market-delete" }, "admin").status, "SUCCESS");
+  assert.equal(context.getReport("admin", "W001", "monthly", "2025-04").totalExpense, 0);
+});
+
+test("editing or deleting a shop payment reverses it on its original date", () => {
+  const context = createLedgerContext();
+  const shop = context.createShopLedger({
+    name: "Dated Reversal Shop",
+    address: "Dhaka",
+    walletId: "W001",
+    openingBalance: "0",
+    requestId: "dated-reversal-shop",
+  }, "admin");
+  context.addShopMarket(shop.shopId, {
+    date: "2025-03-01",
+    products: [{ name: "Rice", quantity: "1", unit: "kg", total: "50" }],
+    requestId: "dated-reversal-market",
+  }, "admin");
+  const payment = context.addShopPayment(shop.shopId, {
+    date: "2025-03-15",
+    allocations: [{ accountId: "A_CASH", amount: "20" }],
+    requestId: "dated-reversal-payment",
+  }, "admin");
+
+  context.updateShopPayment(payment.paymentId, {
+    date: "2025-04-05",
+    allocations: [{ accountId: "A_CASH", amount: "30" }],
+    requestId: "dated-reversal-update",
+  }, "admin");
+  context.deleteShopPayment(payment.paymentId, { requestId: "dated-reversal-delete" }, "admin");
+
+  const effects = context.__test.walletTransactions._rows().slice(1);
+  assert.deepEqual(effects.map((row) => [row[2], row[1]]), [
+    ["Shop Credit Payment", "2025-03-15"],
+    ["Shop Credit Payment Reversal", "2025-03-15"],
+    ["Shop Credit Payment", "2025-04-05"],
+    ["Shop Credit Payment Reversal", "2025-04-05"],
+  ]);
 });

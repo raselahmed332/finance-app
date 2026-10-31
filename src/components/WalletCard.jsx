@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import { memo, useState, useEffect, useMemo } from "react";
 import { useBalanceReveal, BalanceRevealToggle, MASK } from "../utils/balanceReveal.jsx";
 import { getWalletAccounts, accountName, onAccountsChange } from "../utils/accounts.js";
@@ -20,10 +21,10 @@ const PALETTES = [
 
 // Icon per account type so cash/bank keep the icons they always had and any
 // custom type (e.g. a wallet) still gets something sensible.
-function iconClass(code, p) {
-  if (code === "BANK") return `fa-solid fa-building-columns`;
-  if (code === "CASH") return `fa-solid fa-money-bill-wave`;
-  return `fa-solid fa-wallet`;
+function iconClass(code) {
+  if (code === "BANK") return "landmark";
+  if (code === "CASH") return "banknote";
+  return "wallet";
 }
 
 export default memo(function WalletCard({ wallet, summary, index, onOpen }) {
@@ -61,7 +62,7 @@ export default memo(function WalletCard({ wallet, summary, index, onOpen }) {
   const accountIcon = (id) => {
     const list = getWalletAccounts(wallet.WalletID, { activeOnly: false });
     const a = list.find((x) => x.AccountID === id);
-    return iconClass(a ? a.AccountTypeCode : id, p);
+    return iconClass(a ? a.AccountTypeCode : id);
   };
   const openingAccounts = accountIds.filter((id) => openingFor(id) > 0);
   const hasOpening = openingAccounts.length > 0;
@@ -108,7 +109,7 @@ export default memo(function WalletCard({ wallet, summary, index, onOpen }) {
           </div>
         </div>
         <div className="p-2.5 rounded-lg text-xl shrink-0" style={{ background: p.badge, color: "#fff" }}>
-          <i className="fa-solid fa-wallet" />
+          <Icon name="wallet" />
         </div>
       </div>
 
@@ -116,7 +117,7 @@ export default memo(function WalletCard({ wallet, summary, index, onOpen }) {
         {accountIds.map((id) => (
           <div key={id} className="card-flat p-2 text-center">
             <div className="text-[10px] text-ink-2 flex items-center justify-center gap-1 font-semibold">
-              <i className={accountIcon(id)} style={{ color: p.icon }} /> {accountLabel(id)}
+              <Icon name={accountIcon(id)} style={{ color: p.icon }} /> {accountLabel(id)}
             </div>
             <div className="text-xs font-bold text-ink mt-1 tabular-nums">
               {wallet.Currency} {amount(summary?.accounts?.[id] || 0)}
@@ -130,7 +131,7 @@ export default memo(function WalletCard({ wallet, summary, index, onOpen }) {
           onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
           className="w-full text-[10px] text-ink-3 text-center mb-3 flex items-center justify-center gap-1 transition-colors"
         >
-          <i className={`fa-solid fa-chevron-${expanded ? "up" : "down"}`} />
+          <Icon name={expanded ? "chevron-up" : "chevron-down"} />
           শুরুর ব্যালেন্স
         </button>
       )}
@@ -149,14 +150,14 @@ export default memo(function WalletCard({ wallet, summary, index, onOpen }) {
         <div className="card-flat p-2 px-3" style={{ borderColor: "var(--ah-success)" }}>
           <div className="text-[11px] text-ink-2 font-medium">এ মাসের আয়</div>
           <div className="text-sm font-bold mt-0.5 tabular-nums" style={{ color: "var(--ah-success)" }}>
-            <i className="fa-solid fa-arrow-up text-xs me-1" />
+            <Icon name="arrow-up" className="text-xs me-1" />
             {wallet.Currency} {summary.income.toLocaleString("en-US", { minimumFractionDigits: 2 })}
           </div>
         </div>
         <div className="card-flat p-2 px-3" style={{ borderColor: "var(--ah-danger)" }}>
           <div className="text-[11px] text-ink-2 font-medium">এ মাসের খরচ</div>
           <div className="text-sm font-bold mt-0.5 tabular-nums" style={{ color: "var(--ah-danger)" }}>
-            <i className="fa-solid fa-arrow-down text-xs me-1" />
+            <Icon name="arrow-down" className="text-xs me-1" />
             {wallet.Currency} {summary.expense.toLocaleString("en-US", { minimumFractionDigits: 2 })}
           </div>
         </div>

@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import Select from "./Select.jsx";
 import { Input } from "../ui/index.jsx";
 import { money } from "../utils/shopLedger.js";
@@ -82,7 +83,7 @@ export default function ShopLedgerAllocationEditor({
               disabled={disabled}
               onClick={() => removeRow(index)}
             >
-              <i className="fa-solid fa-trash text-[10px]" />
+              <Icon name="trash-2" className="text-[10px]" />
             </button>
           </div>
         </div>
@@ -94,7 +95,7 @@ export default function ShopLedgerAllocationEditor({
           onClick={addRow}
           disabled={disabled || rows.length >= (accounts || []).length}
         >
-          <i className="fa-solid fa-plus" />
+          <Icon name="plus" />
           Account যোগ করুন
         </button>
         <div className="text-right">
@@ -106,7 +107,7 @@ export default function ShopLedgerAllocationEditor({
       </div>
       {overLimit ? (
         <div className="text-[10px] font-semibold text-danger">
-          <i className="fa-solid fa-triangle-exclamation me-1" />
+          <Icon name="triangle-alert" className="me-1" />
           বর্তমান বাকির চেয়ে বেশি পেমেন্ট করা যাবে না।
         </div>
       ) : null}

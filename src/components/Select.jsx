@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import { useState, useRef, useEffect } from "react";
 
 export default function Select({
@@ -101,9 +102,7 @@ export default function Select({
         className={`select-trigger ${triggerClassName}`}
       >
         <span className="truncate">{label || "Select..."}</span>
-        <i
-          className={`fa-solid fa-chevron-down text-[10px] text-ink-3 shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
-        />
+        <Icon name="chevron-down" className={`text-[10px] text-ink-3 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
         <div role="listbox" className={`select-menu ${menuClassName}`}>

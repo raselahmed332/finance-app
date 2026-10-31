@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import { useCallback, useEffect, useState } from "react";
 
 // How long a revealed balance stays on screen before it masks itself again.
@@ -63,7 +64,7 @@ export function BalanceRevealToggle({ revealed, secondsLeft, onToggle, tone = "l
       title={title}
       className={`flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-lg transition-colors ${cls}`}
     >
-      <i className={`fa-solid ${revealed ? "fa-eye-slash" : "fa-eye"} text-[10px]`}></i>
+      <Icon name={revealed ? "eye-off" : "eye"} className="text-[10px]" />
       {label}
     </button>
   );

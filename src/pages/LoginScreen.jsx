@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { useToast } from "../components/Toast.jsx";
@@ -91,7 +92,7 @@ export default function LoginScreen({ onLogin, onReady }) {
                 boxShadow: "var(--ah-shadow-brand)",
               }}
             >
-              <i className="fa-solid fa-wallet" />
+              <Icon name="wallet" />
             </div>
             <h2 className="text-xl font-bold text-ink">মাই পার্সোনাল হিসাব</h2>
             <p className="text-xs text-ink-3 mt-1">
@@ -134,7 +135,7 @@ export default function LoginScreen({ onLogin, onReady }) {
                   title={showPin ? "পিন লুকান" : "পিন দেখান"}
                   className="absolute right-2 top-1/2 -translate-y-1/2 px-1.5 py-1 text-ink-3 hover:text-brand"
                 >
-                  <i className={`fa-solid ${showPin ? "fa-eye-slash" : "fa-eye"} text-sm`} />
+                  <Icon name={showPin ? "eye-off" : "eye"} className="text-sm" />
                 </button>
               </div>
             </div>
@@ -148,7 +149,7 @@ export default function LoginScreen({ onLogin, onReady }) {
                 style={{ accentColor: "var(--ah-brand)" }}
               />
               <span>
-                <i className="fa-solid fa-bookmark me-1 text-brand text-[10px]" />
+                <Icon name="bookmark" className="me-1 text-brand text-[10px]" />
                 মনে রাখুন (Remember Username)
               </span>
             </label>
@@ -160,11 +161,11 @@ export default function LoginScreen({ onLogin, onReady }) {
             >
               {submitting ? (
                 <>
-                  <i className="fa-solid fa-spinner fa-spin" /> লগইন হচ্ছে...
+                  <Icon name="loader-circle" /> লগইন হচ্ছে...
                 </>
               ) : (
                 <>
-                  <i className="fa-solid fa-right-to-bracket" /> লগইন করুন (Login)
+                  <Icon name="log-in" /> লগইন করুন (Login)
                 </>
               )}
             </button>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Select from "./Select.jsx";
+import { Icon } from "../ui/Icon.jsx";
 import { Button, Input } from "../ui/index.jsx";
 import { parseOpeningBalanceCents } from "../utils/money.js";
 
@@ -45,11 +46,21 @@ export default function ShopLedgerShopForm({ wallets, shop, busy, onCancel, onSa
         <Input value={name} onChange={(event) => setName(event.target.value)} maxLength={100} required />
       </label>
       <label className="block">
-        <span className="label">ঠিকানা</span>
+        <span className="label">
+          <span className="inline-flex items-center gap-1">
+            <Icon name="map-pin" />
+            ঠিকানা
+          </span>
+        </span>
         <Input value={address} onChange={(event) => setAddress(event.target.value)} maxLength={200} required />
       </label>
       <label className="block">
-        <span className="label">মোবাইল (ঐচ্ছিক)</span>
+        <span className="label">
+          <span className="inline-flex items-center gap-1">
+            <Icon name="phone" />
+            মোবাইল (ঐচ্ছিক)
+          </span>
+        </span>
         <Input type="tel" value={mobile} onChange={(event) => setMobile(event.target.value)} maxLength={30} />
       </label>
       {!shop ? (

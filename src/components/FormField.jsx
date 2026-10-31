@@ -1,7 +1,8 @@
+import { Icon } from "../ui/Icon.jsx";
 export function ErrorText({ msg }) {
   return msg ? (
     <div className="err">
-      <i className="fa-solid fa-circle-exclamation" />
+      <Icon name="circle-alert" />
       {msg}
     </div>
   ) : null;

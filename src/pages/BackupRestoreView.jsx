@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import { useState } from "react";
 import { api } from "../api.js";
 import { todayStr } from "../utils/loan.js";
@@ -49,13 +50,13 @@ export default function BackupRestoreView({ currentUser, showAlert, onImport, ca
       <PageHeader
         title="Backup & Restore"
         subtitle="ব্যাকআপ ও রিস্টোর"
-        icon="fa-cloud-arrow-down"
+        icon="cloud-download"
         onBack={onCancel}
       />
 
       <SectionCard
         title="ডাটাবেজ ও ব্যাকআপ"
-        icon="fa-database"
+        icon="database"
         bodyClassName="p-4 space-y-3"
       >
         <p className="text-xs text-ink-3">
@@ -66,7 +67,7 @@ export default function BackupRestoreView({ currentUser, showAlert, onImport, ca
         {allowed ? (
           <Button
             block
-            icon={downloading ? "fa-spinner fa-spin" : "fa-download"}
+            icon={downloading ? "loader-circle animate-spin" : "download"}
             onClick={handleBackup}
             disabled={downloading}
           >
@@ -78,7 +79,7 @@ export default function BackupRestoreView({ currentUser, showAlert, onImport, ca
 
         {allowed ? (
           <label className="btn btn-secondary btn-block cursor-pointer">
-            <i className="fa-solid fa-upload" /> Import / Restore JSON
+            <Icon name="upload" /> Import / Restore JSON
             <input
               type="file"
               accept="application/json,.json"
@@ -92,7 +93,7 @@ export default function BackupRestoreView({ currentUser, showAlert, onImport, ca
       </SectionCard>
 
       <div className="card card-warning p-3 flex items-start gap-2">
-        <i className="fa-solid fa-triangle-exclamation mt-0.5 text-warning" />
+        <Icon name="triangle-alert" className="mt-0.5 text-warning" />
         <span className="text-[11px] text-ink-2">
           Restore করলে বর্তমান ডেটা প্রতিস্থাপিত হতে পারে। নতুন backup download/import
           করার আগে নিশ্চিত হয়ে নিন।

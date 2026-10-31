@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api.js";
 import Popup from "../components/Popup.jsx";
@@ -48,15 +49,24 @@ function ReportHeader({ shop, shopId, month }) {
     <div className="flex items-start justify-between gap-3 pb-3 border-b border-[var(--ah-border)]">
       <div className="flex items-start gap-2.5 min-w-0">
         <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={toneStyle("brand")}>
-          <i className="fa-solid fa-store text-base" />
+          <Icon name="store" className="text-base" />
         </div>
         <div className="min-w-0">
           <div className="text-sm font-bold text-ink break-words">{shop?.Name || shopId}</div>
-          <div className="text-[10px] text-ink-2 mt-0.5 break-words">
-            {shop?.Address || "ঠিকানা নেই"}{shop?.Mobile ? ` · ${shop.Mobile}` : ""}
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-ink-2">
+            <span className="inline-flex min-w-0 items-center gap-1">
+              <Icon name="map-pin" className="shrink-0" />
+              <span className="break-words">{shop?.Address || "ঠিকানা নেই"}</span>
+            </span>
+            {shop?.Mobile ? (
+              <span className="inline-flex shrink-0 items-center gap-1">
+                <Icon name="phone" />
+                {shop.Mobile}
+              </span>
+            ) : null}
           </div>
           <div className="text-[10px] text-ink-3 mt-1">
-            <i className="fa-solid fa-wallet me-1" />
+            <Icon name="wallet" className="me-1" />
             {shop?.WalletName || shop?.WalletID || "Wallet"} · {shop?.Currency || ""}
           </div>
         </div>
@@ -212,7 +222,7 @@ export default function ShopLedgerReportView({ shopId, can, showAlert, onBack })
   if (!can("VIEW_SHOP_REPORTS")) {
     return (
       <div className="space-y-4">
-        <PageHeader title="মাসিক রিপোর্ট" icon="fa-file-invoice" onBack={onBack} />
+        <PageHeader title="মাসিক রিপোর্ট" icon="receipt-text" onBack={onBack} />
         <ErrorState title="অনুমতি নেই" text="শপ লেজার রিপোর্ট দেখার অনুমতি আপনার নেই।" />
       </div>
     );
@@ -223,13 +233,13 @@ export default function ShopLedgerReportView({ shopId, can, showAlert, onBack })
       <PageHeader
         title="মাসিক রিপোর্ট"
         subtitle={shop?.Name || shopId}
-        icon="fa-file-invoice"
+        icon="receipt-text"
         onBack={onBack}
         right={
           <Button
             size="sm"
             variant="secondary"
-            icon={pdfBusy ? "fa-spinner fa-spin" : "fa-file-pdf"}
+            icon={pdfBusy ? "loader-circle animate-spin" : "file-text"}
             disabled={!report || pdfBusy}
             onClick={openPdfPreview}
           >
@@ -243,7 +253,7 @@ export default function ShopLedgerReportView({ shopId, can, showAlert, onBack })
           <Button
             size="sm"
             variant="secondary"
-            icon="fa-chevron-left"
+            icon="chevron-left"
             aria-label="আগের মাস"
             disabled={pdfBusy}
             onClick={() => setMonth((value) => shiftMonth(value, -1))}
@@ -255,7 +265,7 @@ export default function ShopLedgerReportView({ shopId, can, showAlert, onBack })
           <Button
             size="sm"
             variant="secondary"
-            icon="fa-chevron-right"
+            icon="chevron-right"
             aria-label="পরের মাস"
             disabled={pdfBusy}
             onClick={() => setMonth((value) => shiftMonth(value, 1))}
@@ -314,7 +324,7 @@ export default function ShopLedgerReportView({ shopId, can, showAlert, onBack })
                 ))}
               </div>
             ) : (
-              <EmptyState icon="fa-basket-shopping" title="এই মাসে কোনো বাজার নেই" text="অন্য মাস নির্বাচন করে দেখুন।" />
+              <EmptyState icon="shopping-basket" title="এই মাসে কোনো বাজার নেই" text="অন্য মাস নির্বাচন করে দেখুন।" />
             )}
           </SectionCard>
 
@@ -330,7 +340,7 @@ export default function ShopLedgerReportView({ shopId, can, showAlert, onBack })
                 ))}
               </div>
             ) : (
-              <EmptyState icon="fa-money-bill-wave" title="এই মাসে কোনো পেমেন্ট নেই" text="অন্য মাস নির্বাচন করে দেখুন।" />
+              <EmptyState icon="banknote" title="এই মাসে কোনো পেমেন্ট নেই" text="অন্য মাস নির্বাচন করে দেখুন।" />
             )}
           </SectionCard>
 
@@ -367,8 +377,8 @@ export default function ShopLedgerReportView({ shopId, can, showAlert, onBack })
               </div>
             )}
             <div className="grid grid-cols-2 gap-2">
-              <Button variant="secondary" icon="fa-download" onClick={downloadPdf}>Download</Button>
-              <Button icon="fa-share-nodes" onClick={sharePdf}>Share</Button>
+              <Button variant="secondary" icon="download" onClick={downloadPdf}>Download</Button>
+              <Button icon="share-2" onClick={sharePdf}>Share</Button>
             </div>
           </>
         ) : null}

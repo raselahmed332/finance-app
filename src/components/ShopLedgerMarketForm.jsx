@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import { useState } from "react";
 import Select from "./Select.jsx";
 import ShopLedgerAllocationEditor from "./ShopLedgerAllocationEditor.jsx";
@@ -235,13 +236,13 @@ export default function ShopLedgerMarketForm({
                   aria-label="পণ্য বাদ দিন"
                   onClick={() => removeProduct(index)}
                 >
-                  <i className="fa-solid fa-trash text-[10px]" />
+                  <Icon name="trash-2" className="text-[10px]" />
                 </button>
               </div>
             </div>
           ))}
         </div>
-        <Button type="button" size="sm" variant="secondary" icon="fa-plus" className="mt-2" onClick={addProduct}>
+        <Button type="button" size="sm" variant="secondary" icon="plus" className="mt-2" onClick={addProduct}>
           পণ্য যোগ করুন
         </Button>
       </div>

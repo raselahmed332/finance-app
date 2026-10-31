@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import { useState, useEffect } from "react";
 import { api } from "../api.js";
 import Popup from "./Popup.jsx";
@@ -67,7 +68,7 @@ export default function EditTransferForm({ transaction, currentUser, onSave, onC
   if (loadError || !pair) return (
     <Popup open title="Edit Transfer" onClose={onCancel}>
       <div className="text-sm text-[var(--ah-danger)] py-4 text-center">
-        <i className="fa-solid fa-circle-exclamation me-1"></i>
+        <Icon name="circle-alert" className="me-1" />
         {loadError || 'ট্রান্সফার পাওয়া যায়নি।'}
       </div>
       <div className="text-xs text-ink-3 text-center mb-4">
@@ -110,7 +111,7 @@ export default function EditTransferForm({ transaction, currentUser, onSave, onC
 
         <div className="flex justify-center -my-2 relative z-10">
           <div className="w-8 h-8 rounded-full bg-[var(--ah-info)] text-white flex items-center justify-center text-xs shadow-md border-2 border-white dark:border-gray-900">
-            <i className="fa-solid fa-arrows-up-down"></i>
+            <Icon name="arrow-up-down" />
           </div>
         </div>
 
@@ -128,7 +129,7 @@ export default function EditTransferForm({ transaction, currentUser, onSave, onC
 
         {!sameCurrency && (
           <div className="card-warning p-2.5 text-[11px] text-[var(--ah-warning)]">
-            <i className="fa-solid fa-triangle-exclamation me-1"></i>
+            <Icon name="triangle-alert" className="me-1" />
             ভিন্ন কারেন্সি — উভয় পরিমাণ আলাদাভাবে সঠিকভাবে দিন।
           </div>
         )}
@@ -153,7 +154,7 @@ export default function EditTransferForm({ transaction, currentUser, onSave, onC
         </div>
 
         <button type="submit" disabled={submitting} className="btn btn-primary btn-block">
-          <i className={`${submitting ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-floppy-disk"}`}></i> {submitting ? 'Saving...' : 'Update Transfer (উভয় পাশ)'}
+          <Icon name={submitting ? "loader-circle" : "save"} /> {submitting ? 'Saving...' : 'Update Transfer (উভয় পাশ)'}
         </button>
       </form>
     </Popup>

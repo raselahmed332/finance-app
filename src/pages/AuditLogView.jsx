@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import { useState, useEffect } from "react";
 import { api } from "../api.js";
 import { Badge, Button, EmptyState, ErrorState, LoadingState, PageHeader, SectionCard } from "../ui/index.jsx";
@@ -99,7 +100,7 @@ export default function AuditLogView({ currentUser, onCancel }) {
       <PageHeader
         title="Audit Log"
         subtitle="হিসাবের কার্যক্রলের রেকর্ড"
-        icon="fa-clipboard-list"
+        icon="clipboard-list"
         onBack={onCancel}
         right={
           <Badge tone={loadError ? "danger" : "brand"}>
@@ -109,7 +110,7 @@ export default function AuditLogView({ currentUser, onCancel }) {
       />
 
       <div className="card card-warning p-3 flex items-start gap-2">
-        <i className="fa-solid fa-clock-rotate-left mt-0.5 text-warning" />
+        <Icon name="history" className="mt-0.5 text-warning" />
         <span className="text-[11px] text-ink-2">
           Audit Log সর্বশেষ {retention ? retention.months : 2} মাসের রেকর্ড সংরক্ষণ করে
           {retention && retention.cutoff ? <> — {retention.cutoff} এর আগের রেকর্ড স্বয়ংক্রিয়ভাবে মুছে যায়।</> : '।'}
@@ -123,11 +124,11 @@ export default function AuditLogView({ currentUser, onCancel }) {
       )}
 
       {isAdmin && (
-        <SectionCard title="Admin Tools" icon="fa-shield-halved" bodyClassName="p-3.5 space-y-2">
+        <SectionCard title="Admin Tools" icon="shield-half" bodyClassName="p-3.5 space-y-2">
           <Button
             variant="secondary"
             block
-            icon="fa-shield-halved"
+            icon="shield-half"
             onClick={handleCheckIntegrity}
             disabled={checking}
           >
@@ -136,7 +137,7 @@ export default function AuditLogView({ currentUser, onCancel }) {
           <Button
             variant="danger"
             block
-            icon="fa-broom"
+            icon="brush-cleaning"
             onClick={handleCleanup}
             disabled={cleaning}
           >
@@ -146,12 +147,12 @@ export default function AuditLogView({ currentUser, onCancel }) {
           {cleanResult && (
             cleanResult.error ? (
               <div className="card card-danger p-2.5 flex items-start gap-1.5">
-                <i className="fa-solid fa-triangle-exclamation mt-0.5 text-danger" />
+                <Icon name="triangle-alert" className="mt-0.5 text-danger" />
                 <span className="text-xs text-ink-2">{cleanResult.error}</span>
               </div>
             ) : (
               <div className="card card-success p-2.5 flex items-start gap-1.5">
-                <i className="fa-solid fa-circle-check mt-0.5 text-success" />
+                <Icon name="circle-check" className="mt-0.5 text-success" />
                 <span className="text-xs text-ink-2">
                   {cleanResult.skipped
                     ? 'আরেকটি ক্লিনআপ চলছে — পরে আবার চেষ্টা করুন।'
@@ -164,12 +165,12 @@ export default function AuditLogView({ currentUser, onCancel }) {
           {checkResult && (
             checkResult.error ? (
               <div className="card card-danger p-2.5 flex items-start gap-1.5">
-                <i className="fa-solid fa-triangle-exclamation mt-0.5 text-danger" />
+                <Icon name="triangle-alert" className="mt-0.5 text-danger" />
                 <span className="text-xs text-ink-2">{checkResult.error}</span>
               </div>
             ) : checkResult.count === 0 ? (
               <div className="card card-success p-2.5 flex items-start gap-1.5">
-                <i className="fa-solid fa-circle-check mt-0.5 text-success" />
+                <Icon name="circle-check" className="mt-0.5 text-success" />
                 <span className="text-xs text-ink-2">
                   কোনো Broken Transfer Pair পাওয়া যায়নি — সব ঠিক আছে।
                 </span>
@@ -177,7 +178,7 @@ export default function AuditLogView({ currentUser, onCancel }) {
             ) : (
               <div className="space-y-1.5">
                 <div className="card card-danger p-2.5 flex items-start gap-1.5">
-                  <i className="fa-solid fa-triangle-exclamation mt-0.5 text-danger" />
+                  <Icon name="triangle-alert" className="mt-0.5 text-danger" />
                   <span className="text-xs text-ink-2">
                     {checkResult.count} টি Broken Pair পাওয়া গেছে।
                   </span>
@@ -199,7 +200,7 @@ export default function AuditLogView({ currentUser, onCancel }) {
         ) : loadError ? (
           <ErrorState text={loadError} onRetry={() => load(page)} />
         ) : entries.length === 0 ? (
-          <EmptyState icon="fa-inbox" title="কোনো এন্ট্রি নেই।" />
+          <EmptyState icon="inbox" title="কোনো এন্ট্রি নেই।" />
         ) : (
           entries.map((e, i) => (
             <div
@@ -213,7 +214,7 @@ export default function AuditLogView({ currentUser, onCancel }) {
                 <span className="text-[10px] text-ink-3 shrink-0">{e.Date}</span>
               </div>
               <div className="text-[11px] text-ink-3 mt-0.5">
-                <i className="fa-solid fa-user me-1" />{e.User}
+                <Icon name="user" className="me-1" />{e.User}
                 {e.Target ? <span> • {e.Target}</span> : null}
               </div>
               {e.Details && <div className="text-[10px] text-ink-3 mt-0.5">{e.Details}</div>}
@@ -230,7 +231,7 @@ export default function AuditLogView({ currentUser, onCancel }) {
             className="icon-btn"
             aria-label="আগের পাতা"
           >
-            <i className="fa-solid fa-chevron-left text-xs" />
+            <Icon name="chevron-left" className="text-xs" />
           </button>
           {pageWindow.map((n) => (
             <button
@@ -251,7 +252,7 @@ export default function AuditLogView({ currentUser, onCancel }) {
             className="icon-btn"
             aria-label="পরের পাতা"
           >
-            <i className="fa-solid fa-chevron-right text-xs" />
+            <Icon name="chevron-right" className="text-xs" />
           </button>
         </div>
       )}

@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import { useState } from "react";
 import AccountSelect from "./AccountSelect.jsx";
 import Popup from "./Popup.jsx";
@@ -169,7 +170,7 @@ export default function LoanAddForm({ loan, addition, wallets, onSave, onCancel,
 
           <button type="submit" disabled={submitting}
             className="btn btn-primary btn-block mt-1">
-            <i className={submitting ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-floppy-disk"}></i> {submitting ? "সাবমিট হচ্ছে..." : (isEdit ? "আপডেট করুন" : "টাকা যোগ করুন")}
+            <Icon name={submitting ? "loader-circle" : "save"} /> {submitting ? "সাবমিট হচ্ছে..." : (isEdit ? "আপডেট করুন" : "টাকা যোগ করুন")}
           </button>
         </form>
     </Popup>

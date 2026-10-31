@@ -562,6 +562,14 @@
     border-radius: 9px;
   }
 
+  /* Lucide icons render at 1em so the existing text-size utilities keep
+     controlling their size exactly like the legacy icon glyphs. */
+  .ah-icon {
+    display: inline-block;
+    flex-shrink: 0;
+    vertical-align: -0.125em;
+  }
+
   .icon-btn {
     display: inline-flex;
     align-items: center;

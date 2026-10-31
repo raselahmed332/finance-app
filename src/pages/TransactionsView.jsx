@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import { useState, useMemo, useEffect } from "react";
 import Select from "../components/Select.jsx";
 import Popup from "../components/Popup.jsx";
@@ -104,7 +105,7 @@ export default function TransactionsView({ transactions, transactionBalances, wa
       <PageHeader
         title="Transactions"
         subtitle="হিসাবের তালিকা"
-        icon="fa-list-check"
+        icon="list-checks"
         right={
           <span
             className="badge"
@@ -116,7 +117,7 @@ export default function TransactionsView({ transactions, transactionBalances, wa
       />
 
       <div className="relative">
-        <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-ink-3 text-xs" />
+        <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3 text-xs" />
         <input
           type="text"
           value={searchTerm}
@@ -128,7 +129,7 @@ export default function TransactionsView({ transactions, transactionBalances, wa
 
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 text-[11px] text-ink-3 min-w-0">
-          <i className="fa-solid fa-calendar-days text-[10px] shrink-0" />
+          <Icon name="calendar-days" className="text-[10px] shrink-0" />
           <span className="truncate">{dateRangeLabel(dateRange)}</span>
         </div>
         <button
@@ -140,7 +141,7 @@ export default function TransactionsView({ transactions, transactionBalances, wa
               : { background: "var(--ah-brand)", borderColor: "var(--ah-brand)", color: "var(--ah-brand-contrast)" }
           }
         >
-          <i className="fa-solid fa-sliders text-[9px]" /> তারিখ
+          <Icon name="sliders-horizontal" className="text-[9px]" /> তারিখ
         </button>
       </div>
 
@@ -181,7 +182,7 @@ export default function TransactionsView({ transactions, transactionBalances, wa
                 a from later than to would otherwise filter out every row. */}
             {draft.from && draft.to && draft.from > draft.to && (
               <div className="err">
-                <i className="fa-solid fa-circle-exclamation" />
+                <Icon name="circle-alert" />
                 "থেকে" তারিখ "পর্যন্ত" তারিখের পরে হতে পারে না।
               </div>
             )}
@@ -257,7 +258,7 @@ export default function TransactionsView({ transactions, transactionBalances, wa
         {pageItems.length === 0 ? (
           <div className="card">
             <EmptyState
-              icon="fa-inbox"
+              icon="inbox"
               title="কোনো লেনদেন পাওয়া যায়নি"
               text="নতুন লেনদেন যোগ করুন অথবা ফিল্টার পরিবর্তন করুন।"
             />
@@ -275,7 +276,7 @@ export default function TransactionsView({ transactions, transactionBalances, wa
             className="icon-btn"
             aria-label="আগের পাতা"
           >
-            <i className="fa-solid fa-chevron-left text-xs" />
+            <Icon name="chevron-left" className="text-xs" />
           </button>
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
             <button
@@ -296,7 +297,7 @@ export default function TransactionsView({ transactions, transactionBalances, wa
             className="icon-btn"
             aria-label="পরের পাতা"
           >
-            <i className="fa-solid fa-chevron-right text-xs" />
+            <Icon name="chevron-right" className="text-xs" />
           </button>
         </div>
       )}

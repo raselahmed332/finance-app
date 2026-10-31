@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import { Component } from "react";
 
 // Vite/React.lazy loads each route as its own hashed JS chunk. A redeploy
@@ -41,14 +42,14 @@ export default class ErrorBoundary extends Component {
     return (
       <div className="empty py-16 px-4">
         <div className="empty-icon" style={{ color: "var(--ah-warning)" }}>
-          <i className="fa-solid fa-triangle-exclamation text-xl" />
+          <Icon name="triangle-alert" className="text-xl" />
         </div>
         <div className="empty-title">পেজটি লোড করা যায়নি</div>
         <div className="empty-text mt-1 mb-4">
           অ্যাপে নতুন আপডেট হয়েছে। একবার রিফ্রেশ করুন।
         </div>
         <button onClick={this.handleReload} className="btn btn-primary">
-          <i className="fa-solid fa-rotate-right" /> রিফ্রেশ করুন
+          <Icon name="rotate-cw" /> রিফ্রেশ করুন
         </button>
       </div>
     );

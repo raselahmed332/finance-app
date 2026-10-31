@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import { useState } from "react";
 import Select from "./Select.jsx";
 import AccountSelect from "./AccountSelect.jsx";
@@ -99,7 +100,7 @@ export default function MoveMoneyForm({ wallets, currentUser, onSave, onCancel, 
       {!embedded && (
         <div className="flex items-center justify-between pb-3">
           <button onClick={onCancel} className="text-ink-3 hover:text-ink dark:text-ink-3 dark:hover:text-gray-200">
-            <i className="fa-solid fa-arrow-left text-lg"></i>
+            <Icon name="arrow-left" className="text-lg" />
           </button>
           <h3 className="font-bold text-ink text-base text-center flex-1 text-[var(--ah-info)]">
             Transfer (ট্রান্সফার)
@@ -136,7 +137,7 @@ export default function MoveMoneyForm({ wallets, currentUser, onSave, onCancel, 
 
         <div className="flex justify-center relative z-10">
           <div className="w-9 h-9 rounded-full bg-[var(--ah-info)] text-white flex items-center justify-center text-sm shadow-md border-2 border-white dark:border-gray-900">
-            <i className="fa-solid fa-right-left rotate-90"></i>
+            <Icon name="arrow-left-right" className="rotate-90" />
           </div>
         </div>
 
@@ -152,7 +153,7 @@ export default function MoveMoneyForm({ wallets, currentUser, onSave, onCancel, 
                 </Select>
               ) : (
                 <div className="flex items-center gap-1.5 border border-[var(--ah-border)] rounded-lg px-2 py-1.5 text-xs bg-[var(--ah-surface-3)] text-ink-3">
-                  <i className="fa-solid fa-lock text-[10px]"></i>
+                  <Icon name="lock" className="text-[10px]" />
                   <span className="truncate">{fromWallet ? `${fromWallet.WalletName} (${fromWallet.Currency})` : "Select source wallet first"}</span>
                 </div>
               )}
@@ -176,7 +177,7 @@ export default function MoveMoneyForm({ wallets, currentUser, onSave, onCancel, 
 
         {!sameWallet && fromWallet && toWallet && !sameCurrency && (
           <div className="card-warning p-2.5 text-[11px] text-[var(--ah-warning)]">
-            <i className="fa-solid fa-triangle-exclamation me-1"></i>
+            <Icon name="triangle-alert" className="me-1" />
             ভিন্ন কারেন্সি — কোনো স্বয়ংক্রিয় কনভার্সন হবে না, "Amount Received" নিজে দিন।
           </div>
         )}
@@ -195,7 +196,7 @@ export default function MoveMoneyForm({ wallets, currentUser, onSave, onCancel, 
         </div>
 
         <button type="submit" disabled={submitting} className="btn btn-primary btn-block">
-          <i className={`${submitting ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-floppy-disk"}`}></i> {submitting ? 'Saving...' : 'Save'}
+          <Icon name={submitting ? "loader-circle" : "save"} /> {submitting ? 'Saving...' : 'Save'}
         </button>
       </form>
     </div>

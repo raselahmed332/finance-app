@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import { useState, useRef, useEffect } from "react";
 import { MIN_PIN_LENGTH, MAX_PIN_LENGTH, normalizePinInput } from "../api.js";
 import { todayStr } from "../utils/loan.js";
@@ -39,7 +40,7 @@ function MenuButton({ icon, label, sub, onClick, danger }) {
       onClick={onClick}
       className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${danger ? "text-[var(--ah-danger)] hover:bg-[var(--ah-danger-soft)] dark:hover:bg-red-900/20" : "text-ink hover:bg-[var(--ah-surface-2)] dark:hover:bg-[var(--ah-surface-3)]"}`}
     >
-      <i className={`fa-solid ${icon} w-4 text-center ${danger ? "" : "text-ink-3 dark:text-ink-3"}`}></i>
+      <Icon name={icon} className={`w-4 text-center ${danger ? "" : "text-ink-3 dark:text-ink-3"}`} />
       <span className="flex-1 min-w-0">
         <span className="block text-[11px] font-semibold">{label}</span>
         {sub && <span className="block text-[10px] text-ink-3">{sub}</span>}
@@ -356,12 +357,12 @@ export default function UserProfileView({ currentUser, transactions, transaction
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <button onClick={onCancel} className="text-ink-3 hover:text-ink dark:hover:text-gray-200">
-          <i className="fa-solid fa-arrow-left text-lg"></i>
+          <Icon name="arrow-left" className="text-lg" />
         </button>
         <h3 className="font-bold text-ink text-base">প্রোফাইল</h3>
         <div ref={menuRef} className="relative">
           <button onClick={() => setMenuOpen(o => !o)} className={`text-lg ${menuOpen ? "text-[var(--ah-success)]" : "text-ink-3 hover:text-ink dark:hover:text-gray-200"}`} title="Profile Settings">
-            <i className="fa-solid fa-gear"></i>
+            <Icon name="settings" />
           </button>
           {menuOpen && (
             <div className="absolute right-0 mt-1 w-60 bg-[var(--ah-surface)] border border-[var(--ah-border)] rounded-xl shadow-lg z-50 overflow-hidden">
@@ -374,26 +375,26 @@ export default function UserProfileView({ currentUser, transactions, transaction
                     value={themeMode || "system"}
                     onChange={(v) => onSetTheme && onSetTheme(v)}
                     options={[
-                      { value: "system", label: "সিস্টেম", icon: "fa-circle-half-stroke" },
-                      { value: "light", label: "লাইট", icon: "fa-sun" },
-                      { value: "dark", label: "ডার্ক", icon: "fa-moon" },
+                      { value: "system", label: "সিস্টেম", icon: "contrast" },
+                      { value: "light", label: "লাইট", icon: "sun" },
+                      { value: "dark", label: "ডার্ক", icon: "moon" },
                     ]}
                   />
                 </div>
                 <div className="border-t border-[var(--ah-border)] my-1"></div>
-                <MenuButton icon="fa-user-pen" label="Edit Profile" sub="নাম, ছবি, ডিফল্ট Wallet" onClick={() => { setEditName(currentUser.fullName || currentUser.username || ''); setActiveCard('edit'); setMenuOpen(false); }} />
-                <MenuButton icon="fa-key" label="Change Password" sub="PIN পরিবর্তন করুন" onClick={() => { setCurrentPin(''); setNewPin(''); setConfirmPin(''); setActiveCard('password'); setMenuOpen(false); }} />
-                {can?.('BACKUP_RESTORE') && <MenuButton icon="fa-download" label="Backup & Restore" sub="ব্যাকআপ ডাউনলোড/রিস্টোর" onClick={() => { setMenuOpen(false); setActiveTab('backup'); }} />}
+                <MenuButton icon="user-pen" label="Edit Profile" sub="নাম, ছবি, ডিফল্ট Wallet" onClick={() => { setEditName(currentUser.fullName || currentUser.username || ''); setActiveCard('edit'); setMenuOpen(false); }} />
+                <MenuButton icon="key-round" label="Change Password" sub="PIN পরিবর্তন করুন" onClick={() => { setCurrentPin(''); setNewPin(''); setConfirmPin(''); setActiveCard('password'); setMenuOpen(false); }} />
+                {can?.('BACKUP_RESTORE') && <MenuButton icon="download" label="Backup & Restore" sub="ব্যাকআপ ডাউনলোড/রিস্টোর" onClick={() => { setMenuOpen(false); setActiveTab('backup'); }} />}
                 {isNativeAndroid() && (
                   <MenuButton
-                    icon="fa-rotate"
+                    icon="rotate-cw"
                     label="Check for updates"
                     sub="নতুন APK আপডেট চেক করুন"
                     onClick={startCheck}
                   />
                 )}
                 <div className="border-t border-[var(--ah-border)] my-1"></div>
-                <MenuButton danger icon="fa-right-from-bracket" label="Log Out" sub="সেশন শেষ করুন" onClick={handleLogout} />
+                <MenuButton danger icon="log-out" label="Log Out" sub="সেশন শেষ করুন" onClick={handleLogout} />
               </div>
             </div>
           )}
@@ -409,7 +410,7 @@ export default function UserProfileView({ currentUser, transactions, transaction
               </div>
               <div className="flex-1">
                 <button onClick={() => editFileInputRef.current.click()} className="bg-[var(--ah-header)] text-white text-xs font-bold px-3 py-2 rounded-xl">
-                  <i className="fa-solid fa-camera me-1"></i> Change Profile Pic
+                  <Icon name="camera" className="me-1" /> Change Profile Pic
                 </button>
                 <div className="text-[10px] text-ink-3 mt-1">ছবির সাইজ ৩০ KB এর কম হতে হবে</div>
                 <input ref={editFileInputRef} type="file" accept="image/*" onChange={handlePicChange} className="hidden" />
@@ -483,7 +484,7 @@ export default function UserProfileView({ currentUser, transactions, transaction
               )}
             </div>
             <button onClick={() => fileInputRef.current.click()} className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-[var(--ah-brand)] text-white flex items-center justify-center text-[11px] border-2 border-white dark:border-gray-900 shadow-sm">
-              <i className="fa-solid fa-camera"></i>
+              <Icon name="camera" />
             </button>
             <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePicChange} className="hidden" />
           </div>
@@ -501,7 +502,7 @@ export default function UserProfileView({ currentUser, transactions, transaction
       <div className="grid grid-cols-2 gap-2">
         <div className="bg-[var(--ah-surface)] border border-[var(--ah-border)] rounded-xl p-3 flex items-center gap-2.5 shadow-2xs">
           <div className="w-9 h-9 rounded-lg bg-purple-100 dark:bg-purple-900/40 text-[var(--ah-info)] flex items-center justify-center text-sm flex-shrink-0">
-            <i className="fa-solid fa-receipt"></i>
+            <Icon name="receipt" />
           </div>
           <div>
             <div className="text-sm font-bold text-ink leading-tight">{scopedTransactions.length}</div>
@@ -510,7 +511,7 @@ export default function UserProfileView({ currentUser, transactions, transaction
         </div>
         <div className="bg-[var(--ah-surface)] border border-[var(--ah-border)] rounded-xl p-3 flex items-center gap-2.5 shadow-2xs">
           <div className="w-9 h-9 rounded-lg bg-[var(--ah-warning-soft)] text-[var(--ah-warning)] flex items-center justify-center text-sm flex-shrink-0">
-            <i className="fa-solid fa-calendar-check"></i>
+            <Icon name="calendar-check" />
           </div>
           <div>
             <div className="text-sm font-bold text-ink leading-tight">{thisMonthCount}</div>
@@ -530,7 +531,7 @@ export default function UserProfileView({ currentUser, transactions, transaction
         <div className="grid grid-cols-2 gap-2">
           <div className="rounded-lg p-2.5 bg-[var(--ah-success-soft)]">
             <div className="text-[10px] text-[var(--ah-success)] font-medium">
-              <i className="fa-solid fa-arrow-up text-[9px] me-1"></i>মোট আয়
+              <Icon name="arrow-up" className="text-[9px] me-1" />মোট আয়
             </div>
             <div className="text-sm font-bold text-[var(--ah-success)] mt-0.5 break-all tabular-nums">
               {formatMoney(lifetimeIncome, selectedWallet?.Currency)}
@@ -538,7 +539,7 @@ export default function UserProfileView({ currentUser, transactions, transaction
           </div>
           <div className="rounded-lg p-2.5 bg-[var(--ah-danger-soft)]">
             <div className="text-[10px] text-[var(--ah-danger)] font-medium">
-              <i className="fa-solid fa-arrow-down text-[9px] me-1"></i>মোট খরচ
+              <Icon name="arrow-down" className="text-[9px] me-1" />মোট খরচ
             </div>
             <div className="text-sm font-bold text-[var(--ah-danger)] mt-0.5 break-all tabular-nums">
               {formatMoney(lifetimeExpense, selectedWallet?.Currency)}
@@ -608,11 +609,11 @@ export default function UserProfileView({ currentUser, transactions, transaction
 
         {totalPages > 1 && (
           <div className="flex justify-center items-center gap-1.5 mt-3">
-            <button disabled={page === 1} onClick={() => setPage(page - 1)} className="w-7 h-7 rounded-lg text-xs font-semibold text-ink-3 disabled:opacity-30"><i className="fa-solid fa-chevron-left"></i></button>
+            <button disabled={page === 1} onClick={() => setPage(page - 1)} className="w-7 h-7 rounded-lg text-xs font-semibold text-ink-3 disabled:opacity-30"><Icon name="chevron-left" /></button>
             {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
               <button key={n} onClick={() => setPage(n)} className={`w-7 h-7 rounded-lg text-xs font-semibold ${page === n ? 'bg-[var(--ah-brand)] text-white' : 'bg-[var(--ah-surface-3)] text-ink-2'}`}>{n}</button>
             ))}
-            <button disabled={page === totalPages} onClick={() => setPage(page + 1)} className="w-7 h-7 rounded-lg text-xs font-semibold text-ink-3 disabled:opacity-30"><i className="fa-solid fa-chevron-right"></i></button>
+            <button disabled={page === totalPages} onClick={() => setPage(page + 1)} className="w-7 h-7 rounded-lg text-xs font-semibold text-ink-3 disabled:opacity-30"><Icon name="chevron-right" /></button>
           </div>
         )}
       </div>

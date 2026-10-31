@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import { useMemo, useState } from "react";
 import Select from "./Select.jsx";
 import AccountSelect from "./AccountSelect.jsx";
@@ -22,7 +23,7 @@ function StepIndicator({ step }) {
           <div key={n} className="flex items-center flex-1 last:flex-none last:flex-grow-0">
             <div className="flex flex-col items-center">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-colors ${done ? "bg-[var(--ah-brand)] border-[var(--ah-brand)] text-white" : active ? "bg-[var(--ah-brand)] border-[var(--ah-brand)] text-white shadow-md" : "bg-[var(--ah-surface)] border-[var(--ah-border-strong)] text-ink-3"}`}>
-                {done ? <i className="fa-solid fa-check"></i> : n}
+                {done ? <Icon name="check" /> : n}
               </div>
               <span className={`mt-1 text-[9px] font-semibold whitespace-nowrap ${active ? "text-[var(--ah-success)]" : "text-ink-3"}`}>{label}</span>
             </div>
@@ -256,7 +257,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
       <Popup open title="আরও টাকা যোগ" onClose={onCancel}>
         <div className="text-center">
           <div className="w-16 h-16 mx-auto rounded-full bg-[var(--ah-success-soft)] flex items-center justify-center text-[var(--ah-success)] text-3xl">
-            <i className="fa-solid fa-circle-check"></i>
+            <Icon name="circle-check" />
           </div>
           <h3 className="font-bold text-ink text-base mt-3">হাওলাতে টাকা যোগ হয়েছে!</h3>
           <p className="text-xs text-ink-3 mt-1">সক্রিয় লোনের হিসাব আপডেট হয়েছে।</p>
@@ -267,7 +268,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
             <div className="w-10 h-10 rounded-full bg-[var(--ah-brand)] text-white flex items-center justify-center text-base font-bold">{String(l?.personName || "?").charAt(0).toUpperCase()}</div>
             <div>
               <div className="font-bold text-ink">{l?.personName}</div>
-              <div className="text-[10px] text-ink-3"><i className="fa-solid fa-phone me-1"></i>{l?.phone}</div>
+              <div className="text-[10px] text-ink-3"><Icon name="phone" className="me-1" />{l?.phone}</div>
             </div>
           </div>
           <div className="space-y-1.5">
@@ -286,7 +287,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
           <button onClick={() => onDone && onShow(l)} className="w-full bg-[var(--ah-brand)] hover:bg-[var(--ah-brand-strong)] text-white font-bold py-3 rounded-xl text-sm shadow-md">লোন দেখুন</button>
           <div className="grid grid-cols-2 gap-2">
             <button onClick={onGoHome} className="bg-[var(--ah-surface)] border border-[var(--ah-border-strong)] text-ink font-bold py-2.5 rounded-xl text-xs">হোমে যান</button>
-            <button onClick={resetForMore} className="bg-[var(--ah-header)] text-white font-bold py-2.5 rounded-xl text-xs"><i className="fa-solid fa-plus me-1"></i>আরো হাওলাত দিন</button>
+            <button onClick={resetForMore} className="bg-[var(--ah-header)] text-white font-bold py-2.5 rounded-xl text-xs"><Icon name="plus" className="me-1" />আরো হাওলাত দিন</button>
           </div>
         </div>
       </Popup>
@@ -299,7 +300,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
       <Popup open title="নতুন হাওলাত" onClose={onCancel}>
         <div className="text-center">
           <div className="w-16 h-16 mx-auto rounded-full bg-[var(--ah-success-soft)] flex items-center justify-center text-[var(--ah-success)] text-3xl">
-            <i className="fa-solid fa-circle-check"></i>
+            <Icon name="circle-check" />
           </div>
           <h3 className="font-bold text-ink text-base mt-3">হাওলাত সফলভাবে যোগ হয়েছে!</h3>
           <p className="text-xs text-ink-3 mt-1">আপনার হিসাব আপডেট করা হয়েছে।</p>
@@ -310,7 +311,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
             <div className="w-10 h-10 rounded-full bg-[var(--ah-brand)] text-white flex items-center justify-center text-base font-bold">{String(l?.personName || "?").charAt(0).toUpperCase()}</div>
             <div>
               <div className="font-bold text-ink">{l?.personName}</div>
-              <div className="text-[10px] text-ink-3"><i className="fa-solid fa-phone me-1"></i>{l?.phone}</div>
+              <div className="text-[10px] text-ink-3"><Icon name="phone" className="me-1" />{l?.phone}</div>
             </div>
           </div>
           <div className="space-y-1.5">
@@ -329,7 +330,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
           <button onClick={() => onDone && onShow(l)} className="w-full bg-[var(--ah-brand)] hover:bg-[var(--ah-brand-strong)] text-white font-bold py-3 rounded-xl text-sm shadow-md">লোন দেখুন</button>
           <div className="grid grid-cols-2 gap-2">
             <button onClick={onGoHome} className="bg-[var(--ah-surface)] border border-[var(--ah-border-strong)] text-ink font-bold py-2.5 rounded-xl text-xs">হোমে যান</button>
-            <button onClick={resetForMore} className="bg-[var(--ah-header)] text-white font-bold py-2.5 rounded-xl text-xs"><i className="fa-solid fa-plus me-1"></i>আরো হাওলাত দিন</button>
+            <button onClick={resetForMore} className="bg-[var(--ah-header)] text-white font-bold py-2.5 rounded-xl text-xs"><Icon name="plus" className="me-1" />আরো হাওলাত দিন</button>
           </div>
         </div>
       </Popup>
@@ -348,7 +349,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
               <div>
                 <label className="label.5">হাওলাতের ধরন</label>
                 <div className="rounded-xl border border-[var(--ah-border)] bg-[var(--ah-surface-2)] px-3 py-2.5 text-xs text-ink">
-                  <i className={`fa-solid ${type === "given" ? "fa-hand-holding-dollar text-[var(--ah-danger)]" : "fa-sack-dollar text-[var(--ah-success)]"} me-2`}></i>
+                  <Icon name={type === "given" ? "hand-coins" : "badge-dollar-sign"} className={`${type === "given" ? "text-[var(--ah-danger)]" : "text-[var(--ah-success)]"} me-2`} />
                   {meta.action} <span className="text-[10px] text-ink-3">(এডিটে পরিবর্তন করা যাবে না)</span>
                 </div>
               </div>
@@ -357,12 +358,12 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
               <label className="label.5">হাওলাতের ধরন</label>
               <div className="grid grid-cols-2 gap-2">
                 <button type="button" onClick={() => setType("given")} className={`rounded-xl border p-3 text-left transition-all ${type === "given" ? "border-emerald-500 bg-[var(--ah-success-soft)] ring-2 ring-emerald-500/30" : "border-[var(--ah-border)] bg-[var(--ah-surface)]"}`}>
-                  <div className="w-8 h-8 rounded-lg bg-[var(--ah-danger-soft)] text-[var(--ah-danger)] flex items-center justify-center text-sm"><i className="fa-solid fa-hand-holding-dollar"></i></div>
+                  <div className="w-8 h-8 rounded-lg bg-[var(--ah-danger-soft)] text-[var(--ah-danger)] flex items-center justify-center text-sm"><Icon name="hand-coins" /></div>
                   <div className="text-xs font-bold text-ink mt-2">হাওলাত দিলাম</div>
                   <div className="text-[10px] text-ink-3 mt-0.5">অন্যকে টাকা দিয়েছি</div>
                 </button>
                 <button type="button" onClick={() => setType("taken")} className={`rounded-xl border p-3 text-left transition-all ${type === "taken" ? "border-emerald-500 bg-[var(--ah-success-soft)] ring-2 ring-emerald-500/30" : "border-[var(--ah-border)] bg-[var(--ah-surface)]"}`}>
-                  <div className="w-8 h-8 rounded-lg bg-[var(--ah-success-soft)] text-[var(--ah-success)] flex items-center justify-center text-sm"><i className="fa-solid fa-sack-dollar"></i></div>
+                  <div className="w-8 h-8 rounded-lg bg-[var(--ah-success-soft)] text-[var(--ah-success)] flex items-center justify-center text-sm"><Icon name="badge-dollar-sign" /></div>
                   <div className="text-xs font-bold text-ink mt-2">হাওলাত নিলাম</div>
                   <div className="text-[10px] text-ink-3 mt-0.5">অন্য কাছ থেকে টাকা নিয়েছি</div>
                 </button>
@@ -440,7 +441,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
               <div className="w-9 h-9 rounded-full bg-[var(--ah-brand)] text-white flex items-center justify-center text-sm font-bold">{String(personName || "?").charAt(0).toUpperCase()}</div>
               <div>
                 <div className="font-bold text-ink">{personName}</div>
-                <div className="text-[10px] text-ink-3"><i className="fa-solid fa-phone me-1"></i>{phone}</div>
+                <div className="text-[10px] text-ink-3"><Icon name="phone" className="me-1" />{phone}</div>
               </div>
             </div>
             <div className="border-t border-[var(--ah-border)] pt-2 space-y-1.5">
@@ -461,10 +462,10 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
             <button type="button" onClick={() => setStep(step - 1)} disabled={submitting} className="bg-[var(--ah-surface)] border border-[var(--ah-border-strong)] text-ink font-bold py-3 rounded-xl text-sm px-5">পিছনে</button>
           )}
           {step < 3 ? (
-            <button type="button" onClick={goNext} className="flex-1 bg-[var(--ah-brand)] hover:bg-[var(--ah-brand-strong)] text-white font-bold py-3 rounded-xl shadow-md text-sm"><i className="fa-solid fa-arrow-right me-1"></i>পরবর্তী</button>
+            <button type="button" onClick={goNext} className="flex-1 bg-[var(--ah-brand)] hover:bg-[var(--ah-brand-strong)] text-white font-bold py-3 rounded-xl shadow-md text-sm"><Icon name="arrow-right" className="me-1" />পরবর্তী</button>
           ) : (
             <button type="button" onClick={handleFinalSubmit} disabled={submitting || activeCheck === "checking"} className="flex-1 bg-[var(--ah-brand)] hover:bg-[var(--ah-brand-strong)] disabled:opacity-50 text-white font-bold py-3 rounded-xl shadow-md text-sm flex items-center justify-center gap-2">
-              <i className={`${activeCheck === "checking" ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-floppy-disk"}`}></i> {activeCheck === "checking" ? "রেকর্ড যাচাই হচ্ছে..." : (submitting ? "সাবমিট হচ্ছে..." : (isEdit ? "আপডেট করুন" : "হাওলাত যোগ করুন"))}
+              <Icon name={activeCheck === "checking" ? "loader-circle" : "save"} /> {activeCheck === "checking" ? "রেকর্ড যাচাই হচ্ছে..." : (submitting ? "সাবমিট হচ্ছে..." : (isEdit ? "আপডেট করুন" : "হাওলাত যোগ করুন"))}
             </button>
           )}
         </div>
@@ -476,7 +477,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
           <div className="relative bg-[var(--ah-surface)] w-full max-w-[480px] rounded-t-2xl p-4 pb-8 shadow-2xl max-h-[92vh] overflow-y-auto">
             <div className="text-center mb-4">
               <div className="w-14 h-14 mx-auto rounded-full bg-[var(--ah-warning-soft)] flex items-center justify-center text-[var(--ah-warning)] text-2xl">
-                <i className="fa-solid fa-triangle-exclamation"></i>
+                <Icon name="triangle-alert" />
               </div>
               <h4 className="font-bold text-sm text-ink mt-3">সক্রিয় হাওলাত পাওয়া গেছে</h4>
               <p className="text-xs text-ink-3 mt-1">
@@ -487,12 +488,12 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
 
             <div className="space-y-2">
               <button type="button" onClick={() => { setShowActiveWarning(false); doCreate(true); }} className="w-full text-left bg-[var(--ah-surface)] border border-[var(--ah-border-strong)] rounded-xl p-3 active:scale-95 transition-transform">
-                <div className="text-sm font-bold text-ink"><i className="fa-solid fa-file-circle-plus text-[var(--ah-success)] me-2"></i>নতুন আলাদা লোন তৈরি করুন</div>
+                <div className="text-sm font-bold text-ink"><Icon name="file-plus-2" className="text-[var(--ah-success)] me-2" />নতুন আলাদা লোন তৈরি করুন</div>
                 <div className="text-[11px] text-ink-3 mt-0.5">নতুন হাওলাত হিসাবে আলাদাভাবে সংরক্ষণ হবে।</div>
               </button>
               <button type="button" onClick={chooseAddToExisting} disabled={compatibleActiveLoans.length === 0}
                 className={`w-full text-left rounded-xl p-3 active:scale-95 transition-transform ${compatibleActiveLoans.length === 0 ? "bg-[var(--ah-surface-2)] border border-[var(--ah-border)] opacity-60" : "bg-[var(--ah-success-soft)] border border-emerald-300 dark:border-[var(--ah-success-soft)]"}`}>
-                <div className="text-sm font-bold text-ink"><i className={`fa-solid fa-circle-plus ${compatibleActiveLoans.length === 0 ? "text-ink-3" : "text-[var(--ah-success)]"} me-2`}></i>সক্রিয় লোনের সাথে যোগ করুন</div>
+                <div className="text-sm font-bold text-ink"><Icon name="circle-plus" className={`${compatibleActiveLoans.length === 0 ? "text-ink-3" : "text-[var(--ah-success)]"} me-2`} />সক্রিয় লোনের সাথে যোগ করুন</div>
                 <div className="text-[11px] text-ink-3 mt-0.5">
                   {compatibleActiveLoans.length === 0
                     ? "এই ধরন/কারেন্সির সাথে মেলে এমন সক্রিয় লোন নেই — শুধু নতুন লোন তৈরি করা যাবে।"
@@ -525,7 +526,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
           <div className="relative bg-[var(--ah-surface)] w-full max-w-[480px] rounded-t-2xl p-4 pb-8 shadow-2xl max-h-[92vh] overflow-y-auto">
             <div className="text-center mb-4">
               <div className="w-14 h-14 mx-auto rounded-full bg-[var(--ah-warning-soft)] flex items-center justify-center text-[var(--ah-warning)] text-2xl">
-                <i className="fa-solid fa-triangle-exclamation"></i>
+                <Icon name="triangle-alert" />
               </div>
               <h4 className="font-bold text-sm text-ink mt-3">রেকর্ড যাচাই করা যায়নি</h4>
 <p className="text-xs text-ink-3 mt-1">
@@ -534,7 +535,7 @@ export default function LoanForm({ can, wallets, loans, loan, currentUser, onSav
             </div>
             <div className="space-y-2">
               <button type="button" onClick={() => { setShowActiveWarning(false); runActiveCheck(); }} className="w-full bg-[var(--ah-brand)] hover:bg-[var(--ah-brand-strong)] text-white font-bold py-3 rounded-xl text-sm shadow-md">
-                <i className="fa-solid fa-rotate-right me-2"></i>আবার চেষ্টা করুন
+                <Icon name="rotate-cw" className="me-2" />আবার চেষ্টা করুন
               </button>
               <button type="button" onClick={() => setActiveCheck("idle")} className="w-full bg-[var(--ah-surface-3)] text-ink-2 font-bold py-2.5 rounded-xl text-xs">বাতিল</button>
             </div>

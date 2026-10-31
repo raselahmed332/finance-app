@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import { useState } from "react";
 import ShopLedgerAllocationEditor from "./ShopLedgerAllocationEditor.jsx";
 import { Button, Field, Input } from "../ui/index.jsx";
@@ -123,7 +124,7 @@ export default function ShopLedgerPaymentForm({ shop, payment, accounts, onCance
 
       {activeOptions.length === 0 ? (
         <div className="card-warning p-2.5 text-[11px] text-[var(--ah-warning)]">
-          <i className="fa-solid fa-triangle-exclamation me-1" />
+          <Icon name="triangle-alert" className="me-1" />
           এই Wallet-এ কোনো সক্রিয় Account নেই। পেমেন্ট যোগ করার আগে Account সক্রিয় করুন।
         </div>
       ) : null}

@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import { useState, useEffect, useMemo } from "react";
 import { api } from "../api.js";
 import Select from "../components/Select.jsx";
@@ -157,7 +158,7 @@ function EditWalletRow({ wallet, walletSummaries, currentUser, can, onRefresh, s
   const accountMeta = (id) => {
     const a = getWalletAccounts(wallet.WalletID, { activeOnly: false }).find((x) => x.AccountID === id);
     const code = a ? a.AccountTypeCode : id;
-    const icon = code === "BANK" ? "fa-building-columns" : code === "CASH" ? "fa-money-bill-wave" : "fa-wallet";
+    const icon = code === "BANK" ? "landmark" : code === "CASH" ? "banknote" : "wallet";
     return { name: a ? a.Name : id, icon, opening: a ? Number(a.OpeningBalance) || 0 : (id === "Cash" ? parseFloat(wallet.OpeningCash) || 0 : id === "Bank" ? parseFloat(wallet.OpeningBank) || 0 : 0) };
   };
 
@@ -189,7 +190,7 @@ function EditWalletRow({ wallet, walletSummaries, currentUser, can, onRefresh, s
             className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
             style={{ background: "var(--ah-success-soft)", color: "var(--ah-success)" }}
           >
-            <i className="fa-solid fa-vault text-xs" />
+            <Icon name="vault" className="text-xs" />
           </div>
           <div className="min-w-0">
             <div className="font-bold text-ink truncate">
@@ -234,7 +235,7 @@ function EditWalletRow({ wallet, walletSummaries, currentUser, can, onRefresh, s
             className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
             style={{ background: "var(--ah-success-soft)", color: "var(--ah-success)" }}
           >
-            <i className="fa-solid fa-vault" />
+            <Icon name="vault" />
           </div>
           <div className="min-w-0 flex-1">
             <div className="font-bold text-sm text-ink truncate">{wallet.WalletName}</div>
@@ -265,7 +266,7 @@ function EditWalletRow({ wallet, walletSummaries, currentUser, can, onRefresh, s
             return (
               <div key={id} className="rounded-xl p-2.5" style={{ background: "var(--ah-success-soft)" }}>
                 <div className="text-[10px] text-ink-2 font-semibold flex items-center gap-1">
-                  <i className={`fa-solid ${m.icon}`} style={{ color: "var(--ah-success)" }} /> Current {m.name}
+                  <Icon name={m.icon} style={{ color: "var(--ah-success)" }} /> Current {m.name}
                 </div>
                 <div className="text-sm font-bold tnum text-ink mt-1">
                   {summary ? money(summary?.accounts?.[id] || 0) : "—"}
@@ -286,7 +287,7 @@ function EditWalletRow({ wallet, walletSummaries, currentUser, can, onRefresh, s
 
         <div className="card-inset p-3">
           <div className="text-[10px] font-bold uppercase tracking-wide text-ink-3 mb-2">
-            <i className="fa-solid fa-users me-1.5" style={{ color: "var(--ah-success)" }} />
+            <Icon name="users" className="me-1.5" style={{ color: "var(--ah-success)" }} />
             যাদের এই Wallet-এ অ্যাক্সেস আছে
             <span className="text-ink-3 font-normal">({walletUsers.length})</span>
           </div>
@@ -309,7 +310,7 @@ function EditWalletRow({ wallet, walletSummaries, currentUser, can, onRefresh, s
               <Button
                 onClick={() => { setDetailsOpen(false); setEditing(true); setName(wallet.WalletName); setStatus(wallet.Status); }}
               >
-                <i className="fa-solid fa-pen" /> Edit Wallet
+                <Icon name="pencil" /> Edit Wallet
               </Button>
             ) : null}
             {canDel ? (
@@ -317,7 +318,7 @@ function EditWalletRow({ wallet, walletSummaries, currentUser, can, onRefresh, s
                 variant="danger"
                 onClick={() => { setDetailsOpen(false); handleDelete(); }}
               >
-                <i className="fa-solid fa-trash-can" /> Delete
+                <Icon name="trash-2" /> Delete
               </Button>
             ) : null}
           </div>
@@ -332,7 +333,7 @@ function EditWalletRow({ wallet, walletSummaries, currentUser, can, onRefresh, s
         </Select>
         <div className="text-[10px] text-ink-3 px-1">Currency: {wallet.Currency} (তৈরির সময় নির্ধারিত, পরিবর্তনযোগ্য নয়)</div>
         <Button block onClick={handleSave} disabled={saving}>
-          {saving ? <><i className="fa-solid fa-spinner fa-spin" />Saving...</> : 'Save'}
+          {saving ? <><Icon name="loader-circle" />Saving...</> : 'Save'}
         </Button>
       </Popup>
     </div>
@@ -450,7 +451,7 @@ function AddWalletForm({ currentUser, showAlert, onRefresh, onWalletCreated, onC
         className="text-[10px] rounded-lg px-2.5 py-1.5"
         style={{ background: "var(--ah-warning-soft)", color: "var(--ah-warning)" }}
       >
-        <i className="fa-solid fa-triangle-exclamation me-1" />
+        <Icon name="triangle-alert" className="me-1" />
         কারেন্সি একবার নির্ধারণ করলে পরে পরিবর্তন করা যাবে না।
       </div>
 
@@ -471,7 +472,7 @@ function AddWalletForm({ currentUser, showAlert, onRefresh, onWalletCreated, onC
               setNextAccountKey((key) => key + 1);
             }}
           >
-            <i className="fa-solid fa-plus" /> Add account
+            <Icon name="plus" /> Add account
           </Button>
         </div>
         {accounts.map((account, index) => (
@@ -485,7 +486,7 @@ function AddWalletForm({ currentUser, showAlert, onRefresh, onWalletCreated, onC
                   onClick={() => setAccounts((current) => current.filter((item) => item.key !== account.key))}
                   aria-label={`Remove account ${index + 1}`}
                 >
-                  <i className="fa-solid fa-trash-can me-1" />Remove
+                  <Icon name="trash-2" className="me-1" />Remove
                 </button>
               ) : null}
             </div>
@@ -536,7 +537,7 @@ function AddWalletForm({ currentUser, showAlert, onRefresh, onWalletCreated, onC
       <div className="grid grid-cols-2 gap-2">
         <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
         <Button type="submit" disabled={adding}>
-          {adding ? <><i className="fa-solid fa-spinner fa-spin" />Creating...</> : <><i className="fa-solid fa-plus" /> Create Wallet</>}
+          {adding ? <><Icon name="loader-circle" />Creating...</> : <><Icon name="plus" /> Create Wallet</>}
         </Button>
       </div>
     </form>
@@ -560,11 +561,11 @@ export default function WalletManagementView({ currentUser, can, showAlert, wall
     <div className="space-y-4">
       <PageHeader
         title="Wallet ম্যানেজমেন্ট"
-        icon="fa-vault"
+        icon="vault"
         subtitle="ওয়ালেট তৈরি, নাম পরিবর্তন ও স্ট্যাটাস ব্যবস্থাপনা"
         right={
           can('ADD_WALLET') ? (
-            <Button size="sm" icon="fa-plus" onClick={() => setAddOpen(true)}>Add Wallet</Button>
+            <Button size="sm" icon="plus" onClick={() => setAddOpen(true)}>Add Wallet</Button>
           ) : null
         }
       />
@@ -585,7 +586,7 @@ export default function WalletManagementView({ currentUser, can, showAlert, wall
         </div>
         {allWallets === null ? <LoadingState label="লোড হচ্ছে..." /> : null}
         {allWallets && allWallets.length === 0 ? (
-          <EmptyState icon="fa-vault" title="কোনো Wallet নেই" text="প্রথম Wallet তৈরি করে শুরু করুন।" />
+          <EmptyState icon="vault" title="কোনো Wallet নেই" text="প্রথম Wallet তৈরি করে শুরু করুন।" />
         ) : null}
         {/* space-y separates the per-wallet cards, so each row supplies its own
             border rather than relying on a divider inside a shared container. */}

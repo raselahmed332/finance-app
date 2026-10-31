@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { api } from "../api.js";
 import Chart from "chart.js/auto";
@@ -7,6 +8,7 @@ import Select from "../components/Select.jsx";
 import Popup from "../components/Popup.jsx";
 import { todayStr } from "../utils/loan.js";
 import { accountName } from "../utils/accounts.js";
+import { transactionBalanceDelta } from "../utils/transactionBalance.js";
 import { EmptyState, LoadingState, PageHeader, Segmented, Stat } from "../ui/index.jsx";
 
 // Add the captured statement to the PDF one page at a time. The same page
@@ -306,11 +308,14 @@ export default function ReportsView({ wallets, currentUser, users }) {
       }
       if (t.Type === 'Loan In' || t.Type === 'Loan Repaid') loanInCents += amt;
       if (t.Type === 'Loan Out' || t.Type === 'Loan Payment') loanOutCents += amt;
-      if (t.Type === 'Income' || t.Type === 'Transfer In' || t.Type === 'Loan In' || t.Type === 'Loan Repaid' || t.Type === 'Savings Withdrawal' || t.Type === 'Savings Payout') {
-        accountCents[t.Account] = (accountCents[t.Account] || 0) + amt;
-      }
-      if (t.Type === 'Expense' || t.Type === 'Transfer Out' || t.Type === 'Loan Out' || t.Type === 'Loan Payment' || t.Type === 'Savings Deposit' || t.Type === 'Savings Contribution' || t.Type === 'Savings Payment') {
-        accountCents[t.Account] = (accountCents[t.Account] || 0) - amt;
+      // Report-only shop market rows have no wallet account: skip them so the
+      // per-account movement breakdown never gains an empty "account" entry.
+      if (t.ShopMarket || !t.Account) return;
+      // Reuse the shared sign rules so shop payments and their reversals move
+      // the account breakdown exactly like the backend does.
+      const delta = transactionBalanceDelta(t);
+      if (delta !== null) {
+        accountCents[t.Account] = (accountCents[t.Account] || 0) + Math.round(delta * 100);
       }
     });
     const toAmount = (c) => (c || 0) / 100;
@@ -429,7 +434,7 @@ export default function ReportsView({ wallets, currentUser, users }) {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Reports" subtitle="রিপোর্ট ও স্টেটমেন্ট" icon="fa-chart-pie" />
+      <PageHeader title="Reports" subtitle="রিপোর্ট ও স্টেটমেন্ট" icon="chart-pie" />
 
       <div className="grid grid-cols-2 gap-2">
         <div>
@@ -473,7 +478,7 @@ export default function ReportsView({ wallets, currentUser, users }) {
           >
             <span className="truncate">{customFrom} থেকে {customTo}</span>
             <span className="shrink-0 text-ink-3 flex items-center gap-1.5">
-              <i className="fa-solid fa-sliders" /> পরিবর্তন
+              <Icon name="sliders-horizontal" /> পরিবর্তন
             </span>
           </button>
         ) : period === 'yearly' ? (
@@ -492,13 +497,13 @@ export default function ReportsView({ wallets, currentUser, users }) {
           <div className="grid grid-cols-2 gap-2">
             <Stat
               label="Total Income"
-              icon="fa-arrow-down"
+              icon="arrow-down"
               tone="success"
               value={`${selectedWallet?.Currency} ${data.totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             />
             <Stat
               label="Total Expense"
-              icon="fa-arrow-up"
+              icon="arrow-up"
               tone="danger"
               value={`${selectedWallet?.Currency} ${data.totalExpense.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             />
@@ -506,7 +511,7 @@ export default function ReportsView({ wallets, currentUser, users }) {
 
           <div className="card-info p-3">
             <div className="text-[10px] font-bold text-info">
-              <i className="fa-solid fa-hand-holding-dollar me-1" />Loan (হাওলাত)
+              <Icon name="hand-coins" className="me-1" />Loan (হাওলাত)
             </div>
             <div className="flex items-center justify-between mt-1">
               <span className="text-[10px] text-ink-2">মোট আসা</span>
@@ -627,17 +632,14 @@ export default function ReportsView({ wallets, currentUser, users }) {
                   )}
                   className="btn btn-secondary"
                 >
-                  <i className="fa-solid fa-file-csv" style={{ color: "var(--ah-success)" }} /> Export CSV
+                  <Icon name="file-spreadsheet" style={{ color: "var(--ah-success)" }} /> Export CSV
                 </button>
                 <button
                   onClick={openPdfPreview}
                   disabled={pdfBusy}
                   className="btn btn-secondary"
                 >
-                  <i
-                    className={`fa-solid ${pdfBusy ? 'fa-spinner fa-spin' : 'fa-file-pdf'}`}
-                    style={{ color: "var(--ah-danger)" }}
-                  />
+                  <Icon name={pdfBusy ? "loader-circle" : "file-text"} style={{ color: "var(--ah-danger)" }} />
                   {pdfBusy ? 'তৈরি হচ্ছে...' : 'PDF'}
                 </button>
               </div>
@@ -649,7 +651,7 @@ export default function ReportsView({ wallets, currentUser, users }) {
       {!loading && !report && walletId && (
         <div className="card">
           <EmptyState
-            icon="fa-chart-pie"
+            icon="chart-pie"
             title="এই সময়ের জন্য কোনো ডেটা নেই"
             text="অন্য সময় বা অন্য Wallet বেছে নিন।"
           />
@@ -683,7 +685,7 @@ export default function ReportsView({ wallets, currentUser, users }) {
           </div>
           {customDraft.from && customDraft.to && customDraft.from > customDraft.to && (
             <div className="err">
-              <i className="fa-solid fa-circle-exclamation" />
+              <Icon name="circle-alert" />
               "থেকে" তারিখ "পর্যন্ত" তারিখের পরে হতে পারে না।
             </div>
           )}
@@ -731,10 +733,10 @@ export default function ReportsView({ wallets, currentUser, users }) {
             )}
             <div className="grid grid-cols-2 gap-2">
               <button onClick={downloadPdf} className="btn btn-secondary">
-                <i className="fa-solid fa-download" style={{ color: "var(--ah-success)" }} /> Download
+                <Icon name="download" style={{ color: "var(--ah-success)" }} /> Download
               </button>
               <button onClick={sharePdf} className="btn btn-primary">
-                <i className="fa-solid fa-share-nodes" /> Share
+                <Icon name="share-2" /> Share
               </button>
             </div>
           </>

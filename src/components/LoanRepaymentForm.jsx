@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import { useState } from "react";
 import AccountSelect from "./AccountSelect.jsx";
 import Popup from "./Popup.jsx";
@@ -111,7 +112,7 @@ export default function LoanRepaymentForm({ loan, payment, wallets, currentUser,
             {Number(amount) > 0 && Number(amount) <= maxAmount && (
               <div className={`mt-1.5 flex justify-between text-[10px] font-semibold ${maxAmount - Number(amount) > 0 ? "text-ink-3" : "text-[var(--ah-success)]"}`}>
                 <span>পরিশোধের পর বাকি: {formatMoney(Math.max(0, maxAmount - Number(amount)), currency)}</span>
-                {maxAmount - Number(amount) <= 0 && <span><i className="fa-solid fa-circle-check me-0.5"></i>সম্পূর্ণ পরিশোধ হবে</span>}
+                {maxAmount - Number(amount) <= 0 && <span><Icon name="circle-check" className="me-0.5" />সম্পূর্ণ পরিশোধ হবে</span>}
               </div>
             )}
           </div>
@@ -134,7 +135,7 @@ export default function LoanRepaymentForm({ loan, payment, wallets, currentUser,
 
           <button type="submit" disabled={submitting || (amount && Number(amount) > maxAmount)}
             className="btn btn-primary btn-block mt-1">
-            <i className={submitting ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-floppy-disk"}></i> {submitting ? "সাবমিট হচ্ছে..." : isEdit ? "পরিবর্তন সংরক্ষণ করুন" : "ফেরত যোগ করুন"}
+            <Icon name={submitting ? "loader-circle" : "save"} /> {submitting ? "সাবমিট হচ্ছে..." : isEdit ? "পরিবর্তন সংরক্ষণ করুন" : "ফেরত যোগ করুন"}
           </button>
         </form>
     </Popup>

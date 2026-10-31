@@ -94,10 +94,6 @@ function shopLedgerDate_(value) {
   return isValidTransactionDate_(value);
 }
 
-function shopLedgerToday_() {
-  return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd");
-}
-
 function shopLedgerAuthorize_(username, permission, shop) {
   if (!shop) return err_("দোকানের খাতা পাওয়া যায়নি।", "SHOP_NOT_FOUND");
   return authorize_(username, permission, [shop.WalletID]);
@@ -344,6 +340,7 @@ function shopLedgerAllRecords_(sheets, shopId) {
     var result = shopLedgerRecordObject_(record);
     result.Products = shopLedgerParseJson_(record.Products, [], "market products");
     result.Total = amountOf_(centsOf_(record.Total));
+    result.CreatedByName = shopLedgerCreatorName_(record.CreatedBy);
     return result;
   }).sort(shopLedgerNewestFirst_);
   var payments = shopLedgerRows_(sheets.payments, SHOP_PAYMENT_HEADERS).filter(function (record) {
@@ -352,6 +349,7 @@ function shopLedgerAllRecords_(sheets, shopId) {
     var result = shopLedgerRecordObject_(record);
     result.Allocations = shopLedgerParseJson_(record.Allocations, [], "payment allocations");
     result.Total = amountOf_(centsOf_(record.Total));
+    result.CreatedByName = shopLedgerCreatorName_(record.CreatedBy);
     return result;
   }).sort(shopLedgerNewestFirst_);
   return { markets: markets, payments: payments };
@@ -374,7 +372,10 @@ function shopLedgerWritePaymentEffects_(shop, paymentId, date, allocations, acto
   var resolved = resolveWalletSheet_(shop.WalletID);
   if (!resolved) throw new Error("দোকানের linked Wallet পাওয়া যায়নি; payment effect লেখা যায়নি।");
   var effectType = reversal ? SHOP_LEDGER_PAYMENT_REVERSAL_TYPE : SHOP_LEDGER_PAYMENT_TYPE;
-  var effectDate = reversal ? shopLedgerToday_() : date;
+  // Reverse on the date being reversed, not today: a payment edited or deleted
+  // later must correct the period it originally affected, otherwise old reports
+  // keep the original outflow and the reversal inflates the current period.
+  var effectDate = date;
   var written = [];
   for (var i = 0; i < allocations.length; i++) {
     var allocation = allocations[i];

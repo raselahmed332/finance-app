@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import { useState, memo } from "react";
 import { api, GRANTABLE_PERMISSIONS, PERMISSION_LABELS, DEFAULT_WALLET_ACTIONS, MIN_PIN_LENGTH, MAX_PIN_LENGTH, normalizePinInput } from "../api.js";
 import Select from "../components/Select.jsx";
@@ -128,7 +129,7 @@ function Panel({ icon, title, hint, children, className = "" }) {
     <div className={`card-inset p-3 space-y-2 ${className}`}>
       <div>
         <div className="text-[11px] font-bold text-ink flex items-center gap-1.5">
-          {icon ? <i className={`fa-solid ${icon} text-[10px]`} style={{ color: "var(--ah-success)" }} /> : null}
+          {icon ? <Icon name={icon} className="text-[10px]" style={{ color: "var(--ah-success)" }} /> : null}
           {title}
         </div>
         {hint ? <div className="text-[10px] text-ink-3 mt-0.5">{hint}</div> : null}
@@ -142,14 +143,14 @@ function NoWalletAccessNotice({ showInactiveNote }) {
   return (
     <div className="card-warning p-2.5">
       <div className="text-[11px] font-bold text-[var(--ah-warning)] flex items-center gap-1.5">
-        <i className="fa-solid fa-triangle-exclamation"></i> No Wallet Access
+        <Icon name="triangle-alert" /> No Wallet Access
       </div>
       <p className="text-[10px] text-[var(--ah-warning)] mt-0.5 leading-snug">
         এই ইউজারের কোন ওয়ালেটে অ্যাক্সেস নেই, তাই আর্থিক ডেটা ও Wallet অ্যাকশন ব্যবহার করা যাবে না — যতক্ষণ না Wallet Access দেওয়া হয়।
       </p>
       {showInactiveNote && (
         <p className="text-[10px] text-[var(--ah-warning)] mt-1 leading-snug">
-          <i className="fa-solid fa-circle-exclamation me-1"></i>
+          <Icon name="circle-alert" className="me-1" />
           নিচে Additional Permission সংরক্ষিত থাকলেও Wallet Access ছাড়া সেগুলো নিষ্ক্রিয় থাকে।
         </p>
       )}
@@ -163,13 +164,13 @@ function DefaultPermissionsList({ active }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1">
         {DEFAULT_WALLET_ACTIONS.map((p) => (
           <div key={p} className="flex items-center gap-1.5 text-[11px] text-ink-2">
-            <i className={`fa-solid fa-circle-check text-xs ${active ? "text-[var(--ah-success)]" : "text-ink-3 dark:text-ink-2"}`}></i>
+            <Icon name="circle-check" className={`text-xs ${active ? "text-[var(--ah-success)]" : "text-ink-3 dark:text-ink-2"}`} />
             <span>{PERMISSION_LABELS[p] || p}</span>
           </div>
         ))}
       </div>
       <div className="text-[10px] text-ink-3 mt-1.5 flex items-center gap-1">
-        <i className="fa-solid fa-lock"></i> Automatically enabled with Wallet Access — read-only, নিষ্ক্রিয় করা যাবে না
+        <Icon name="lock" /> Automatically enabled with Wallet Access — read-only, নিষ্ক্রিয় করা যাবে না
       </div>
     </div>
   );
@@ -186,13 +187,13 @@ function ActionRow({ canEditUser, canManageTarget, canDel, onEdit, onManage, onD
   return (
     <div className={`grid ${cols} gap-2`}>
       {canEditUser ? (
-        <Button variant="secondary" icon="fa-pen" onClick={onEdit}>Edit</Button>
+        <Button variant="secondary" icon="pencil" onClick={onEdit}>Edit</Button>
       ) : null}
       {canManageTarget ? (
-        <Button variant="secondary" icon="fa-user-gear" onClick={onManage}>Manage</Button>
+        <Button variant="secondary" icon="user-cog" onClick={onManage}>Manage</Button>
       ) : null}
       {canDel ? (
-        <Button variant="danger" icon="fa-trash-can" onClick={onDelete}>Delete</Button>
+        <Button variant="danger" icon="trash-2" onClick={onDelete}>Delete</Button>
       ) : null}
     </div>
   );
@@ -207,12 +208,12 @@ function AdminFullAccessCard() {
   return (
     <div className="bg-[var(--ah-success-soft)] border border-emerald-200 dark:border-[var(--ah-success-soft)] rounded-xl p-3 space-y-2">
       <div className="text-[11px] font-bold text-[var(--ah-success)]">
-        <i className="fa-solid fa-shield-halved me-1.5"></i>Admin — Full System Access
+        <Icon name="shield-half" className="me-1.5" />Admin — Full System Access
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1">
         {items.map((it) => (
           <div key={it} className="flex items-center gap-1.5 text-[11px] text-[var(--ah-success)]">
-            <i className="fa-solid fa-circle-check text-[10px] opacity-70"></i>{it}
+            <Icon name="circle-check" className="text-[10px] opacity-70" />{it}
           </div>
         ))}
       </div>
@@ -227,7 +228,7 @@ function AdminOnlyNote() {
   return (
     <div className="bg-[var(--ah-surface)] border border-[var(--ah-border)] rounded-lg p-2.5">
       <div className="text-[10px] font-bold text-ink-3 flex items-center gap-1.5">
-        <i className="fa-solid fa-lock text-[var(--ah-warning)]"></i> Admin Only
+        <Icon name="lock" className="text-[var(--ah-warning)]" /> Admin Only
       </div>
       <p className="text-[10px] text-ink-3 mt-0.5 leading-snug">
         Role পরিবর্তন, Password/PIN পরিবর্তন এবং Admin তৈরি — শুধুমাত্র Admin এর কাজ। এগুলো checkbox হিসেবে দেওয়া হয় না, ফলে Sub-Admin নিজেকে কখনো Admin বানাতে পারবে না।
@@ -288,7 +289,7 @@ function PermissionGroup({ group, selected, onToggle }) {
               {selectedCount}
             </span>
           )}
-          <i className={`fa-solid fa-chevron-${open ? "up" : "right"} text-[10px] text-ink-3 transition-transform`}></i>
+          <Icon name={open ? "chevron-up" : "chevron-right"} className="text-[10px] text-ink-3 transition-transform" />
         </span>
       </button>
       {open && (
@@ -307,7 +308,7 @@ function PermissionGroup({ group, selected, onToggle }) {
           })}
           {group.note && (
             <div className="text-[10px] text-ink-3 leading-snug pt-1">
-              <i className="fa-solid fa-circle-info me-1"></i>{group.note}
+              <Icon name="info" className="me-1" />{group.note}
             </div>
           )}
         </div>
@@ -416,13 +417,13 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
         </div>
         {/* This closes the editor back to the details view, so it is a back
             arrow rather than an X - an X implies dismissing the whole modal. */}
-        <Button variant="ghost" size="sm" icon="fa-arrow-left" onClick={onClose}>Back</Button>
+        <Button variant="ghost" size="sm" icon="arrow-left" onClick={onClose}>Back</Button>
       </div>
 
       {isEditSection ? (
         /* ---------- Edit: identity only ---------- */
         <>
-        <Panel icon="fa-id-card" title="Basic Information" hint="নাম ও ভূমিকা">
+        <Panel icon="id-card" title="Basic Information" hint="নাম ও ভূমিকা">
           <div className="space-y-2">
             {canEditName ? (
               <div>
@@ -458,16 +459,16 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
           </Panel>
 
           <Button block onClick={saveAll} disabled={saving}>
-            {saving ? <><i className="fa-solid fa-spinner fa-spin" /> Saving...</> : 'Save Changes'}
+            {saving ? <><Icon name="loader-circle" /> Saving...</> : 'Save Changes'}
           </Button>
         </>
       ) : isAdmin ? (
         <>
           <AdminFullAccessCard />
-          <Panel icon="fa-circle-dot" title="Account Status">
+          <Panel icon="circle-dot" title="Account Status">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <i className={`fa-solid fa-circle text-[9px] ${active ? "text-[var(--ah-success)]" : "text-ink-3"}`}></i>
+                <Icon name="circle" className={`text-[9px] ${active ? "text-[var(--ah-success)]" : "text-ink-3"}`} />
                 <span className={`text-xs font-bold ${active ? "text-[var(--ah-success)]" : "text-ink-3"}`}>{active ? "Active" : "Inactive"}</span>
               </div>
               <div className="text-[10px] text-ink-3">Admin-এর Status শুধু Admin পরিবর্তন করতে পারবে।</div>
@@ -477,10 +478,10 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
       ) : (
         <>
           {canManagePerms && (
-            <Panel icon="fa-wallet" title="Wallet Access" hint="কোন ওয়ালেটে ইউজার এক্সেস পাবে তা নির্বাচন করুন। Permissions শুধু অ্যাক্সেসযোগ্য ওয়ালেটের ভেতরেই কাজ করে।">
+            <Panel icon="wallet" title="Wallet Access" hint="কোন ওয়ালেটে ইউজার এক্সেস পাবে তা নির্বাচন করুন। Permissions শুধু অ্যাক্সেসযোগ্য ওয়ালেটের ভেতরেই কাজ করে।">
               {walletLocked && !actorAdmin ? (
                 <div className="card-warning p-2.5 text-[10px] text-[var(--ah-warning)] leading-snug">
-                  <i className="fa-solid fa-triangle-exclamation me-1"></i>
+                  <Icon name="triangle-alert" className="me-1" />
                   এই ইউজারের আরও Wallet Access আছে, কিন্তু সেগুলো আপনার বর্তমান Wallet তালিকার বাইরে ({" "}
                   {outOfScopeWallets.join(", ")} )। এখানে সম্পাদনা করলে সেগুলো হারাবে, তাই Wallet Access
                   এডিট বন্ধ আছে — আগে Admin এর সাথে যোগাযোগ করুন।
@@ -497,7 +498,7 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
                   {!hasWallet && <NoWalletAccessNotice showInactiveNote={AnyAdditionalGranted({ selected: permissions })} />}
                   {hasWallet && (
                     <div className="text-[10px] text-ink-3 flex items-center gap-1">
-                      <i className="fa-solid fa-circle-check text-[var(--ah-success)]"></i>
+                      <Icon name="circle-check" className="text-[var(--ah-success)]" />
                       Wallet Access সক্রিয় → Default Wallet Actions + Additional Permissions প্রযোজ্য
                     </div>
                   )}
@@ -507,10 +508,10 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
           )}
 
           {canManagePerms && (
-            <Panel icon="fa-user-shield" title="Additional Permissions" hint="এই Permissions Admin কে স্পষ্টভাবে দিতে হয়। এগুলো ইউজারের অ্যাক্সেসযোগ্য সব ওয়ালেটে প্রযোজ্য। Wallet Access থাকলে Default Wallet Actions স্বয়ংক্রিয়ভাবে প্রযোজ্য হয়।">
+            <Panel icon="user-shield" title="Additional Permissions" hint="এই Permissions Admin কে স্পষ্টভাবে দিতে হয়। এগুলো ইউজারের অ্যাক্সেসযোগ্য সব ওয়ালেটে প্রযোজ্য। Wallet Access থাকলে Default Wallet Actions স্বয়ংক্রিয়ভাবে প্রযোজ্য হয়।">
               {permLocked ? (
                 <div className="card-warning p-2.5 text-[10px] text-[var(--ah-warning)] leading-snug">
-                  <i className="fa-solid fa-triangle-exclamation me-1"></i>
+                  <Icon name="triangle-alert" className="me-1" />
                   এই ইউজারের কিছু Permission আপনার অনুমতির বাইরে, তাই Additional Permissions এডিট বন্ধ
                   আছে — আগে Admin এর সাথে যোগাযোগ করুন।
                 </div>
@@ -518,7 +519,7 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
                 <>
                   {!hasWallet && (
                     <div className="card-warning p-2.5 text-[10px] text-[var(--ah-warning)] leading-snug">
-                      <i className="fa-solid fa-triangle-exclamation me-1"></i>
+                      <Icon name="triangle-alert" className="me-1" />
                       Add Income ইত্যাদি Permission দেওয়া থাকলেও Wallet Access না থাকায় সেগুলো নিষ্ক্রিয় থাকবে।
                     </div>
                   )}
@@ -537,7 +538,7 @@ const ManageUserPanel = memo(function ManageUserPanel({ user, wallets, currentUs
               avoids two entry points for the same action. */}
 
           <Button block onClick={saveAll} disabled={saving}>
-            {saving ? <><i className="fa-solid fa-spinner fa-spin" /> Saving...</> : isEditSection ? 'Save Changes' : 'Save Access & Permissions'}
+            {saving ? <><Icon name="loader-circle" /> Saving...</> : isEditSection ? 'Save Changes' : 'Save Access & Permissions'}
           </Button>
         </>
       )}
@@ -624,7 +625,7 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
               className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
               style={{ background: "var(--ah-success-soft)", color: "var(--ah-success)" }}
             >
-              <i className="fa-solid fa-user text-xs" />
+              <Icon name="user" className="text-xs" />
             </div>
             <div className="min-w-0">
               <div className="font-bold text-ink truncate">{user.FullName || user.Username}</div>
@@ -664,7 +665,7 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
         </div>
         <div className="mt-1.5 flex items-center justify-between gap-2">
           <button type="button" onClick={openDetails} className="flex items-center gap-1.5 text-[10px] pl-10 min-w-0 text-left">
-            <i className="fa-solid fa-wallet text-ink-3 dark:text-ink-2 text-[9px]"></i>
+            <Icon name="wallet" className="text-ink-3 dark:text-ink-2 text-[9px]" />
             {/* Admins reach every wallet by role, so their stored WalletAccess is
                 usually empty - showing "No Wallet Access" in amber would be a lie. */}
             {isAdmin ? (
@@ -683,7 +684,7 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
               e.stopPropagation();
               setPinDialogOpen(true);
             }} title="Reset PIN" aria-label="Reset PIN" className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors flex items-center gap-1" style={{ background: "var(--ah-warning-soft)", color: "var(--ah-warning)" }}>
-              <i className="fa-solid fa-key text-[9px]" /> PIN
+              <Icon name="key-round" className="text-[9px]" /> PIN
             </button>
           )}
         </div>
@@ -705,7 +706,7 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
             className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
             style={{ background: "var(--ah-success-soft)", color: "var(--ah-success)" }}
           >
-            <i className="fa-solid fa-user" />
+            <Icon name="user" />
           </div>
           <div className="min-w-0 flex-1">
             <div className="font-bold text-sm text-ink truncate">{user.FullName || user.Username}</div>
@@ -729,7 +730,7 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
           <>
             <div className="card-inset p-3 space-y-2">
               <div className="text-[11px] font-bold text-ink">
-                <i className="fa-solid fa-wallet me-1.5 text-[var(--ah-success)] text-[10px]"></i>Wallet Access
+                <Icon name="wallet" className="me-1.5 text-[var(--ah-success)] text-[10px]" />Wallet Access
               </div>
               {walletCount === 0 ? (
                 <div className="text-[11px] text-[var(--ah-warning)] font-semibold">No Wallet Access</div>
@@ -749,7 +750,7 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
 
             <div className="card-inset p-3 space-y-1.5">
               <div className="text-[11px] font-bold text-ink">
-                <i className="fa-solid fa-list-check me-1.5 text-[var(--ah-success)] text-[10px]"></i>Permissions
+                <Icon name="list-checks" className="me-1.5 text-[var(--ah-success)] text-[10px]" />Permissions
               </div>
               {(user.Permissions || []).length === 0 ? (
                 <div className="text-[11px] text-ink-3">কোনো অতিরিক্ত Permission নেই (Default Wallet Actions স্বয়ংক্রিয়)।</div>
@@ -836,7 +837,7 @@ const UserRow = memo(function UserRow({ user, wallets, currentUser, can, onRefre
               বাতিল
             </Button>
             <Button type="submit" block disabled={savingPin}>
-              {savingPin ? <><i className="fa-solid fa-spinner fa-spin" /> সংরক্ষণ হচ্ছে...</> : "PIN পরিবর্তন"}
+              {savingPin ? <><Icon name="loader-circle" /> সংরক্ষণ হচ্ছে...</> : "PIN পরিবর্তন"}
             </Button>
           </div>
         </form>
@@ -888,7 +889,7 @@ function AddUserForm({ wallets, currentUser, showAlert, onRefresh, onClose }) {
   return (
     <form onSubmit={handleAddUser} className="space-y-3">
       <div className="card-inset p-3 space-y-2">
-        <div className="text-[11px] font-bold text-ink"><i className="fa-solid fa-id-card me-1.5 text-[10px]" style={{ color: "var(--ah-success)" }} />1. Basic Information</div>
+        <div className="text-[11px] font-bold text-ink"><Icon name="id-card" className="me-1.5 text-[10px]" style={{ color: "var(--ah-success)" }} />1. Basic Information</div>
         <Input type="text" placeholder="Full Name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
         <Input type="text" placeholder="Username" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} required />
         <Input type="password" placeholder={"PIN (min " + MIN_PIN_LENGTH + ", max " + MAX_PIN_LENGTH + " characters)"} value={newPin} onChange={(e) => setNewPin(e.target.value)} required />
@@ -902,24 +903,24 @@ function AddUserForm({ wallets, currentUser, showAlert, onRefresh, onClose }) {
         {!isAdminNew && (
           <>
             <div className="card-inset p-3 space-y-2">
-              <div className="text-[11px] font-bold text-ink"><i className="fa-solid fa-wallet me-1.5 text-[var(--ah-success)] text-[10px]"></i>2. Wallet Access</div>
+              <div className="text-[11px] font-bold text-ink"><Icon name="wallet" className="me-1.5 text-[var(--ah-success)] text-[10px]" />2. Wallet Access</div>
               <div className="text-[10px] text-ink-3">কোন ওয়ালেটে এই ইউজার এক্সেস পাবে তা নির্বাচন করুন। Permissions শুধু অ্যাক্সেসযোগ্য ওয়ালেটের ভেতরেই কাজ করে।</div>
               <WalletChecklist wallets={wallets} selected={walletAccess} onToggle={toggleWallet} />
               {!hasWallet && <NoWalletAccessNotice showInactiveNote={AnyAdditionalGranted({ selected: permissions })} />}
             </div>
 
             <div className="card-inset p-3 space-y-2">
-              <div className="text-[11px] font-bold text-ink"><i className="fa-solid fa-list-check me-1.5 text-[var(--ah-success)] text-[10px]"></i>3. Default Wallet Permissions</div>
+              <div className="text-[11px] font-bold text-ink"><Icon name="list-checks" className="me-1.5 text-[var(--ah-success)] text-[10px]" />3. Default Wallet Permissions</div>
               <div className="text-[10px] text-ink-3">Wallet Access থাকলে এই অ্যাকশনগুলো স্বয়ংক্রিয়ভাবে সক্রিয় হয়।</div>
               <DefaultPermissionsList active={hasWallet} />
             </div>
 
             <div className="card-inset p-3 space-y-2">
-              <div className="text-[11px] font-bold text-ink"><i className="fa-solid fa-user-shield me-1.5 text-[var(--ah-success)] text-[10px]"></i>4. Additional Permissions</div>
+              <div className="text-[11px] font-bold text-ink"><Icon name="user-shield" className="me-1.5 text-[var(--ah-success)] text-[10px]" />4. Additional Permissions</div>
               <div className="text-[10px] text-ink-3">এই Permissions Admin কে স্পষ্টভাবে দিতে হয়। এগুলো ইউজারের অ্যাক্সেসযোগ্য সব ওয়ালেটে প্রযোজ্য।</div>
               {!hasWallet && (
                 <div className="card-warning p-2.5 text-[10px] text-[var(--ah-warning)] leading-snug">
-                  <i className="fa-solid fa-triangle-exclamation me-1"></i>
+                  <Icon name="triangle-alert" className="me-1" />
                   Add Income ইত্যাদি Permission দেওয়া থাকলেও Wallet Access না থাকায় সেগুলো নিষ্ক্রিয় থাকবে।
                 </div>
               )}
@@ -934,7 +935,7 @@ function AddUserForm({ wallets, currentUser, showAlert, onRefresh, onClose }) {
         <div className="grid grid-cols-2 gap-2">
           <Button type="button" variant="secondary" onClick={() => { resetForm(); onClose(); }}>Cancel</Button>
           <Button type="submit" disabled={adding}>
-            {adding ? <><i className="fa-solid fa-spinner fa-spin" /> Creating...</> : 'Create User'}
+            {adding ? <><Icon name="loader-circle" /> Creating...</> : 'Create User'}
           </Button>
         </div>
       </form>
@@ -950,10 +951,10 @@ export default function UserManagementView({ users, wallets, onRefresh, showAler
       <PageHeader
         title="User Access & Management"
         subtitle="ইউজার ম্যানেজমেন্ট, ওয়ালেট অ্যাক্সেস ও পারমিশন"
-        icon="fa-user-gear"
+        icon="user-cog"
         right={
           can("ADD_USER") ? (
-            <Button size="sm" icon="fa-user-plus" onClick={() => setAddOpen(true)}>Add User</Button>
+            <Button size="sm" icon="user-plus" onClick={() => setAddOpen(true)}>Add User</Button>
           ) : null
         }
       />

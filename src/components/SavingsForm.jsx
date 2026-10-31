@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import { useMemo, useState } from "react";
 import Select from "./Select.jsx";
 import AccountSelect from "./AccountSelect.jsx";
@@ -18,7 +19,7 @@ function StepIndicator({ step }) {
           <div key={n} className="flex items-center flex-1 last:flex-none last:flex-grow-0">
             <div className="flex flex-col items-center">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-colors ${done ? "bg-[var(--ah-brand)] border-[var(--ah-brand)] text-white" : active ? "bg-[var(--ah-brand)] border-[var(--ah-brand)] text-white shadow-md" : "bg-[var(--ah-surface)] border-[var(--ah-border-strong)] text-ink-3"}`}>
-                {done ? <i className="fa-solid fa-check"></i> : n}
+                {done ? <Icon name="check" /> : n}
               </div>
               <span className={`mt-1 text-[9px] font-semibold whitespace-nowrap ${active ? "text-[var(--ah-success)]" : "text-ink-3"}`}>{label}</span>
             </div>
@@ -31,9 +32,9 @@ function StepIndicator({ step }) {
 }
 
 export const SAVINGS_TYPE_META = {
-  GROUP: { label: "গ্রুপ সঞ্চয় (কমিটি)", short: "গ্রুপ", icon: "fa-people-group", desc: "কয়েকজন মিলে পালাক্রমে জমা ও গ্রহণ", perm: "SAVINGS_GROUP" },
-  FIXED: { label: "মেয়াদি সঞ্চয়", short: "মেয়াদি", icon: "fa-calendar-check", desc: "নির্দিষ্ট মেয়াদের জন্য নিয়মিত জমা", perm: "SAVINGS_FIXED" },
-  FLEXIBLE: { label: "নমনীয় সঞ্চয়", short: "নমনীয়", icon: "fa-wallet", desc: "ইচ্ছেমতো জমা ও উত্তোলন", perm: "SAVINGS_FLEXIBLE" },
+  GROUP: { label: "গ্রুপ সঞ্চয় (কমিটি)", short: "গ্রুপ", icon: "users-round", desc: "কয়েকজন মিলে পালাক্রমে জমা ও গ্রহণ", perm: "SAVINGS_GROUP" },
+  FIXED: { label: "মেয়াদি সঞ্চয়", short: "মেয়াদি", icon: "calendar-check", desc: "নির্দিষ্ট মেয়াদের জন্য নিয়মিত জমা", perm: "SAVINGS_FIXED" },
+  FLEXIBLE: { label: "নমনীয় সঞ্চয়", short: "নমনীয়", icon: "wallet", desc: "ইচ্ছেমতো জমা ও উত্তোলন", perm: "SAVINGS_FLEXIBLE" },
 };
 
 const FREQUENCIES = [
@@ -220,7 +221,7 @@ export default function SavingsForm({ can, wallets, currentUser, onSave, onCance
       <Popup open title="নতুন সঞ্চয়" onClose={onCancel}>
         <div className="text-center">
           <div className="w-16 h-16 mx-auto rounded-full bg-[var(--ah-success-soft)] flex items-center justify-center text-[var(--ah-success)] text-3xl">
-            <i className="fa-solid fa-circle-check"></i>
+            <Icon name="circle-check" />
           </div>
           <h3 className="font-bold text-ink text-base mt-3">সঞ্চয় পরিকল্পনা তৈরি হয়েছে!</h3>
           <p className="text-xs text-ink-3 mt-1">এখন জমা/কিস্তির লেনদেন রেকর্ড করতে পারবেন।</p>
@@ -240,7 +241,7 @@ export default function SavingsForm({ can, wallets, currentUser, onSave, onCance
           <button onClick={() => onDone && onShow(p)} className="w-full bg-[var(--ah-brand)] hover:bg-[var(--ah-brand-strong)] text-white font-bold py-3 rounded-xl text-sm shadow-md">সঞ্চয় দেখুন</button>
           <div className="grid grid-cols-2 gap-2">
             <button onClick={onGoHome} className="bg-[var(--ah-surface)] border border-[var(--ah-border-strong)] text-ink font-bold py-2.5 rounded-xl text-xs">হোমে যান</button>
-            <button onClick={resetForMore} className="bg-[var(--ah-header)] text-white font-bold py-2.5 rounded-xl text-xs"><i className="fa-solid fa-plus me-1"></i>আরো সঞ্চয়</button>
+            <button onClick={resetForMore} className="bg-[var(--ah-header)] text-white font-bold py-2.5 rounded-xl text-xs"><Icon name="plus" className="me-1" />আরো সঞ্চয়</button>
           </div>
         </div>
       </Popup>
@@ -266,7 +267,7 @@ export default function SavingsForm({ can, wallets, currentUser, onSave, onCance
                       const active = type === t;
                       return (
                         <button key={t} type="button" onClick={() => setType(t)} className={`rounded-xl border p-3 text-left transition-all flex items-center gap-3 ${active ? "border-emerald-500 bg-[var(--ah-success-soft)] ring-2 ring-emerald-500/30" : "border-[var(--ah-border)] bg-[var(--ah-surface)]"}`}>
-                          <div className="w-9 h-9 shrink-0 rounded-lg bg-[var(--ah-success-soft)] text-[var(--ah-success)] flex items-center justify-center"><i className={`fa-solid ${m.icon}`}></i></div>
+                          <div className="w-9 h-9 shrink-0 rounded-lg bg-[var(--ah-success-soft)] text-[var(--ah-success)] flex items-center justify-center"><Icon name={m.icon} /></div>
                           <div>
                             <div className="text-xs font-bold text-ink">{m.label}</div>
                             <div className="text-[10px] text-ink-3 mt-0.5">{m.desc}</div>
@@ -339,7 +340,7 @@ export default function SavingsForm({ can, wallets, currentUser, onSave, onCance
                   <Field label="সদস্য (ঐচ্ছিক)">
                     <div className="flex gap-2">
                       <input type="text" value={memberDraft} onChange={(e) => setMemberDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addMember(); } }} placeholder="সদস্যের নাম" className="flex-1 border border-[var(--ah-border-strong)] rounded-xl px-3 py-2 text-sm focus:ring-[var(--ah-brand-ring)] bg-[var(--ah-surface)] text-ink" />
-                      <button type="button" onClick={addMember} className="bg-[var(--ah-header)] text-white font-bold px-4 rounded-xl text-sm"><i className="fa-solid fa-plus"></i></button>
+                      <button type="button" onClick={addMember} className="bg-[var(--ah-header)] text-white font-bold px-4 rounded-xl text-sm"><Icon name="plus" /></button>
                     </div>
                   </Field>
                   {members.length > 0 && (
@@ -347,7 +348,7 @@ export default function SavingsForm({ can, wallets, currentUser, onSave, onCance
                       {members.map((m, i) => (
                         <span key={i} className="inline-flex items-center gap-1.5 text-[11px] font-semibold bg-[var(--ah-surface-3)] text-ink-2 px-2.5 py-1 rounded-full">
                           {i + 1}. {m}
-                          <button type="button" onClick={() => removeMember(i)} className="text-ink-3 hover:text-[var(--ah-danger)]"><i className="fa-solid fa-xmark text-[10px]"></i></button>
+                          <button type="button" onClick={() => removeMember(i)} className="text-ink-3 hover:text-[var(--ah-danger)]"><Icon name="x" className="text-[10px]" /></button>
                         </span>
                       ))}
                     </div>
@@ -392,7 +393,7 @@ export default function SavingsForm({ can, wallets, currentUser, onSave, onCance
             <div className="bg-[var(--ah-surface-inset)] border border-[var(--ah-border)] rounded-xl p-3.5 text-xs space-y-2 text-ink">
               <div className="font-bold text-sm text-ink mb-1">বিস্তারিত নিশ্চিত করুন</div>
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-full bg-[var(--ah-brand)] text-white flex items-center justify-center text-sm"><i className={`fa-solid ${meta.icon}`}></i></div>
+                <div className="w-9 h-9 rounded-full bg-[var(--ah-brand)] text-white flex items-center justify-center text-sm"><Icon name={meta.icon} /></div>
                 <div>
                   <div className="font-bold text-ink">{name}</div>
                   <div className="text-[10px] text-ink-3">{meta.label}</div>
@@ -427,10 +428,10 @@ export default function SavingsForm({ can, wallets, currentUser, onSave, onCance
               <button type="button" onClick={() => setStep(step - 1)} disabled={submitting} className="bg-[var(--ah-surface)] border border-[var(--ah-border-strong)] text-ink font-bold py-3 rounded-xl text-sm px-5">পিছনে</button>
             )}
             {step < 3 ? (
-              <button type="button" onClick={goNext} disabled={allowedTypes.length === 0} className="flex-1 bg-[var(--ah-brand)] hover:bg-[var(--ah-brand-strong)] disabled:opacity-50 text-white font-bold py-3 rounded-xl shadow-md text-sm"><i className="fa-solid fa-arrow-right me-1"></i>পরবর্তী</button>
+              <button type="button" onClick={goNext} disabled={allowedTypes.length === 0} className="flex-1 bg-[var(--ah-brand)] hover:bg-[var(--ah-brand-strong)] disabled:opacity-50 text-white font-bold py-3 rounded-xl shadow-md text-sm"><Icon name="arrow-right" className="me-1" />পরবর্তী</button>
             ) : (
               <button type="button" onClick={doCreate} disabled={submitting} className="flex-1 bg-[var(--ah-brand)] hover:bg-[var(--ah-brand-strong)] disabled:opacity-50 text-white font-bold py-3 rounded-xl shadow-md text-sm flex items-center justify-center gap-2">
-                <i className={submitting ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-floppy-disk"}></i> {submitting ? "সাবমিট হচ্ছে..." : "সঞ্চয় তৈরি করুন"}
+                <Icon name={submitting ? "loader-circle" : "save"} /> {submitting ? "সাবমিট হচ্ছে..." : "সঞ্চয় তৈরি করুন"}
               </button>
             )}
           </div>

@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import WalletCard from "../components/WalletCard.jsx";
 import { EmptyState, SectionCard } from "../ui/index.jsx";
 
@@ -13,7 +14,7 @@ export default function DashboardView({ wallets, walletSummaries, setActiveTab, 
     actions.push({
       key: 'users',
       label: 'ইউজার ম্যানেজমেন্ট',
-      icon: 'fa-users',
+      icon: 'users',
       tone: 'var(--ah-info)',
       tint: 'var(--ah-info-soft)',
       onClick: () => setActiveTab('users'),
@@ -23,7 +24,7 @@ export default function DashboardView({ wallets, walletSummaries, setActiveTab, 
     actions.push({
       key: 'wallets',
       label: 'Wallet ম্যানেজমেন্ট',
-      icon: 'fa-vault',
+      icon: 'vault',
       tone: 'var(--ah-brand)',
       tint: 'var(--ah-brand-soft)',
       onClick: () => setActiveTab('wallets'),
@@ -33,7 +34,7 @@ export default function DashboardView({ wallets, walletSummaries, setActiveTab, 
     actions.push({
       key: 'settings',
       label: 'সেটিংস',
-      icon: 'fa-gear',
+      icon: 'settings',
       tone: 'var(--ah-text-2)',
       tint: 'var(--ah-surface-3)',
       onClick: () => setActiveTab('settings'),
@@ -43,7 +44,7 @@ export default function DashboardView({ wallets, walletSummaries, setActiveTab, 
     actions.push({
       key: 'auditlog',
       label: 'Audit Log',
-      icon: 'fa-clock-rotate-left',
+      icon: 'history',
       tone: 'var(--ah-warning)',
       tint: 'var(--ah-warning-soft)',
       onClick: () => setActiveTab('auditlog'),
@@ -55,7 +56,7 @@ export default function DashboardView({ wallets, walletSummaries, setActiveTab, 
       {wallets.length === 0 ? (
         <div className="card">
           <EmptyState
-            icon="fa-vault"
+            icon="vault"
             title="কোনো Wallet পাওয়া যায়নি"
             text="আপনার কোনো Wallet এ এক্সেস নেই। Admin এর সাথে যোগাযোগ করুন।"
           />
@@ -75,7 +76,7 @@ export default function DashboardView({ wallets, walletSummaries, setActiveTab, 
       )}
 
       {actions.length > 0 && (
-        <SectionCard title="দ্রুত অ্যাকশন" icon="fa-bolt" bodyClassName="p-3">
+        <SectionCard title="দ্রুত অ্যাকশন" icon="zap" bodyClassName="p-3">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             {actions.map((a) => (
               <button
@@ -88,7 +89,7 @@ export default function DashboardView({ wallets, walletSummaries, setActiveTab, 
                   className="w-9 h-9 rounded-xl flex items-center justify-center text-sm"
                   style={{ background: a.tone, color: '#fff' }}
                 >
-                  <i className={`fa-solid ${a.icon}`} />
+                  <Icon name={a.icon} />
                 </span>
                 <span className="text-[10px] font-bold leading-tight text-ink-2 break-words">
                   {a.label}

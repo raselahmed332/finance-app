@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import { useState, useEffect, useMemo } from "react";
 import { api } from "../api.js";
 import Select from "../components/Select.jsx";
@@ -24,7 +25,7 @@ function SectionCard({ icon, tone = "brand", title, subtitle, count, children })
           className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
           style={{ background: colors.background, color: colors.color }}
         >
-          <i className={`fa-solid ${icon} text-xs`} />
+          <Icon name={icon} className="text-xs" />
         </div>
         <div className="min-w-0 flex-1">
           <h4 className="text-sm font-bold text-ink leading-tight truncate">{title}</h4>
@@ -48,7 +49,7 @@ function EmptyState({ icon, children }) {
         className="w-8 h-8 rounded-full flex items-center justify-center"
         style={{ background: "var(--ah-surface-3)", color: "var(--ah-text-3)" }}
       >
-        <i className={`fa-solid ${icon} text-[10px]`} />
+        <Icon name={icon} className="text-[10px]" />
       </div>
       <p className="text-[11px] text-ink-3">{children}</p>
     </div>
@@ -58,7 +59,7 @@ function EmptyState({ icon, children }) {
 function LoadingState() {
   return (
     <div className="flex items-center justify-center gap-2 py-4 text-[11px] text-ink-3">
-      <i className="fa-solid fa-spinner fa-spin text-[10px]"></i> লোড হচ্ছে...
+      <Icon name="loader-circle" className="text-[10px]" /> লোড হচ্ছে...
     </div>
   );
 }
@@ -130,7 +131,7 @@ function CategoriesManager({ currentUser, can, showAlert }) {
 
   return (
     <SectionCard
-      icon="fa-tags"
+      icon="tags"
       tone="info"
       title="ক্যাটাগরি"
       subtitle="Income ও Expense ক্যাটাগরি"
@@ -161,7 +162,7 @@ function CategoriesManager({ currentUser, can, showAlert }) {
             aria-label="ক্যাটাগরি যোগ করুন"
             className="shrink-0 h-[34px] w-[34px] rounded-xl bg-[var(--ah-header)] hover:bg-[var(--ah-header-2)] disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center transition-colors"
           >
-            {adding ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-plus"></i>}
+            {adding ? <Icon name="loader-circle" /> : <Icon name="plus" />}
           </button>
         </div>
       </form>
@@ -183,7 +184,7 @@ function CategoriesManager({ currentUser, can, showAlert }) {
                   {items.map((c) => (
                     <li key={c.CategoryID} className="flex items-center gap-1.5 px-2 py-1.5 text-xs bg-[var(--ah-surface)]">
                       <span className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${tone}`}>
-                        <i className={`fa-solid ${t === 'Expense' ? 'fa-arrow-up' : 'fa-arrow-down'} text-[8px]`}></i>
+                        <Icon name={t === 'Expense' ? "arrow-up" : "arrow-down"} className="text-[8px]" />
                       </span>
                       <span className="flex-1 min-w-0 font-semibold text-ink truncate">{c.Name}</span>
                       <button
@@ -191,14 +192,14 @@ function CategoriesManager({ currentUser, can, showAlert }) {
                         aria-label={`${c.Name} সম্পাদনা`}
                         className="shrink-0 w-5 h-5 rounded text-ink-3 dark:text-ink-2 hover:text-[var(--ah-info)] hover:bg-[var(--ah-info-soft)] dark: transition-colors flex items-center justify-center"
                       >
-                        <i className="fa-solid fa-pen text-[9px]"></i>
+                        <Icon name="pencil" className="text-[9px]" />
                       </button>
                       <button
                         onClick={() => handleDelete(c.CategoryID)}
                         aria-label={`${c.Name} মুছুন`}
                         className="shrink-0 w-5 h-5 rounded text-ink-3 dark:text-ink-2 hover:text-[var(--ah-danger)] hover:bg-[var(--ah-danger-soft)] dark: transition-colors flex items-center justify-center"
                       >
-                        <i className="fa-solid fa-trash-can text-[9px]"></i>
+                        <Icon name="trash-2" className="text-[9px]" />
                       </button>
                     </li>
                   ))}
@@ -246,7 +247,7 @@ function CategoriesManager({ currentUser, can, showAlert }) {
             disabled={savingEdit}
             className="w-full h-[38px] rounded-xl bg-[var(--ah-header)] hover:bg-[var(--ah-header-2)] disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center gap-2 transition-colors"
           >
-            {savingEdit ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-check"></i>}
+            {savingEdit ? <Icon name="loader-circle" /> : <Icon name="check" />}
             সেভ করুন
           </button>
         </div>
@@ -345,14 +346,14 @@ function CurrenciesManager({ currentUser, can, showAlert }) {
 
   return (
     <SectionCard
-      icon="fa-coins"
+      icon="coins"
       tone="success"
       title="কারেন্সি"
       subtitle="Currencies · অ্যাক্টিভ"
       count={currencies ? activeCount : undefined}
     >
       <div className="flex items-start gap-2 rounded-xl bg-[var(--ah-warning-soft)] border border-[var(--ah-warning)]/70 dark:border-[var(--ah-warning)]/70 px-2.5 py-2 text-[11px] leading-relaxed text-[var(--ah-warning)]">
-        <i className="fa-solid fa-circle-info mt-0.5 shrink-0"></i>
+        <Icon name="info" className="mt-0.5 shrink-0" />
         <span>Wallet তৈরির পর কারেন্সি পরিবর্তন করা যায় না। হাওলাত শুধু লোন চিহ্নিত কারেন্সিতে চলে।</span>
       </div>
 
@@ -395,7 +396,7 @@ function CurrenciesManager({ currentUser, can, showAlert }) {
             aria-label="কারেন্সি যোগ করুন"
             className="ml-auto shrink-0 h-[34px] w-[34px] rounded-xl bg-[var(--ah-brand)] hover:bg-[var(--ah-brand-strong)] disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center transition-colors"
           >
-            {adding ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-plus"></i>}
+            {adding ? <Icon name="loader-circle" /> : <Icon name="plus" />}
           </button>
         </div>
         <label className="flex items-center gap-2 mt-1.5 text-[11px] font-medium text-ink-2 cursor-pointer select-none">
@@ -413,7 +414,7 @@ function CurrenciesManager({ currentUser, can, showAlert }) {
 
       {currencies && (
         currencies.length === 0 ? (
-          <EmptyState icon="fa-coins">কোনো কারেন্সি নেই।</EmptyState>
+          <EmptyState icon="coins">কোনো কারেন্সি নেই।</EmptyState>
         ) : (
           <div className="space-y-1.5">
             <ul className="rounded-xl border border-[var(--ah-border)] overflow-hidden divide-y divide-[var(--ah-border)] divide-[var(--ah-border)]">
@@ -446,14 +447,14 @@ function CurrenciesManager({ currentUser, can, showAlert }) {
                         aria-label={`${c.code} সম্পাদনা`}
                         className="w-6 h-6 rounded-lg text-ink-3 dark:text-ink-2 hover:text-[var(--ah-info)] hover:bg-[var(--ah-info-soft)] dark: transition-colors flex items-center justify-center"
                       >
-                        <i className="fa-solid fa-pen text-[10px]"></i>
+                        <Icon name="pencil" className="text-[10px]" />
                       </button>
                       <button
                         onClick={() => handleDelete(c)}
                         aria-label={`${c.code} কারেন্সি মুছুন`}
                         className="w-6 h-6 rounded-lg text-ink-3 dark:text-ink-2 hover:text-[var(--ah-danger)] hover:bg-[var(--ah-danger-soft)] dark: transition-colors flex items-center justify-center"
                       >
-                        <i className="fa-solid fa-trash-can text-[10px]"></i>
+                        <Icon name="trash-2" className="text-[10px]" />
                       </button>
                     </div>
                   </li>
@@ -511,7 +512,7 @@ function CurrenciesManager({ currentUser, can, showAlert }) {
             disabled={savingEdit}
             className="w-full h-[38px] rounded-xl bg-[var(--ah-brand)] hover:bg-[var(--ah-brand-strong)] disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center gap-2 transition-colors"
           >
-            {savingEdit ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-check"></i>}
+            {savingEdit ? <Icon name="loader-circle" /> : <Icon name="check" />}
             সেভ করুন
           </button>
         </div>
@@ -628,7 +629,7 @@ function AccountTypesManager({ currentUser, can, showAlert, wallets }) {
 
   return (
     <SectionCard
-      icon="fa-layer-group"
+      icon="layers"
       tone="brand"
       title="অ্যাকাউন্ট টাইপ"
       subtitle="Account Types · সব Wallet-এ প্রযোজ্য"
@@ -649,7 +650,7 @@ function AccountTypesManager({ currentUser, can, showAlert, wallets }) {
             <input id="at-icon" value={icon} onChange={(e) => setIcon(e.target.value.slice(0, 40))} placeholder="wallet" className={INPUT_CLS} />
           </div>
           <button type="submit" disabled={adding} aria-label="Account Type যোগ করুন" className="shrink-0 h-[34px] w-[34px] rounded-xl bg-[var(--ah-header)] hover:bg-[var(--ah-header-2)] disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center transition-colors">
-            {adding ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-plus"></i>}
+            {adding ? <Icon name="loader-circle" /> : <Icon name="plus" />}
           </button>
         </div>
         <div>
@@ -662,7 +663,7 @@ function AccountTypesManager({ currentUser, can, showAlert, wallets }) {
 
       {types && (
         types.length === 0 ? (
-          <EmptyState icon="fa-layer-group">কোনো Account Type নেই।</EmptyState>
+          <EmptyState icon="layers">কোনো Account Type নেই।</EmptyState>
         ) : (
           <ul className="rounded-xl border border-[var(--ah-border)] overflow-hidden divide-y divide-[var(--ah-border)] divide-[var(--ah-border)]">
             {types.map((t) => {
@@ -670,7 +671,7 @@ function AccountTypesManager({ currentUser, can, showAlert, wallets }) {
               return (
                 <li key={t.AccountTypeID} className="flex items-center gap-2 px-3 py-1.5 bg-[var(--ah-surface)]">
                   <span className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${active ? 'bg-[var(--ah-brand-soft)] text-[var(--ah-brand)] text-[var(--ah-brand)]' : 'bg-[var(--ah-surface-3)] text-ink-3'}`}>
-                    <i className={`fa-solid fa-${t.Icon || 'wallet'} text-[11px]`}></i>
+                    <Icon name={t.Icon || 'wallet'} className="text-[11px]" />
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="text-xs font-bold text-ink truncate">{t.Name}</div>
@@ -683,10 +684,10 @@ function AccountTypesManager({ currentUser, can, showAlert, wallets }) {
                       {active ? 'Active' : 'Inactive'}
                     </span>
                     <button onClick={() => openEdit(t)} aria-label={`${t.Name} সম্পাদনা`} className="w-6 h-6 rounded-lg text-ink-3 dark:text-ink-2 hover:text-[var(--ah-info)] hover:bg-[var(--ah-info-soft)] dark: transition-colors flex items-center justify-center">
-                      <i className="fa-solid fa-pen text-[10px]"></i>
+                      <Icon name="pencil" className="text-[10px]" />
                     </button>
                     <button onClick={() => handleDelete(t)} aria-label={`${t.Name} মুছুন`} className="w-6 h-6 rounded-lg text-ink-3 dark:text-ink-2 hover:text-[var(--ah-danger)] hover:bg-[var(--ah-danger-soft)] dark: transition-colors flex items-center justify-center">
-                      <i className="fa-solid fa-trash-can text-[10px]"></i>
+                      <Icon name="trash-2" className="text-[10px]" />
                     </button>
                   </div>
                 </li>
@@ -726,7 +727,7 @@ function AccountTypesManager({ currentUser, can, showAlert, wallets }) {
               </div>
             </div>
             <button onClick={handleSaveEdit} disabled={savingEdit} className="w-full h-[38px] rounded-xl bg-[var(--ah-brand)] hover:bg-[var(--ah-brand-strong)] disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center gap-2 transition-colors">
-              {savingEdit ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-check"></i>} সেভ করুন
+              {savingEdit ? <Icon name="loader-circle" /> : <Icon name="check" />} সেভ করুন
             </button>
           </div>
         )}
@@ -859,14 +860,14 @@ function FinancialAccountsManager({ currentUser, can, showAlert, wallets }) {
 
   return (
     <SectionCard
-      icon="fa-building-columns"
+      icon="landmark"
       tone="info"
       title="Wallet অ্যাকাউন্ট"
       subtitle="প্রতিটি Wallet-এর অ্যাকাউন্ট"
       count={accounts ? accounts.length : undefined}
     >
       <div>
-        <label className={LABEL_CLS} htmlFor="fa-wallet">Wallet</label>
+        <label className={LABEL_CLS} htmlFor="wallet">Wallet</label>
         {walletList.length === 0 ? (
           <div className="text-[11px] text-ink-3 py-1">কোনো Wallet এক্সেস নেই।</div>
         ) : (
@@ -881,7 +882,7 @@ function FinancialAccountsManager({ currentUser, can, showAlert, wallets }) {
         <form onSubmit={handleAdd} className="rounded-xl bg-[var(--ah-surface-2)] border border-[var(--ah-border)] px-2.5 py-2 space-y-2">
           <div className="flex gap-2 items-end">
             <div className="w-[116px] shrink-0">
-              <label className={LABEL_CLS} htmlFor="fa-type">টাইপ</label>
+              <label className={LABEL_CLS} htmlFor="type">টাইপ</label>
               <Select value={typeId} onChange={setTypeId}>
                 {eligibleTypes.length === 0 && <option value="">—</option>}
                 {eligibleTypes.map((t) => <option key={t.AccountTypeID} value={t.AccountTypeID}>{t.Name}</option>)}
@@ -896,7 +897,7 @@ function FinancialAccountsManager({ currentUser, can, showAlert, wallets }) {
               <input id="fa-open" type="number" step="0.01" min="0" value={opening} onChange={(e) => setOpening(e.target.value)} placeholder="0.00" className={INPUT_CLS} />
             </div>
             <button type="submit" disabled={adding} aria-label="অ্যাকাউন্ট যোগ করুন" className="shrink-0 h-[34px] w-[34px] rounded-xl bg-[var(--ah-info)] hover:brightness-110 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center transition-colors">
-              {adding ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-plus"></i>}
+              {adding ? <Icon name="loader-circle" /> : <Icon name="plus" />}
             </button>
           </div>
         </form>
@@ -906,7 +907,7 @@ function FinancialAccountsManager({ currentUser, can, showAlert, wallets }) {
 
       {accounts && (
         accounts.length === 0 ? (
-          <EmptyState icon="fa-building-columns">এই Wallet-এ কোনো অ্যাকাউন্ট নেই।</EmptyState>
+          <EmptyState icon="landmark">এই Wallet-এ কোনো অ্যাকাউন্ট নেই।</EmptyState>
         ) : (
           <ul className="rounded-xl border border-[var(--ah-border)] overflow-hidden divide-y divide-[var(--ah-border)] divide-[var(--ah-border)]">
             {accounts.map((a) => {
@@ -914,7 +915,7 @@ function FinancialAccountsManager({ currentUser, can, showAlert, wallets }) {
               return (
                 <li key={a.AccountID} className="flex items-center gap-2 px-3 py-1.5 bg-[var(--ah-surface)]">
                   <span className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${active ? 'bg-[var(--ah-info-soft)] text-[var(--ah-info)]' : 'bg-[var(--ah-surface-3)] text-ink-3'}`}>
-                    <i className={`fa-solid fa-${a.Icon || 'wallet'} text-[11px]`}></i>
+                    <Icon name={a.Icon || 'wallet'} className="text-[11px]" />
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="text-xs font-bold text-ink truncate">{a.Name}</div>
@@ -926,12 +927,12 @@ function FinancialAccountsManager({ currentUser, can, showAlert, wallets }) {
                     </span>
                     {canEdit && (
                       <button onClick={() => openEdit(a)} aria-label={`${a.Name} সম্পাদনা`} className="w-6 h-6 rounded-lg text-ink-3 dark:text-ink-2 hover:text-[var(--ah-info)] hover:bg-[var(--ah-info-soft)] dark: transition-colors flex items-center justify-center">
-                        <i className="fa-solid fa-pen text-[10px]"></i>
+                        <Icon name="pencil" className="text-[10px]" />
                       </button>
                     )}
                     {canRetire && (
                       <button onClick={() => handleRetire(a)} aria-label={`${a.Name} নিষ্ক্রিয়`} className="w-6 h-6 rounded-lg text-ink-3 dark:text-ink-2 hover:text-[var(--ah-danger)] hover:bg-[var(--ah-danger-soft)] dark: transition-colors flex items-center justify-center">
-                        <i className="fa-solid fa-trash-can text-[10px]"></i>
+                        <Icon name="trash-2" className="text-[10px]" />
                       </button>
                     )}
                   </div>
@@ -959,7 +960,7 @@ function FinancialAccountsManager({ currentUser, can, showAlert, wallets }) {
             </div>
             <div className="text-[10px] text-ink-3 px-1">শুরুর ব্যালেন্স ও কারেন্সি পরে পরিবর্তন করা যায় না।</div>
             <button onClick={handleSaveEdit} disabled={savingEdit} className="w-full h-[38px] rounded-xl bg-[var(--ah-info)] hover:brightness-110 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center gap-2 transition-colors">
-              {savingEdit ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-check"></i>} সেভ করুন
+              {savingEdit ? <Icon name="loader-circle" /> : <Icon name="check" />} সেভ করুন
             </button>
           </div>
         )}
@@ -975,7 +976,7 @@ export default function SettingsView({ showAlert, currentUser, can, wallets }) {
 
       <div className="bg-[var(--ah-warning-soft)] border border-[var(--ah-warning)] dark:border-[var(--ah-warning)] rounded-2xl p-3 flex items-start gap-2.5">
         <div className="w-6 h-6 rounded-lg bg-[var(--ah-warning-soft)] text-[var(--ah-warning)] flex items-center justify-center shrink-0">
-          <i className="fa-solid fa-shield-halved text-[10px]"></i>
+          <Icon name="shield-half" className="text-[10px]" />
         </div>
         <div className="text-[11px] leading-relaxed text-[var(--ah-warning)] space-y-0.5">
           <div className="font-bold text-[var(--ah-warning)]">নিরাপত্তা সংক্রান্ত তথ্য</div>

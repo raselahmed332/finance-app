@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import { createContext, useCallback, useContext, useRef, useState } from "react";
 
 const ToastContext = createContext(null);
@@ -45,9 +46,7 @@ export function ToastProvider({ children }) {
                 animation: "toastIn .25s ease-out",
               }}
             >
-              <i
-                className={`fa-solid ${isError ? "fa-circle-exclamation" : "fa-circle-check"} text-sm`}
-              />
+              <Icon name={isError ? "circle-alert" : "circle-check"} className="text-sm" />
               <span className="text-left leading-snug">{t.msg}</span>
             </button>
           );

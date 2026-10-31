@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api.js";
 import Popup from "../components/Popup.jsx";
@@ -45,23 +46,23 @@ function ShopCard({ shop, onEdit, onToggle, canManage, canAddPayment, onOpen, on
       <div className="w-full text-left">
         <div className="flex items-center gap-3">
           <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${shop.Status === "Active" ? "bg-[var(--ah-info-soft)] text-[var(--ah-info)]" : "bg-[var(--ah-warning-soft)] text-[var(--ah-warning)]"}`}>
-            <i className="fa-solid fa-store text-base" />
+            <Icon name="store" className="text-base" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="font-bold text-sm text-ink truncate">{shop.Name}</div>
             <div className="flex items-center gap-1.5 text-[10px] text-ink-3 mt-0.5 min-w-0">
               <span className="max-w-[42%] truncate">
-                <i className="fa-solid fa-location-dot me-1" />
+                <Icon name="map-pin" className="me-1" />
                 {shop.Address || "—"}
               </span>
               {shop.Mobile ? (
                 <span className="shrink-0">
-                  <i className="fa-solid fa-phone me-1" />
+                  <Icon name="phone" className="me-1" />
                   {shop.Mobile}
                 </span>
               ) : null}
               <span className="min-w-0 truncate">
-                <i className="fa-solid fa-wallet me-1" />
+                <Icon name="wallet" className="me-1" />
                 {shop.WalletName || shop.WalletID}{shop.Currency ? ` · ${shop.Currency}` : ""}
               </span>
             </div>
@@ -97,14 +98,14 @@ function ShopCard({ shop, onEdit, onToggle, canManage, canAddPayment, onOpen, on
         })}
       </div>
       <div className="grid grid-cols-2 gap-2 pt-1">
-        <div className="min-w-0 text-[9px] text-ink-3">
-          <div className="truncate"><i className="fa-solid fa-calendar-day me-1" />সর্বশেষ বাজার</div>
+        <div className="card-inset min-w-0 p-2 text-[9px] text-ink-3">
+          <div className="truncate"><Icon name="calendar-1" className="me-1" />সর্বশেষ বাজার</div>
           <div className="font-semibold text-ink-2 truncate mt-0.5">
             {lastMarket ? `${formatShopDate(lastMarket.Date)} · ${money(lastMarket.Total, shop.Currency)}` : "—"}
           </div>
         </div>
-        <div className="min-w-0 text-[9px] text-ink-3">
-          <div className="truncate"><i className="fa-solid fa-calendar-day me-1" />সর্বশেষ পেমেন্ট</div>
+        <div className="card-inset min-w-0 p-2 text-[9px] text-ink-3">
+          <div className="truncate"><Icon name="calendar-1" className="me-1" />সর্বশেষ পেমেন্ট</div>
           <div className="font-semibold text-ink-2 truncate mt-0.5">
             {lastPayment ? `${formatShopDate(lastPayment.Date)} · ${money(lastPayment.Total, shop.Currency)}` : "—"}
           </div>
@@ -119,7 +120,7 @@ function ShopCard({ shop, onEdit, onToggle, canManage, canAddPayment, onOpen, on
         <Button
           size="sm"
           variant="secondary"
-          icon="fa-book-open"
+          icon="book-open"
           className={canAddPayment ? "" : "col-span-2"}
           onClick={() => onOpen(shop)}
         >
@@ -128,7 +129,7 @@ function ShopCard({ shop, onEdit, onToggle, canManage, canAddPayment, onOpen, on
         {canAddPayment ? (
           <Button
             size="sm"
-            icon="fa-money-bill-wave"
+            icon="banknote"
             disabled={shop.Status !== "Active" || Number(shop.OutstandingBalance) <= 0}
             onClick={() => onPay(shop)}
           >
@@ -139,17 +140,17 @@ function ShopCard({ shop, onEdit, onToggle, canManage, canAddPayment, onOpen, on
       <div className="pt-1 border-t border-[var(--ah-border)]">
         <div className="flex items-center gap-2 pt-1.5 text-[9px] text-ink-3 min-w-0">
           <span className="min-w-0 truncate">
-            <i className="fa-solid fa-user me-1" />
+            <Icon name="user" className="me-1" />
             {shop.CreatedByName || shop.CreatedBy || "—"}
           </span>
           <span className="shrink-0">
-            <i className="fa-solid fa-calendar-day me-1" />
+            <Icon name="calendar-1" className="me-1" />
             {formatShopDate(shop.CreatedAt)}
           </span>
           {canManage ? (
             <div className="flex items-center gap-1 ms-auto shrink-0">
-              <Button size="sm" variant="ghost" icon="fa-pen" onClick={() => onEdit(shop)}>এডিট</Button>
-              <Button size="sm" variant="ghost" icon={shop.Status === "Active" ? "fa-box-archive" : "fa-rotate-left"} onClick={() => onToggle(shop)}>
+              <Button size="sm" variant="ghost" icon="pencil" onClick={() => onEdit(shop)}>এডিট</Button>
+              <Button size="sm" variant="ghost" icon={shop.Status === "Active" ? "archive" : "rotate-ccw"} onClick={() => onToggle(shop)}>
                 {shop.Status === "Active" ? "বন্ধ" : "চালু"}
               </Button>
             </div>
@@ -264,11 +265,11 @@ export default function ShopCreditLedgerDashboardView({ wallets, can, showAlert,
     <div className="space-y-4">
       <PageHeader
         title="বাকির খাতা"
-        icon="fa-book-open"
+        icon="book-open"
         subtitle="দোকানের বাজার, পেমেন্ট ও বর্তমান বাকি"
         right={
           canManageShop
-            ? <Button size="sm" icon="fa-plus" onClick={() => setModal({ type: "shop" })}>নতুন দোকান</Button>
+            ? <Button size="sm" icon="plus" onClick={() => setModal({ type: "shop" })}>নতুন দোকান</Button>
             : <span className="text-[10px] text-ink-3">যোগ করতে অনুমতি নেই</span>
         }
       />
@@ -278,7 +279,7 @@ export default function ShopCreditLedgerDashboardView({ wallets, can, showAlert,
         </Card>
       ) : null}
       <div className="relative">
-        <i className="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-ink-3 text-xs" />
+        <Icon name="search" className="absolute left-3 top-2.5 text-ink-3 text-xs" />
         <Input
           placeholder="দোকানের নাম বা মোবাইল নম্বর দিয়ে খুঁজুন..."
           value={query}
@@ -315,7 +316,7 @@ export default function ShopCreditLedgerDashboardView({ wallets, can, showAlert,
       ) : null}
       {!loading && !loadError && filteredShops.length === 0 ? (
         <EmptyState
-          icon={query ? "fa-magnifying-glass" : "fa-store"}
+          icon={query ? "search" : "store"}
           title={query ? "কোনো দোকান পাওয়া যায়নি" : "কোনো দোকানের খাতা নেই"}
           text={query ? "সার্চ পরিবর্তন করে আবার চেষ্টা করুন।" : "প্রথম দোকানের খাতা তৈরি করে শুরু করুন।"}
           action={query ? <Button size="sm" variant="secondary" onClick={() => setQuery("")}>সার্চ মুছুন</Button> : null}

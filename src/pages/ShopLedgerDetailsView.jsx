@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { Icon } from "../ui/Icon.jsx";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api.js";
 import Popup from "../components/Popup.jsx";
 import { useConfirm } from "../components/ConfirmDialog.jsx";
@@ -26,6 +27,33 @@ import {
   unitLabel,
 } from "../utils/shopLedger.js";
 
+function ShopContactLine({ shop, className = "" }) {
+  return (
+    <span className={`inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-0.5 align-middle ${className}`}>
+      <span className="inline-flex min-w-0 items-center gap-1">
+        <Icon name="map-pin" className="shrink-0" />
+        <span className="truncate">{shop?.Address || "ঠিকানা নেই"}</span>
+      </span>
+      {shop?.Mobile ? (
+        <span className="inline-flex shrink-0 items-center gap-1">
+          <Icon name="phone" />
+          {shop.Mobile}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+function RecordCreator({ record, userNames }) {
+  const name = record?.CreatedByName || userNames?.[record?.CreatedBy] || record?.CreatedBy || "অজানা";
+  return (
+    <span className="me-auto min-w-0 truncate text-[9px] text-ink-3" title={`তৈরি: ${name}`}>
+      <Icon name="user" className="me-1" />
+      {name}
+    </span>
+  );
+}
+
 function SummaryStat({ label, value, tone }) {
   const style = tone ? toneStyle(tone) : null;
   return (
@@ -45,13 +73,13 @@ function SummaryStat({ label, value, tone }) {
   );
 }
 
-function MarketCard({ market, currency, canEdit, canDelete, onView, onEdit, onDelete }) {
+function MarketCard({ market, currency, canEdit, canDelete, onView, onEdit, onDelete, userNames }) {
   const products = market.Products || [];
   return (
     <Card className="p-3 space-y-2.5">
       <div className="flex items-start gap-2.5">
         <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={toneStyle("warning")}>
-          <i className="fa-solid fa-basket-shopping text-sm" />
+          <Icon name="shopping-basket" className="text-sm" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
@@ -60,27 +88,28 @@ function MarketCard({ market, currency, canEdit, canDelete, onView, onEdit, onDe
           </div>
           <div className="text-[10px] text-ink-3 mt-0.5 break-words">{productSummary(products)}</div>
           <div className="text-[10px] text-ink-3 mt-1">
-            <i className="fa-solid fa-boxes-stacked me-1" />
+            <Icon name="boxes" className="me-1" />
             {products.length} টি পণ্য
           </div>
         </div>
       </div>
       <div className="flex items-center justify-end gap-1 pt-1 border-t border-[var(--ah-border)]">
-        <Button size="sm" variant="ghost" icon="fa-eye" onClick={onView}>দেখুন</Button>
-        {canEdit ? <Button size="sm" variant="ghost" icon="fa-pen" onClick={onEdit}>এডিট</Button> : null}
-        {canDelete ? <Button size="sm" variant="ghost" icon="fa-trash" onClick={onDelete}>মুছুন</Button> : null}
+        <RecordCreator record={market} userNames={userNames} />
+        <Button size="sm" variant="ghost" icon="eye" onClick={onView}>দেখুন</Button>
+        {canEdit ? <Button size="sm" variant="ghost" icon="pencil" onClick={onEdit}>এডিট</Button> : null}
+        {canDelete ? <Button size="sm" variant="ghost" icon="trash-2" onClick={onDelete}>মুছুন</Button> : null}
       </div>
     </Card>
   );
 }
 
-function PaymentCard({ payment, currency, canEdit, canDelete, onView, onEdit, onDelete }) {
+function PaymentCard({ payment, currency, canEdit, canDelete, onView, onEdit, onDelete, userNames }) {
   const allocations = payment.Allocations || [];
   return (
     <Card className="p-3 space-y-2.5">
       <div className="flex items-start gap-2.5">
         <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={toneStyle("success")}>
-          <i className="fa-solid fa-money-bill-wave text-sm" />
+          <Icon name="banknote" className="text-sm" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
@@ -91,7 +120,7 @@ function PaymentCard({ payment, currency, canEdit, canDelete, onView, onEdit, on
             {allocations.length ? allocations.map((allocation, index) => (
               <div key={`${allocation.AccountID}-${index}`} className="flex items-center justify-between gap-2 text-[10px]">
                 <span className="text-ink-3 truncate">
-                  <i className="fa-solid fa-wallet me-1" />
+                  <Icon name="wallet" className="me-1" />
                   {allocation.AccountName || allocation.AccountID}
                 </span>
                 <span className="font-semibold tnum text-ink-2 shrink-0">{money(allocation.Amount, currency)}</span>
@@ -101,9 +130,10 @@ function PaymentCard({ payment, currency, canEdit, canDelete, onView, onEdit, on
         </div>
       </div>
       <div className="flex items-center justify-end gap-1 pt-1 border-t border-[var(--ah-border)]">
-        <Button size="sm" variant="ghost" icon="fa-eye" onClick={onView}>দেখুন</Button>
-        {canEdit ? <Button size="sm" variant="ghost" icon="fa-pen" onClick={onEdit}>এডিট</Button> : null}
-        {canDelete ? <Button size="sm" variant="ghost" icon="fa-trash" onClick={onDelete}>মুছুন</Button> : null}
+        <RecordCreator record={payment} userNames={userNames} />
+        <Button size="sm" variant="ghost" icon="eye" onClick={onView}>দেখুন</Button>
+        {canEdit ? <Button size="sm" variant="ghost" icon="pencil" onClick={onEdit}>এডিট</Button> : null}
+        {canDelete ? <Button size="sm" variant="ghost" icon="trash-2" onClick={onDelete}>মুছুন</Button> : null}
       </div>
     </Card>
   );
@@ -119,9 +149,7 @@ function MarketDetail({ shop, market }) {
           <div className="text-base font-bold tnum text-brand">{money(market.Total, shop?.Currency)}</div>
         </div>
         <div className="text-[11px] font-bold text-ink mt-2 truncate">{shop?.Name}</div>
-        <div className="text-[10px] text-ink-3 truncate">
-          {shop?.Address}{shop?.Mobile ? ` · ${shop.Mobile}` : ""}
-        </div>
+        <ShopContactLine shop={shop} className="mt-0.5 text-[10px] text-ink-3" />
       </div>
       <div>
         <div className="text-[10px] font-semibold text-ink-3 mb-1.5">পণ্যের তালিকা</div>
@@ -140,7 +168,7 @@ function MarketDetail({ shop, market }) {
         </div>
       </div>
       <div className="text-[10px] text-ink-3">
-        <i className="fa-solid fa-calendar-day me-1" />
+        <Icon name="calendar-1" className="me-1" />
         যোগ করা হয়েছে: {formatShopDate(market.CreatedAt)}
       </div>
     </div>
@@ -157,7 +185,7 @@ function PaymentDetail({ shop, payment }) {
           <div className="text-base font-bold tnum text-success">{money(payment.Total, shop?.Currency)}</div>
         </div>
         <div className="text-[10px] text-ink-3 mt-1">
-          <i className="fa-solid fa-calendar-day me-1" />
+          <Icon name="calendar-1" className="me-1" />
           {formatShopDate(payment.CreatedAt)}
         </div>
       </div>
@@ -167,7 +195,7 @@ function PaymentDetail({ shop, payment }) {
           {allocations.map((allocation, index) => (
             <div key={`${allocation.AccountID}-${index}`} className="p-2.5 flex items-center justify-between gap-3">
               <div className="text-xs font-semibold text-ink truncate">
-                <i className="fa-solid fa-wallet me-1 text-ink-3" />
+                <Icon name="wallet" className="me-1 text-ink-3" />
                 {allocation.AccountName || allocation.AccountID}
               </div>
               <div className="text-xs font-bold tnum text-ink shrink-0">{money(allocation.Amount, shop?.Currency)}</div>
@@ -178,9 +206,7 @@ function PaymentDetail({ shop, payment }) {
       <div className="card-inset p-3">
         <div className="text-[10px] font-semibold text-ink-3">দোকান</div>
         <div className="text-xs font-bold text-ink mt-0.5 break-words">{shop?.Name}</div>
-        <div className="text-[10px] text-ink-3 mt-0.5 break-words">
-          {shop?.Address}{shop?.Mobile ? ` · ${shop.Mobile}` : ""}
-        </div>
+        <ShopContactLine shop={shop} className="mt-0.5 text-[10px] text-ink-3" />
       </div>
     </div>
   );
@@ -190,6 +216,7 @@ export default function ShopLedgerDetailsView({
   shopId,
   can,
   showAlert,
+  users = [],
   initialTab = "markets",
   initialAction = "",
   onBack,
@@ -218,6 +245,13 @@ export default function ShopLedgerDetailsView({
   const payments = sortShopRecordsNewestFirst(details?.payments);
   const outstanding = Number(shop?.OutstandingBalance) || 0;
   const isActive = shop?.Status === "Active";
+  const userNames = useMemo(() => {
+    const map = {};
+    (Array.isArray(users) ? users : []).forEach((user) => {
+      if (user?.Username) map[user.Username] = user.FullName || user.Username;
+    });
+    return map;
+  }, [users]);
 
   const loadDetails = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -359,7 +393,7 @@ export default function ShopLedgerDetailsView({
   if (loading && !details) {
     return (
       <div className="space-y-4">
-        <PageHeader title="দোকানের খাতা" icon="fa-store" onBack={onBack} />
+        <PageHeader title="দোকানের খাতা" icon="store" onBack={onBack} />
         <LoadingState label="দোকানের বিস্তারিত লোড হচ্ছে..." />
       </div>
     );
@@ -368,7 +402,7 @@ export default function ShopLedgerDetailsView({
   if (!details) {
     return (
       <div className="space-y-4">
-        <PageHeader title="দোকানের খাতা" icon="fa-store" onBack={onBack} />
+        <PageHeader title="দোকানের খাতা" icon="store" onBack={onBack} />
         <ErrorState
           title="দোকানের বিস্তারিত লোড হয়নি"
           text={loadError || "দোকান পাওয়া যায়নি।"}
@@ -387,7 +421,7 @@ export default function ShopLedgerDetailsView({
         <Button
           key="edit"
           variant="secondary"
-          icon="fa-pen"
+          icon="pencil"
           disabled={busy}
           onClick={() => setModal({ type: `${type}-form`, [type]: record })}
         >
@@ -400,7 +434,7 @@ export default function ShopLedgerDetailsView({
         <Button
           key="delete"
           variant="danger"
-          icon="fa-trash"
+          icon="trash-2"
           disabled={busy}
           onClick={() => (type === "market" ? deleteMarket(record) : deletePayment(record))}
         >
@@ -416,12 +450,12 @@ export default function ShopLedgerDetailsView({
     <div className="space-y-4">
       <PageHeader
         title={shop.Name}
-        subtitle={[shop.Address, shop.Mobile].filter(Boolean).join(" · ")}
-        icon="fa-store"
+        subtitle={<ShopContactLine shop={shop} className="min-w-0" />}
+        icon="store"
         onBack={onBack}
         right={
           canReport ? (
-            <Button size="sm" variant="secondary" icon="fa-file-invoice" onClick={onOpenReport}>
+            <Button size="sm" variant="secondary" icon="receipt-text" onClick={onOpenReport}>
               রিপোর্ট
             </Button>
           ) : (
@@ -432,7 +466,7 @@ export default function ShopLedgerDetailsView({
 
       {loadError ? (
         <div className="card-warning p-2.5 text-[11px] text-[var(--ah-warning)]">
-          <i className="fa-solid fa-triangle-exclamation me-1" />
+          <Icon name="triangle-alert" className="me-1" />
           {loadError} দেখানো তথ্য পুরোনো হতে পারে।
         </div>
       ) : null}
@@ -443,15 +477,13 @@ export default function ShopLedgerDetailsView({
             className="w-11 h-11 rounded-full flex items-center justify-center shrink-0"
             style={isActive ? toneStyle("info") : toneStyle("warning")}
           >
-            <i className="fa-solid fa-store text-base" />
+            <Icon name="store" className="text-base" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="font-bold text-sm text-ink truncate">{shop.Name}</div>
-            <div className="text-[10px] text-ink-3 mt-0.5 truncate">
-              {shop.Address}{shop.Mobile ? ` · ${shop.Mobile}` : ""}
-            </div>
+            <ShopContactLine shop={shop} className="mt-0.5 text-[10px] text-ink-3" />
             <div className="text-[10px] text-ink-3 mt-1">
-              <i className="fa-solid fa-wallet me-1" />
+              <Icon name="wallet" className="me-1" />
               {shop.WalletName || shop.WalletID} · {shop.Currency}
             </div>
           </div>
@@ -469,7 +501,7 @@ export default function ShopLedgerDetailsView({
         <div className={`grid gap-2 ${canAddMarket && canAddPayment ? "grid-cols-2" : ""}`}>
           {canAddMarket ? (
             <Button
-              icon="fa-basket-shopping"
+              icon="shopping-basket"
               disabled={!isActive || busy}
               onClick={() => setModal({ type: "market-form" })}
             >
@@ -479,7 +511,7 @@ export default function ShopLedgerDetailsView({
           {canAddPayment ? (
             <Button
               variant="secondary"
-              icon="fa-money-bill-wave"
+              icon="banknote"
               disabled={!isActive || outstanding <= 0 || busy}
               onClick={() => setModal({ type: "payment-form" })}
             >
@@ -493,8 +525,8 @@ export default function ShopLedgerDetailsView({
         value={tab}
         onChange={setTab}
         options={[
-          { value: "markets", label: `বাজার (${markets.length})`, icon: "fa-basket-shopping" },
-          { value: "payments", label: `পেমেন্ট (${payments.length})`, icon: "fa-money-bill-wave" },
+          { value: "markets", label: `বাজার (${markets.length})`, icon: "shopping-basket" },
+          { value: "payments", label: `পেমেন্ট (${payments.length})`, icon: "banknote" },
         ]}
       />
 
@@ -505,7 +537,7 @@ export default function ShopLedgerDetailsView({
           bodyClassName="p-4 pt-0 space-y-2"
         >
           {markets.length === 0 ? (
-            <EmptyState icon="fa-basket-shopping" title="কোনো বাজার নেই" text="প্রথম বাজারের রেকর্ড যোগ করুন।" />
+            <EmptyState icon="shopping-basket" title="কোনো বাজার নেই" text="প্রথম বাজারের রেকর্ড যোগ করুন।" />
           ) : markets.map((market) => (
             <MarketCard
               key={market.MarketID}
@@ -516,6 +548,7 @@ export default function ShopLedgerDetailsView({
               onView={() => setModal({ type: "market-detail", market })}
               onEdit={() => setModal({ type: "market-form", market })}
               onDelete={() => deleteMarket(market)}
+              userNames={userNames}
             />
           ))}
         </SectionCard>
@@ -526,7 +559,7 @@ export default function ShopLedgerDetailsView({
           bodyClassName="p-4 pt-0 space-y-2"
         >
           {payments.length === 0 ? (
-            <EmptyState icon="fa-money-bill-wave" title="কোনো পেমেন্ট নেই" text="দোকানে পেমেন্ট যোগ করে শুরু করুন।" />
+            <EmptyState icon="banknote" title="কোনো পেমেন্ট নেই" text="দোকানে পেমেন্ট যোগ করে শুরু করুন।" />
           ) : payments.map((payment) => (
             <PaymentCard
               key={payment.PaymentID}
@@ -537,6 +570,7 @@ export default function ShopLedgerDetailsView({
               onView={() => setModal({ type: "payment-detail", payment })}
               onEdit={() => setModal({ type: "payment-form", payment })}
               onDelete={() => deletePayment(payment)}
+              userNames={userNames}
             />
           ))}
         </SectionCard>

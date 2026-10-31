@@ -1,3 +1,4 @@
+import { Icon } from "./ui/Icon.jsx";
 import {
   useState,
   useEffect,
@@ -1120,7 +1121,7 @@ export default function App() {
               border: "1px solid rgba(255,255,255,.16)",
             }}
           >
-            <i className="fa-solid fa-wallet" />
+            <Icon name="wallet" />
           </span>
           <span className="min-w-0">
             <span
@@ -1161,15 +1162,7 @@ export default function App() {
               border: "1px solid rgba(255,255,255,.14)",
             }}
           >
-            <i
-              className={`fa-solid ${
-                themeMode === "system"
-                  ? "fa-circle-half-stroke"
-                  : resolvedTheme === "dark"
-                    ? "fa-moon"
-                    : "fa-sun"
-              }`}
-            />
+            <Icon name={themeMode === "system" ? "contrast" : resolvedTheme === "dark" ? "moon" : "sun"} />
           </button>
 
           <button
@@ -1220,7 +1213,7 @@ export default function App() {
             color: "var(--ah-brand-strong)",
           }}
         >
-          <i className="fa-solid fa-shield-halved" />
+          <Icon name="shield-half" />
           {currentUser.role}
         </span>
       </div>
@@ -1242,7 +1235,7 @@ export default function App() {
       >
         {pullRefreshing && (
           <div className="text-center py-2 text-xs text-[var(--ah-success)]">
-            <i className="fa-solid fa-arrows-rotate me-1 animate-spin"></i>{" "}
+            <Icon name="refresh-cw" className="me-1 animate-spin" />{" "}
             রিফ্রেশ হচ্ছে...
           </div>
         )}
@@ -1327,7 +1320,7 @@ export default function App() {
             {activeTab.indexOf("edit-") === 0 &&
               !can("MANAGE_TRANSACTIONS") && (
                 <div className="text-center py-16 px-4">
-                  <i className="fa-solid fa-lock text-3xl text-ink-3 dark:text-ink-2 mb-3"></i>
+                  <Icon name="lock" className="text-3xl text-ink-3 dark:text-ink-2 mb-3" />
                   <div className="text-sm font-semibold text-ink-2">
                     লেনদেন এডিট করার অনুমতি নেই
                   </div>
@@ -1446,7 +1439,7 @@ export default function App() {
               activeTab.indexOf("loan-details-") !== 0 &&
               activeTab.indexOf("loan-edit-") !== 0 && (
                 <div className="text-center py-16 px-4">
-                  <i className="fa-solid fa-hand-holding-dollar text-3xl text-ink-3 dark:text-ink-2 mb-3"></i>
+                  <Icon name="hand-coins" className="text-3xl text-ink-3 dark:text-ink-2 mb-3" />
                   <div className="text-sm font-semibold text-ink-2">
                     হাওলাত বিভাগ
                   </div>
@@ -1542,6 +1535,7 @@ export default function App() {
                     shopId={shopId}
                     can={can}
                     showAlert={showAlert}
+                    users={usersList}
                     initialTab={initialTab || "markets"}
                     initialAction={initialAction || ""}
                     onBack={() => setActiveTab("shop-ledger")}
@@ -1643,7 +1637,7 @@ export default function App() {
 
             {activeTab === "home" && !can("VIEW_DASHBOARD") && (
               <div className="text-center py-16 px-4">
-                <i className="fa-solid fa-lock text-3xl text-ink-3 dark:text-ink-2 mb-3"></i>
+                <Icon name="lock" className="text-3xl text-ink-3 dark:text-ink-2 mb-3" />
                 <div className="text-sm font-semibold text-ink-2">
                   ড্যাশবোর্ড দেখার অনুমতি নেই
                 </div>
@@ -1655,7 +1649,7 @@ export default function App() {
 
             {!currentUser.permissions?.length && activeTab === "home" && (
               <div className="text-center py-16 px-4">
-                <i className="fa-solid fa-lock text-3xl text-ink-3 dark:text-ink-2 mb-3"></i>
+                <Icon name="lock" className="text-3xl text-ink-3 dark:text-ink-2 mb-3" />
                 <div className="text-sm font-semibold text-ink-2">
                   এখনো কোনো অনুমতি দেওয়া হয়নি
                 </div>
@@ -1678,7 +1672,7 @@ export default function App() {
               title="Income (আয়)"
               className="fab fab-income pointer-events-auto"
             >
-              <i className="fa-solid fa-plus text-lg" />
+              <Icon name="plus" className="text-lg" />
             </button>
           )}
           {can("ADD_EXPENSE") && (
@@ -1688,7 +1682,7 @@ export default function App() {
               title="Expense (খরচ)"
               className="fab fab-expense pointer-events-auto"
             >
-              <i className="fa-solid fa-minus text-lg" />
+              <Icon name="minus" className="text-lg" />
             </button>
           )}
         </div>
@@ -1744,14 +1738,14 @@ export default function App() {
         }}
       >
         <NavItem
-          icon="fa-house"
+          icon="house"
           label="Home"
           active={activeTab === "home"}
           onClick={() => setActiveTab("home")}
         />
         {can("VIEW_TRANSACTIONS") && (
           <NavItem
-            icon="fa-list-check"
+            icon="list-checks"
             label="Txn"
             active={
               activeTab === "transactions" || activeTab.indexOf("edit-") === 0
@@ -1761,7 +1755,7 @@ export default function App() {
         )}
         {(can("TRANSFER_MONEY") || can("BANK_OPERATIONS")) && (
           <NavItem
-            icon="fa-right-left"
+            icon="arrow-left-right"
             label="Transfer"
             active={formModal === "transfer"}
             onClick={() => setFormModal("transfer")}
@@ -1769,7 +1763,7 @@ export default function App() {
         )}
         {canLoan && (
           <NavItem
-            icon="fa-hand-holding-dollar"
+            icon="hand-coins"
             label="Loan"
             active={activeTab === "loans"}
             onClick={() => setActiveTab("loans")}
@@ -1777,7 +1771,7 @@ export default function App() {
         )}
         {canSavings && (
           <NavItem
-            icon="fa-piggy-bank"
+            icon="piggy-bank"
             label="Savings"
             active={
               activeTab === "savings" || activeTab.indexOf("savings-details-") === 0
@@ -1787,7 +1781,7 @@ export default function App() {
         )}
         {canShopLedger && (
           <NavItem
-            icon="fa-store"
+            icon="store"
             label="বাকির খাতা"
             active={activeTab.indexOf("shop-ledger") === 0}
             onClick={() => setActiveTab("shop-ledger")}
@@ -1795,7 +1789,7 @@ export default function App() {
         )}
         {can("VIEW_REPORTS") && (
           <NavItem
-            icon="fa-chart-pie"
+            icon="chart-pie"
             label="Reports"
             active={activeTab === "reports"}
             onClick={() => setActiveTab("reports")}
@@ -1819,7 +1813,7 @@ function NavItem({ icon, label, active, onClick }) {
         className="w-9 h-7 rounded-lg flex items-center justify-center text-[15px] transition-colors"
         style={{ background: active ? "var(--ah-brand-soft)" : "transparent" }}
       >
-        <i className={`fa-solid ${icon}`} />
+        <Icon name={icon} />
       </span>
       <span className="text-[10px] font-semibold leading-none">{label}</span>
     </button>

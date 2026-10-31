@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api.js";
 import Popup from "../components/Popup.jsx";
@@ -20,9 +21,9 @@ import {
 } from "../ui/index.jsx";
 
 const TYPE_META = {
-  GROUP: { label: "গ্রুপ সঞ্চয় (কমিটি)", icon: "fa-people-group" },
-  FIXED: { label: "মেয়াদি সঞ্চয়", icon: "fa-calendar-check" },
-  FLEXIBLE: { label: "নমনীয় সঞ্চয়", icon: "fa-wallet" },
+  GROUP: { label: "গ্রুপ সঞ্চয় (কমিটি)", icon: "users-round" },
+  FIXED: { label: "মেয়াদি সঞ্চয়", icon: "calendar-check" },
+  FLEXIBLE: { label: "নমনীয় সঞ্চয়", icon: "wallet" },
 };
 
 const STATUS_TONE = {
@@ -316,7 +317,7 @@ export default function SavingsDetailsView({ planId, currentUser, wallets, can, 
   };
 
   const money = (n) => formatMoney(n || 0, currency);
-  const meta = TYPE_META[type] || { label: type, icon: "fa-piggy-bank" };
+  const meta = TYPE_META[type] || { label: type, icon: "piggy-bank" };
 
   return (
     <div className="space-y-4">
@@ -329,7 +330,7 @@ export default function SavingsDetailsView({ planId, currentUser, wallets, can, 
         }
         icon={meta.icon}
         onBack={onBack}
-        right={closed ? <Badge tone="neutral" icon="fa-lock">বন্ধ করা হয়েছে</Badge> : null}
+        right={closed ? <Badge tone="neutral" icon="lock">বন্ধ করা হয়েছে</Badge> : null}
       />
 
       {loading && !details ? (
@@ -403,12 +404,12 @@ function GroupSection({ plan, details, money, canManage, canTxn, canAddMember, c
 
       {canTxn && (
         <div className="grid grid-cols-2 gap-2">
-          <Button icon="fa-arrow-down" onClick={() => onOpenModal("contribution")}>
+          <Button icon="arrow-down" onClick={() => onOpenModal("contribution")}>
             কিস্তি জমা
           </Button>
           <Button
             variant="info"
-            icon="fa-arrow-up"
+            icon="arrow-up"
             disabled={openRounds.length === 0}
             onClick={() => onOpenModal("payout")}
           >
@@ -419,7 +420,7 @@ function GroupSection({ plan, details, money, canManage, canTxn, canAddMember, c
 
       {canManage && !closed && orderedMembers.length > 0 && !orderedMembers.some((m) => m.IsSelf) && (
         <div className="card card-warning p-2.5 flex items-start gap-2">
-          <i className="fa-solid fa-circle-info mt-0.5 text-warning" />
+          <Icon name="info" className="mt-0.5 text-warning" />
           <span className="text-[11px] text-ink-2">
             নিচের তালিকা থেকে একজন সদস্যকে <b>আমি</b> হিসেবে চিহ্নিত করুন। শুধু চিহ্নিত সদস্যের কিস্তি
             আপনার Wallet থেকে কাটবে এবং তার পেআউট Wallet-এ যোগ হবে।
@@ -438,14 +439,14 @@ function GroupSection({ plan, details, money, canManage, canTxn, canAddMember, c
               </Button>
             )}
             {canAddMember && (
-              <Button variant="ghost" size="sm" icon="fa-plus" onClick={() => onOpenModal("add-member")}>
+              <Button variant="ghost" size="sm" icon="plus" onClick={() => onOpenModal("add-member")}>
                 যোগ
               </Button>
             )}
           </div>
         </div>
         {orderedMembers.length === 0 ? (
-          <EmptyState icon="fa-user-group" title="কোনো সদস্য নেই" />
+          <EmptyState icon="users" title="কোনো সদস্য নেই" />
         ) : (
           <ul className="divide-y divide-[var(--ah-border)]">
             {orderedMembers.map((m, idx) => (
@@ -458,7 +459,7 @@ function GroupSection({ plan, details, money, canManage, canTxn, canAddMember, c
                     {m.MemberName}
                     {m.IsSelf && <Badge tone="info" className="ms-1.5">আমি</Badge>}
                     {alreadyReceived[String(m.MemberID)] && (
-                      <Badge tone="success" icon="fa-check" className="ms-1.5">
+                      <Badge tone="success" icon="check" className="ms-1.5">
                         গ্রহণ করেছেন
                       </Badge>
                     )}
@@ -478,27 +479,27 @@ function GroupSection({ plan, details, money, canManage, canTxn, canAddMember, c
                       আমি
                     </button>
                     <IconButton
-                      icon="fa-chevron-up"
+                      icon="chevron-up"
                       label="উপরে"
                       className="w-6 h-6"
                       onClick={() => onMoveOrder(idx, -1)}
                       disabled={idx === 0}
                     />
                     <IconButton
-                      icon="fa-chevron-down"
+                      icon="chevron-down"
                       label="নিচে"
                       className="w-6 h-6"
                       onClick={() => onMoveOrder(idx, 1)}
                       disabled={idx === orderedMembers.length - 1}
                     />
                     <IconButton
-                      icon="fa-pen"
+                      icon="pencil"
                       label="সদস্যের নাম সম্পাদনা"
                       className="w-6 h-6"
                       onClick={() => onOpenModal("edit-member", { memberId: m.MemberID, memberName: m.MemberName })}
                     />
                     <IconButton
-                      icon="fa-trash"
+                      icon="trash-2"
                       label="সদস্য মুছুন"
                       variant="danger"
                       className="w-6 h-6"
@@ -516,7 +517,7 @@ function GroupSection({ plan, details, money, canManage, canTxn, canAddMember, c
       <section className="card p-3">
         <h3 className="section-title mb-2">কিস্তি রেকর্ড ({obligations.length})</h3>
         {obligations.length === 0 ? (
-          <EmptyState icon="fa-clipboard-list" title="এখনো কোনো কিস্তি জমা হয়নি" />
+          <EmptyState icon="clipboard-list" title="এখনো কোনো কিস্তি জমা হয়নি" />
         ) : (
           <div className="space-y-1.5">
             {[...obligations].sort((a, b) => (Number(a.Round) - Number(b.Round)) || String(a.MemberID).localeCompare(String(b.MemberID))).map((o) => (
@@ -540,7 +541,7 @@ function GroupSection({ plan, details, money, canManage, canTxn, canAddMember, c
       <section className="card p-3">
         <h3 className="section-title mb-2">রাউন্ড ({rounds.length})</h3>
         {rounds.length === 0 ? (
-          <EmptyState icon="fa-arrows-rotate" title="এখনো কোনো রাউন্ড শুরু হয়নি" />
+          <EmptyState icon="refresh-cw" title="এখনো কোনো রাউন্ড শুরু হয়নি" />
         ) : (
           <div className="space-y-1.5">
             {[...rounds].sort((a, b) => Number(a.Round) - Number(b.Round)).map((r) => (
@@ -597,14 +598,14 @@ function FixedSection({ plan, details, money, canManage, canTxn, closed, onGener
         <div className="grid grid-cols-2 gap-2">
           {installments.length === 0 && canManage && (
             <div className="col-span-2">
-              <Button block icon="fa-list-check" onClick={onGenerate}>
+              <Button block icon="list-checks" onClick={onGenerate}>
                 কিস্তি তৈরি করুন
               </Button>
             </div>
           )}
           {installments.length > 0 && canManage && (
             <div className="col-span-2">
-              <Button block variant="secondary" icon="fa-lock" onClick={() => onOpenModal("close-fixed")}>
+              <Button block variant="secondary" icon="lock" onClick={() => onOpenModal("close-fixed")}>
                 পরিকল্পনা বন্ধ করুন
               </Button>
             </div>
@@ -615,7 +616,7 @@ function FixedSection({ plan, details, money, canManage, canTxn, closed, onGener
       <section className="card p-3">
         <h3 className="section-title mb-2">কিস্তি ({installments.length})</h3>
         {installments.length === 0 ? (
-          <EmptyState icon="fa-list-check" title="কোনো কিস্তি তৈরি হয়নি" />
+          <EmptyState icon="list-checks" title="কোনো কিস্তি তৈরি হয়নি" />
         ) : (
           <div className="space-y-1.5">
             {[...installments].sort((a, b) => Number(a.InstallmentNo) - Number(b.InstallmentNo)).map((it) => {
@@ -666,17 +667,17 @@ function FlexSection({ plan, details, money, canTxn, canManage, canManageTxn, cl
 
       {canTxn && (
         <div className="grid grid-cols-2 gap-2">
-          <Button icon="fa-arrow-down" onClick={() => onOpenModal("deposit")}>
+          <Button icon="arrow-down" onClick={() => onOpenModal("deposit")}>
             জমা দিন
           </Button>
-          <Button variant="warning" icon="fa-arrow-up" onClick={() => onOpenModal("withdraw")}>
+          <Button variant="warning" icon="arrow-up" onClick={() => onOpenModal("withdraw")}>
             উত্তোলন
           </Button>
         </div>
       )}
 
       {canManage && !closed && (
-        <Button block variant="danger" icon="fa-lock" onClick={() => onOpenModal("close-flex")}>
+        <Button block variant="danger" icon="lock" onClick={() => onOpenModal("close-flex")}>
           সঞ্চয় বন্ধ করুন
         </Button>
       )}
@@ -684,7 +685,7 @@ function FlexSection({ plan, details, money, canTxn, canManage, canManageTxn, cl
       <section className="card p-3">
         <h3 className="section-title mb-2">লেনদেন ({txns.length})</h3>
         {txns.length === 0 ? (
-          <EmptyState icon="fa-receipt" title="কোনো লেনদেন নেই" />
+          <EmptyState icon="receipt" title="কোনো লেনদেন নেই" />
         ) : (
           <div className="space-y-1.5">
             {txns.map((t) => (
@@ -697,7 +698,7 @@ function FlexSection({ plan, details, money, canTxn, canManage, canManageTxn, cl
                         : "bg-[var(--ah-warning-soft)] text-[var(--ah-warning)]"
                     }`}
                   >
-                    <i className={`fa-solid ${t._kind === "deposit" ? "fa-arrow-down" : "fa-arrow-up"} text-[9px]`} />
+                    <Icon name={t._kind === "deposit" ? "arrow-down" : "arrow-up"} className="text-[9px]" />
                   </span>
                   <div className="min-w-0">
                     <div className="font-semibold text-ink">{t._kind === "deposit" ? "জমা" : "উত্তোলন"}</div>
@@ -717,7 +718,7 @@ function FlexSection({ plan, details, money, canTxn, canManage, canManageTxn, cl
                   </span>
                   {canManageTxn && !closed && (
                     <IconButton
-                      icon="fa-trash"
+                      icon="trash-2"
                       label="লেনদেন মুছুন"
                       variant="danger"
                       className="w-6 h-6"
@@ -883,7 +884,7 @@ function ModalPopup({ modal, form, set, busy, currency, walletId, plan, members,
           <Button variant="secondary" className="flex-1" onClick={onClose} disabled={busy}>
             বাতিল
           </Button>
-          <Button className="flex-1" onClick={onSubmit} disabled={busy} icon={busy ? "fa-spinner fa-spin" : null}>
+          <Button className="flex-1" onClick={onSubmit} disabled={busy} icon={busy ? "loader-circle animate-spin" : null}>
             নিশ্চিত করুন
           </Button>
         </div>

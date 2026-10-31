@@ -1,3 +1,4 @@
+import { Icon } from "../ui/Icon.jsx";
 import { useState } from "react";
 import Popup from "./Popup.jsx";
 import { DetailCell } from "./FormField.jsx";
@@ -8,26 +9,26 @@ import { MASK, useBalanceReveal } from "../utils/balanceReveal.jsx";
 // Each transaction type gets a colour tone + icon. The tone drives both the
 // icon tile and the small badge, so a row always reads the same way.
 const TYPE_BADGES = {
-  Income: { tone: "success", icon: "fa-sack-dollar", label: "Income" },
-  Expense: { tone: "danger", icon: "fa-cart-shopping", label: "Expense" },
-  "Transfer In": { tone: "info", icon: "fa-arrow-right-to-bracket", label: "Transfer In" },
-  "Transfer Out": { tone: "warning", icon: "fa-arrow-right-from-bracket", label: "Transfer Out" },
-  "Loan In": { tone: "success", icon: "fa-hand-holding-dollar", label: "Loan In" },
-  "Loan Repaid": { tone: "success", icon: "fa-money-bill-transfer", label: "Loan Repaid" },
-  "Loan Out": { tone: "danger", icon: "fa-hand-holding-dollar", label: "Loan Out" },
-  "Loan Payment": { tone: "danger", icon: "fa-money-bill-transfer", label: "Loan Payment" },
-  "Savings Deposit": { tone: "brand", icon: "fa-piggy-bank", label: "Savings Deposit" },
-  "Savings Withdrawal": { tone: "success", icon: "fa-piggy-bank", label: "Savings Withdrawal" },
-  "Savings Contribution": { tone: "brand", icon: "fa-piggy-bank", label: "Savings Contribution" },
-  "Savings Payout": { tone: "success", icon: "fa-piggy-bank", label: "Savings Payout" },
-  "Savings Payment": { tone: "brand", icon: "fa-piggy-bank", label: "Savings Payment" },
-  Transfer: { tone: "neutral", icon: "fa-right-left", label: "Transfer" },
-  Deposit: { tone: "success", icon: "fa-building-columns", label: "Deposit" },
-  Withdraw: { tone: "danger", icon: "fa-building-columns", label: "Withdraw" },
-  "Bank Deposit": { tone: "success", icon: "fa-building-columns", label: "Bank Deposit" },
-  "Bank Withdraw": { tone: "danger", icon: "fa-building-columns", label: "Bank Withdraw" },
-  "Shop Credit Payment": { tone: "danger", icon: "fa-store", label: "Shop Credit Payment" },
-  "Shop Credit Payment Reversal": { tone: "success", icon: "fa-store", label: "Shop Credit Reversal" },
+  Income: { tone: "success", icon: "badge-dollar-sign", label: "Income" },
+  Expense: { tone: "danger", icon: "shopping-cart", label: "Expense" },
+  "Transfer In": { tone: "info", icon: "log-in", label: "Transfer In" },
+  "Transfer Out": { tone: "warning", icon: "log-out", label: "Transfer Out" },
+  "Loan In": { tone: "success", icon: "hand-coins", label: "Loan In" },
+  "Loan Repaid": { tone: "success", icon: "arrow-left-right", label: "Loan Repaid" },
+  "Loan Out": { tone: "danger", icon: "hand-coins", label: "Loan Out" },
+  "Loan Payment": { tone: "danger", icon: "arrow-left-right", label: "Loan Payment" },
+  "Savings Deposit": { tone: "brand", icon: "piggy-bank", label: "Savings Deposit" },
+  "Savings Withdrawal": { tone: "success", icon: "piggy-bank", label: "Savings Withdrawal" },
+  "Savings Contribution": { tone: "brand", icon: "piggy-bank", label: "Savings Contribution" },
+  "Savings Payout": { tone: "success", icon: "piggy-bank", label: "Savings Payout" },
+  "Savings Payment": { tone: "brand", icon: "piggy-bank", label: "Savings Payment" },
+  Transfer: { tone: "neutral", icon: "arrow-left-right", label: "Transfer" },
+  Deposit: { tone: "success", icon: "landmark", label: "Deposit" },
+  Withdraw: { tone: "danger", icon: "landmark", label: "Withdraw" },
+  "Bank Deposit": { tone: "success", icon: "landmark", label: "Bank Deposit" },
+  "Bank Withdraw": { tone: "danger", icon: "landmark", label: "Bank Withdraw" },
+  "Shop Credit Payment": { tone: "danger", icon: "store", label: "Shop Credit Payment" },
+  "Shop Credit Payment Reversal": { tone: "success", icon: "store", label: "Shop Credit Reversal" },
 };
 
 // Bank operation rows are real Transfer In/Out PAIRS with a "Bank Operation"
@@ -96,7 +97,7 @@ export default function TransactionCard({ t, balanceAfter, userMap, canEdit, can
           className="w-10 h-10 rounded-xl flex items-center justify-center text-sm shrink-0"
           style={tile}
         >
-          <i className={`fa-solid ${badge.icon}`} />
+          <Icon name={badge.icon} />
         </div>
         <div className="min-w-0">
           <div className="font-bold text-xs text-ink flex items-center gap-1.5">
@@ -116,7 +117,7 @@ export default function TransactionCard({ t, balanceAfter, userMap, canEdit, can
               : (t.WalletName ? t.WalletName + " • " : "") + (t.Account ? accountName(t.WalletID, t.Account) : "")}
           </div>
           <div className="text-[10px] text-ink-3 mt-0.5">
-            {userMap ? <><i className="fa-solid fa-user me-1" />{userMap[t.User] || t.User || "Unknown"} • </> : null}
+            {userMap ? <><Icon name="user" className="me-1" />{userMap[t.User] || t.User || "Unknown"} • </> : null}
             {t.Date}
           </div>
         </div>
@@ -148,7 +149,7 @@ export default function TransactionCard({ t, balanceAfter, userMap, canEdit, can
             className="w-10 h-10 rounded-xl flex items-center justify-center text-sm shrink-0"
             style={tile}
           >
-            <i className={`fa-solid ${badge.icon}`} />
+            <Icon name={badge.icon} />
           </div>
           <div className="min-w-0 flex-1">
             <div className="font-bold text-sm text-ink truncate">{t.SourceCategory || t.Description || "Transaction"}</div>
@@ -191,12 +192,12 @@ export default function TransactionCard({ t, balanceAfter, userMap, canEdit, can
           <div className="grid grid-cols-2 gap-2">
             {canEditThis && (
               <button onClick={() => { setDetailsOpen(false); onEdit(t); }} className="btn btn-secondary">
-                <i className="fa-solid fa-pen" /> Edit
+                <Icon name="pencil" /> Edit
               </button>
             )}
             {canDeleteThis && (
               <button onClick={() => { setDetailsOpen(false); onDelete(t.ID, t.WalletID); }} className="btn btn-danger">
-                <i className="fa-solid fa-trash-can" /> Delete
+                <Icon name="trash-2" /> Delete
               </button>
             )}
           </div>
@@ -215,7 +216,7 @@ function BalanceVisibilityButton({ revealed, secondsLeft, onToggle }) {
       title={revealed ? `Hide balance (${secondsLeft}s)` : "Show balance"}
       aria-label={revealed ? "Hide balance" : "Show balance"}
     >
-      <i className={`fa-solid ${revealed ? "fa-eye-slash" : "fa-eye"} text-[9px]`} />
+      <Icon name={revealed ? "eye-off" : "eye"} className="text-[9px]" />
     </button>
   );
 }

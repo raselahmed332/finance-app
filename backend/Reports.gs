@@ -42,6 +42,47 @@ function dateRangeForPeriod_(period, periodValue) {
   return { start: start, end: end };
 }
 
+// Shop market purchases are recorded in ShopMarkets, not as wallet transactions,
+// so a normal expense report would silently omit them. Project the active markets
+// of every shop linked to this wallet into report-only Expense rows. They carry
+// no Account, so they never touch account balances or account-filtered totals;
+// they are counted once as an expense when the report covers "All" accounts.
+function shopLedgerReportExpenseRows_(walletId, range, currency) {
+  var sheets = shopLedgerSheets_();
+  var walletKey = String(walletId);
+  var shops = {};
+  shopLedgerRows_(sheets.shops, SHOP_LEDGER_HEADERS).forEach(function (shop) {
+    if (String(shop.WalletID) !== walletKey) return;
+    shops[String(shop.ShopID)] = shop;
+  });
+  if (!Object.keys(shops).length) return [];
+  var rows = [];
+  shopLedgerRows_(sheets.markets, SHOP_MARKET_HEADERS).forEach(function (market) {
+    if (market.Status !== SHOP_LEDGER_ACTIVE) return;
+    var shop = shops[String(market.ShopID)];
+    if (!shop) return;
+    var date = String(market.Date || "");
+    if (date < range.start || date > range.end) return;
+    rows.push({
+      ID: market.MarketID,
+      Date: date,
+      Type: "Expense",
+      Currency: currency,
+      Account: "",
+      SourceCategory: "Shop Credit",
+      WhereVendor: shop.Name,
+      Description: "Shop credit purchase: " + shop.Name,
+      Amount: amountOf_(centsOf_(market.Total)),
+      Note: "",
+      User: market.CreatedBy,
+      ShopID: shop.ShopID,
+      MarketID: market.MarketID,
+      ShopMarket: true,
+    });
+  });
+  return rows;
+}
+
 function getReport(username, walletId, period, periodValue) {
   setupDatabase();
   var permErr = authorize_(username, "VIEW_REPORTS", [walletId]);
@@ -52,6 +93,7 @@ function getReport(username, walletId, period, periodValue) {
   var range = dateRangeForPeriod_(period || "monthly", periodValue);
   var all = readWalletTransactions_(resolved.sheet, resolved.wallet)
     .filter(function (t) { return t.Date >= range.start && t.Date <= range.end; });
+  all = all.concat(shopLedgerReportExpenseRows_(walletId, range, resolved.wallet.Currency));
 
   // Every total, breakdown and net figure is accumulated in integer cents and
   // converted back once at the end: summing raw floats makes a period report
@@ -73,6 +115,9 @@ function getReport(username, walletId, period, periodValue) {
       var cat = t.SourceCategory || "Other";
       categoryCents[cat] = (categoryCents[cat] || 0) + amt;
     }
+    // Report-only shop market rows have no wallet account: skip them so the
+    // per-account movement breakdown never gains an empty "account" entry.
+    if (t.ShopMarket) return;
     if (t.Type === "Income" || t.Type === "Transfer In" || t.Type === "Loan In" || t.Type === "Loan Repaid" || t.Type === "Savings Withdrawal" || t.Type === "Savings Payout" || t.Type === "Shop Credit Payment Reversal") {
       accountCents[t.Account] = (accountCents[t.Account] || 0) + amt;
     }
